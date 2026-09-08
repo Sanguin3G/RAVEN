@@ -1,0 +1,8 @@
+services:
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: raven-crawl4ai
+    ports:
+      - "11235:11235"
+    shm_size: 1gb
+    restart: unless-stopped
