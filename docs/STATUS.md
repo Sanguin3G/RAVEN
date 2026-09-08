@@ -15,7 +15,7 @@ Next:
 - Implement the first deterministic research vertical slice, beginning with provider contracts and Brave search.
 
 Blocked:
-- Provider credentials and implementations are not configured; Crawl4AI's first image pull must finish before its live availability can be verified.
+- Provider credentials and implementations are not configured. Crawl4AI Local is running and reachable; it is not yet wired as a crawling provider.
 
 ## Person B
 
@@ -47,7 +47,7 @@ Blocked:
 | Search | Exa | Not started |
 | Search | Crawl4AI Cloud | Not started |
 | Search | Firecrawl | Not started |
-| Crawl | Crawl4AI Local | Docker and availability probe implemented; live image verification pending initial pull |
+| Crawl | Crawl4AI Local | Docker and availability probe implemented and verified against local image 0.9.3 |
 | Crawl | Crawl4AI Cloud | Not started |
 | Crawl | Firecrawl | Not started |
 | Fast AI | Gemini Flash-Lite | Not started |
