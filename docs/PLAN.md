@@ -19,6 +19,8 @@ Person A primarily delivers ASP.NET and SQLite foundation, Brave search, Crawl4A
 
 **Exit condition:** a real company can be researched end-to-end and shown in React with supporting sources.
 
+**Current M1 foundation:** Company identity creation, listing, and retrieval now persist in SQLite, and the React company flow can consume that API. Crawl4AI Local has Docker and availability-check foundations only; Brave, crawling, Gemini, source persistence, and profile generation remain work for the rest of M1.
+
 ## M2 — Company Knowledge
 
 **Target: approximately Day 11**

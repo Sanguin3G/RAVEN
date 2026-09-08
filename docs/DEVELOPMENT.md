@@ -1,7 +1,7 @@
 # RAVEN Development
 ## Requirements
 
-Install the .NET 10 SDK, Node.js, Docker Desktop, and Git. Provider credentials are needed only after their adapters are implemented.
+Install the .NET 10 SDK, Node.js, Docker Engine (Docker Desktop or a WSL distribution), and Git. Provider credentials are needed only after their adapters are implemented.
 
 ## Local startup
 
@@ -25,17 +25,17 @@ npm install
 npm run dev
 ~~~
 
-The frontend development server uses port 5173. The API uses the ASP.NET-selected local URL and currently exposes GET /api and GET /health.
+The frontend development server uses port 5173. The API listens on `http://localhost:5180` in development and exposes Company endpoints, `GET /health`, `GET /api/system/crawler-status`, and OpenAPI at `/openapi/v1.json`.
 
 ## Configuration and secrets
 
 .env.example lists planned provider variable names: BRAVE_SEARCH_API_KEY, EXA_API_KEY, CRAWL4AI_CLOUD_API_KEY, FIRECRAWL_API_KEY, GEMINI_API_KEY, OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, OPENAI_COMPATIBLE_MODEL, RAVEN_CONNECTION_STRING, and CRAWL4AI_LOCAL_BASE_URL.
 
-Never commit a populated .env. At present, no provider adapters or .env loading mechanism exist, so these values are placeholders rather than active configuration. The API currently reads its SQLite connection string from appsettings.json or the standard ASP.NET Core ConnectionStrings__Raven environment variable.
+Never commit a populated .env. RAVEN does not currently load .env files, so the provider values remain placeholders. The API reads its SQLite connection string from appsettings.json or the standard ASP.NET Core ConnectionStrings__Raven environment variable. Crawl4AI Local settings are configured in appsettings.json; the current probe only reports whether its health endpoint is reachable.
 
 ## Docker
 
-docker-compose.yml starts Crawl4AI Local as unclecode/crawl4ai:latest, publishing port 11235. Inspect it with:
+docker-compose.yml starts Crawl4AI Local as unclecode/crawl4ai:latest, binding port 11235 to localhost only. Current Crawl4AI images require `CRAWL4AI_API_TOKEN` to listen beyond the container loopback interface; Compose supplies a development-only default so the Day 1 health probe works. Before authenticated crawl endpoints are added, set a distinct value in the untracked root `.env` file and make the backend send it as a bearer token. Inspect the container with:
 
 ~~~powershell
 docker compose logs crawl4ai
@@ -45,15 +45,23 @@ Do not silently substitute a cloud crawler when the local service fails. Future 
 
 ## Database
 
-SQLite is the current database. Running the API calls EF Core EnsureCreatedAsync; there are no EF migrations yet. With the documented backend startup command, the default database file is backend/raven.db. When migrations are introduced, document their exact commands here and treat EF models/migrations as the detailed schema authority.
+SQLite is the current database. API startup applies EF Core migrations. With the documented backend startup command, the default database file is backend/src/Raven.Api/raven.db. Create and apply migrations from backend with:
+
+~~~powershell
+dotnet ef migrations add <MigrationName> --project src/Raven.Api --startup-project src/Raven.Api
+dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Api
+~~~
+
+EF models and migrations are the detailed schema authority.
 
 ## Tests and checks
 
-No backend or frontend test project is registered yet. Current useful checks are:
+A backend integration-test project is registered. Current checks are:
 
 ~~~powershell
 # from backend
 dotnet build Raven.sln
+dotnet test Raven.sln
 
 # from frontend
 npm run build
