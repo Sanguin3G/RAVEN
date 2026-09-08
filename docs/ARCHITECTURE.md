@@ -1,7 +1,7 @@
 # RAVEN Architecture
 ## Current implementation boundary
 
-The repository currently contains a foundation only: an ASP.NET Core API with SQLite initialization and a Company entity, a React/Vite shell with placeholder routes, and Docker Compose for Crawl4AI Local. The flows and adapters below are intended architecture, not a claim that they are implemented. See [STATUS.md](STATUS.md) for the live inventory.
+The repository currently contains the Day 1 foundation: an ASP.NET Core API with migrated SQLite persistence, Company create/list/get endpoints, development CORS, and a timeout-bounded Crawl4AI Local availability probe. It also contains the React/Vite company-flow UI and Docker Compose for Crawl4AI Local. Research workflows and provider adapters remain intended architecture rather than implemented functionality. See [STATUS.md](STATUS.md) for the live inventory.
 
 ## Technology stack
 
@@ -100,3 +100,4 @@ A successful refresh creates a new profile version rather than overwriting histo
 - Fast Research is deterministic; Agent Framework is primarily for Deep Research.
 - Internal RAG is consulted before external Deep Research where appropriate.
 - MCP extends agent capabilities; it does not replace ordinary provider APIs.
+- Crawl4AI availability is checked on demand; its absence must not prevent API startup.

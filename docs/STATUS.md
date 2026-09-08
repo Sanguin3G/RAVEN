@@ -4,37 +4,39 @@ Current milestone: M1 — Core Research
 
 ## Current Goal
 
-Turn the existing runnable foundation into the first evidence-backed Company → Brave → Crawl4AI Local → Gemini → Profile vertical slice. No provider integration or research workflow is currently implemented.
+Turn the Day 1 Company and Crawl4AI foundation into the first evidence-backed Company → Brave → Crawl4AI Local → Gemini → Profile vertical slice. No search, crawling, AI, source-persistence, or research workflow is implemented yet.
 
 ## Person A
 
 Now:
-- No active issue recorded in the repository.
+- Day 1 backend foundation is implemented: SQLite migration, Company API, CORS, backend integration tests, and a resilient Crawl4AI Local status probe.
 
 Next:
-- Establish Company API, migrations, and provider/research contracts.
+- Implement the first deterministic research vertical slice, beginning with provider contracts and Brave search.
 
 Blocked:
-- Provider credentials and provider implementations are not configured.
+- Provider credentials and implementations are not configured; Crawl4AI's first image pull must finish before its live availability can be verified.
 
 ## Person B
 
 Now:
-- No active issue recorded in the repository.
+- Company creation, list, and detail UI is implemented on `main` and targets the Day 1 Company API contract.
 
 Next:
-- Replace scaffolded Company routes with the create/list and research-flow UI once API contracts exist.
+- Integrate against the merged backend and add research progress/profile display as the API grows.
 
 Blocked:
-- Product API contracts are not yet implemented.
+- No current API-contract blocker.
 
 ## Integrated
 
 - [x] Repository root, environment template, and Crawl4AI Local Docker Compose service
-- [x] ASP.NET Core API startup with SQLite initialization, CORS, GET /api, and GET /health
-- [x] Initial EF Core Company entity and RavenDbContext
-- [x] React, TypeScript, and Vite shell with placeholder routes
-- [ ] Company CRUD API and UI
+- [x] ASP.NET Core API startup with migrations, development CORS, GET /api, and GET /health
+- [x] SQLite Company entity, `InitialCreate` migration, and database-on-startup migration application
+- [x] Company API: `POST /api/companies`, `GET /api/companies`, and `GET /api/companies/{id}`
+- [x] Backend API integration tests for creation, listing, retrieval, validation, and not-found behavior
+- [x] React company creation, list, and detail flow
+- [x] Crawl4AI Local availability probe at `GET /api/system/crawler-status`; Docker setup uses localhost-only port exposure
 - [ ] Search, crawl, AI, research, RAG, Deep Research, and tracking workflows
 
 ## Provider Status
@@ -45,7 +47,7 @@ Blocked:
 | Search | Exa | Not started |
 | Search | Crawl4AI Cloud | Not started |
 | Search | Firecrawl | Not started |
-| Crawl | Crawl4AI Local | In progress |
+| Crawl | Crawl4AI Local | Docker and availability probe implemented; live image verification pending initial pull |
 | Crawl | Crawl4AI Cloud | Not started |
 | Crawl | Firecrawl | Not started |
 | Fast AI | Gemini Flash-Lite | Not started |
@@ -55,11 +57,12 @@ Blocked:
 
 ## Blockers / Decisions
 
-- Packages have not been restored in this checkout; no runtime or build verification was recorded during foundation setup.
-- Crawl4AI Local is defined in Docker Compose, but no crawler-provider integration has been implemented.
-- The repository defines provider-key placeholders in .env.example, but no provider adapter or credential loading path is implemented yet.
+- `dotnet build Raven.sln` and `dotnet test Raven.sln` pass locally (4 backend integration tests).
+- Crawl4AI Local is not yet a crawler provider; the current endpoint only checks service availability and handles a stopped service without failing API startup.
+- The repository defines provider-key placeholders in `.env.example`, but no search, crawler, or AI provider adapter exists yet.
+- Current Crawl4AI images need `CRAWL4AI_API_TOKEN` to accept host traffic. Compose supplies a development-only default and binds port 11235 to localhost.
 - Keep external calls mockable and record requested versus actual provider whenever provider work begins.
 
 ## Next Integration Point
 
-Agree the Company DTO/API contract and implement the narrow foundation needed for the M1 vertical slice. Detailed tasks belong in GitHub Issues.
+Implement provider contracts and the Brave → Crawl4AI Local → source-persistence path. Preserve the established Company DTO contract unless frontend and backend coordinate a change. Detailed tasks belong in GitHub Issues.

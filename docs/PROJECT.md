@@ -39,6 +39,10 @@ Research timestamp
 
 Unknown information remains unknown. AI must not invent values merely to complete a schema.
 
+## Current foundation
+
+The implemented foundation supports persistent Company identities through the API. It deliberately stores only stable identity fields (name, optional website, and optional country); generated profile and research fields remain deferred until the evidence-backed research flow is implemented.
+
 ## Main product features
 
 ### P0

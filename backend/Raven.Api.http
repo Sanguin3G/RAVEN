@@ -1,0 +1,20 @@
+@baseUrl = http://localhost:5180
+
+### List companies
+GET {{baseUrl}}/api/companies
+
+### Create company
+POST {{baseUrl}}/api/companies
+Content-Type: application/json
+
+{
+  "name": "FPT Software",
+  "website": "https://fptsoftware.com",
+  "country": "Vietnam"
+}
+
+### Get a missing company
+GET {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000
+
+### Check Crawl4AI Local
+GET {{baseUrl}}/api/system/crawler-status
