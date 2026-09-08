@@ -3,7 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "react": "latest",
@@ -12,8 +17,13 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "latest"
+    "jsdom": "^29.1.1",
+    "typescript": "latest",
+    "vitest": "^5.0.0"
   }
 }

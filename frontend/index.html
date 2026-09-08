@@ -1,2 +1,23 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>RAVEN</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#225fb3" />
+    <script>
+      (() => {
+        const stored = localStorage.getItem("raven-theme-preference");
+        const preference = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+        const resolved = preference === "system"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : preference;
+        document.documentElement.dataset.theme = resolved;
+      })();
+    </script>
+    <title>RAVEN — Company Intelligence</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
