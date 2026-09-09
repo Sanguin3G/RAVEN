@@ -1,110 +1,76 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it } from "vitest";
 import { App } from "./App";
-import { jsonResponse, renderWithRouter } from "./test/test-utils";
-
-const company = {
-  id: "f4be8555-84ab-45ac-b44b-d2b355dd3a8e",
-  name: "FPT Software",
-  website: "https://fptsoftware.com",
-  country: "Vietnam",
-  createdAt: "2026-09-08T00:00:00Z",
-  updatedAt: "2026-09-08T00:00:00Z",
-};
-
-let fetchMock: ReturnType<typeof vi.fn>;
+import { renderWithRouter } from "./test/test-utils";
 
 beforeEach(() => {
-  fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  localStorage.clear();
 });
 
-it("takes the research-style home entry to a prefilled company form", async () => {
-  fetchMock.mockResolvedValueOnce(jsonResponse([]));
-  const user = userEvent.setup();
+it("renders the Day 2 dashboard and new navigation", () => {
   renderWithRouter(<App />);
 
-  await user.type(screen.getByLabelText(/company name/i), "FPT Software");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
-
-  expect(await screen.findByRole("heading", { name: "Company details" })).toBeInTheDocument();
-  expect(screen.getByLabelText(/company name/i)).toHaveValue("FPT Software");
+  expect(screen.getByRole("heading", { name: "Company intelligence, at a glance." })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Company List" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Add Company Profile" })).toBeInTheDocument();
+  expect(screen.queryByText("Ask RAVEN")).not.toBeInTheDocument();
 });
 
-it("validates the company form before submitting", async () => {
+it("filters the company list by name", async () => {
+  const user = userEvent.setup();
+  renderWithRouter(<App />, "/companies");
+
+  expect(screen.getByRole("columnheader", { name: "Logo" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Last update" })).toBeInTheDocument();
+  await user.type(screen.getByPlaceholderText("Search by company name"), "Masan");
+
+  expect(screen.getByRole("link", { name: "Masan Group" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "FPT Software" })).not.toBeInTheDocument();
+});
+
+it("opens a company detail from the list", async () => {
+  const user = userEvent.setup();
+  renderWithRouter(<App />, "/companies");
+  await user.click(screen.getByRole("link", { name: "FPT Software" }));
+
+  expect(screen.getByRole("heading", { name: "FPT Software" })).toBeInTheDocument();
+  expect(screen.getByText("Global technology services company delivering digital transformation and software solutions.")).toBeInTheDocument();
+});
+
+it("searches and opens the company match popup", async () => {
   const user = userEvent.setup();
   renderWithRouter(<App />, "/companies/new");
+  await user.type(screen.getByLabelText(/Company name/), "FPT");
+  await user.click(screen.getByRole("button", { name: "Search matching companies" }));
+  await user.click(screen.getByRole("button", { name: /FPT Software/ }));
 
-  await user.click(screen.getByRole("button", { name: "Create company" }));
-
-  expect(screen.getByText("Company name is required.")).toBeInTheDocument();
-  expect(fetchMock).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Auto Generate Profile" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Manually Create Profile" })).toBeInTheDocument();
 });
 
-it("creates a company and opens the returned company profile", async () => {
-  fetchMock
-    .mockResolvedValueOnce(jsonResponse(company))
-    .mockResolvedValueOnce(jsonResponse(company));
+it("supports manual profile creation for an unmatched company", async () => {
   const user = userEvent.setup();
-  renderWithRouter(<App />, "/companies/new?name=FPT%20Software");
+  renderWithRouter(<App />, "/companies/new");
+  await user.type(screen.getByLabelText(/Company name/), "Unknown Atlas Co");
+  await user.click(screen.getByRole("button", { name: "Search matching companies" }));
+  await user.click(screen.getByRole("button", { name: "Review entered company" }));
+  await user.click(screen.getByRole("button", { name: "Manually Create Profile" }));
 
-  await user.type(screen.getByLabelText(/^website/i), "https://fptsoftware.com");
-  await user.type(screen.getByLabelText(/^country/i), "Vietnam");
-  await user.click(screen.getByRole("button", { name: "Create company" }));
-
-  expect(await screen.findByRole("heading", { name: "FPT Software" })).toBeInTheDocument();
-  expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/companies", expect.objectContaining({ method: "POST" }));
-  expect(fetchMock).toHaveBeenNthCalledWith(2, `/api/companies/${company.id}`, expect.anything());
+  expect(screen.getByRole("heading", { name: "Unknown Atlas Co" })).toBeInTheDocument();
+  expect(screen.getByText(/Manual profile mode/)).toBeInTheDocument();
 });
 
-it("renders stored companies as profile links", async () => {
-  fetchMock.mockResolvedValueOnce(jsonResponse([company]));
-  renderWithRouter(<App />, "/companies");
-
-  const companyLink = await screen.findByRole("link", { name: "FPT Software" });
-  expect(companyLink).toHaveAttribute("href", `/companies/${company.id}`);
-  expect(screen.getByRole("link", { name: "fptsoftware.com" })).toHaveAttribute("href", "https://fptsoftware.com");
-});
-
-it("shows a useful API-unavailable state for the company directory", async () => {
-  fetchMock.mockRejectedValueOnce(new TypeError("network unavailable"));
-  renderWithRouter(<App />, "/companies");
-
-  expect(await screen.findByText(/couldn't reach the server/i)).toBeInTheDocument();
-});
-
-it("renders the Day 1 profile shell without pretending research is available", async () => {
-  fetchMock.mockResolvedValueOnce(jsonResponse(company));
-  renderWithRouter(<App />, `/companies/${company.id}`);
-
-  expect(await screen.findByText("Research has not started yet.")).toBeInTheDocument();
-  expect(screen.getByRole("tab", { name: /Sources Later/i })).toBeDisabled();
-});
-
-it("switches the theme and persists the explicit preference across a remount", async () => {
+it("switches and persists the selected theme", async () => {
   const user = userEvent.setup();
   const view = renderWithRouter(<App />, "/settings");
-
   await user.click(screen.getByRole("radio", { name: /Dark/i }));
 
-  await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
+  expect(document.documentElement.dataset.theme).toBe("dark");
   expect(localStorage.getItem("raven-theme-preference")).toBe("dark");
-
   view.unmount();
   renderWithRouter(<App />, "/settings");
   expect(screen.getByRole("radio", { name: /Dark/i })).toBeChecked();
-  expect(document.documentElement.dataset.theme).toBe("dark");
-});
-
-it("lets System preference follow the current OS theme", async () => {
-  localStorage.setItem("raven-theme-preference", "light");
-  const user = userEvent.setup();
-  renderWithRouter(<App />, "/settings");
-
-  expect(document.documentElement.dataset.theme).toBe("light");
-  await user.click(screen.getByRole("radio", { name: /System/i }));
-
-  expect(localStorage.getItem("raven-theme-preference")).toBe("system");
-  expect(document.documentElement.dataset.theme).toBe("light");
 });

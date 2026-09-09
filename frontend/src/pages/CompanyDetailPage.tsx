@@ -1,96 +1,31 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { getCompany } from "../api/companies";
-import { ApiError, getApiErrorMessage } from "../api/client";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
-import { Tabs } from "../components/Tabs";
-import { displayValue, displayWebsite, getWebsiteUrl } from "../features/companies/companyPresentation";
-import type { Company } from "../types/company";
+import { getMockCompany } from "../data/mockCompanies";
 
-const profileTabs = [
-  { id: "overview", label: "Overview" },
-  { id: "sources", label: "Sources", suffix: "Later", disabled: true },
-  { id: "changes", label: "Changes", suffix: "Later", disabled: true },
-  { id: "ask", label: "Ask RAVEN", suffix: "Later", disabled: true },
-];
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(value));
+}
 
 export function CompanyDetailPage() {
   const { id } = useParams();
-  const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [error, setError] = useState("");
+  const [searchParams] = useSearchParams();
+  const company = id ? getMockCompany(id) : null;
 
-  useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      setNotFound(true);
-      return;
-    }
-
-    let current = true;
-    setLoading(true);
-    setCompany(null);
-    setError("");
-    setNotFound(false);
-
-    getCompany(id)
-      .then((result) => { if (current) setCompany(result); })
-      .catch((requestError: unknown) => {
-        if (!current) return;
-        if (requestError instanceof ApiError && requestError.status === 404) {
-          setNotFound(true);
-          return;
-        }
-        setError(getApiErrorMessage(requestError, "Could not load this company."));
-      })
-      .finally(() => { if (current) setLoading(false); });
-
-    return () => { current = false; };
-  }, [id]);
-
-  if (loading) return <p className="state-message">Loading company profile…</p>;
-
-  if (notFound) {
-    return (
-      <Panel className="narrow-page empty-state" title="Company not found" eyebrow="MISSING RECORD">
-        <p>RAVEN could not find that company record.</p>
-        <Link className="button button--secondary" to="/companies">Return to Companies</Link>
-      </Panel>
-    );
+  if (!company) {
+    return <Panel className="narrow-page empty-state" title="Company not found" eyebrow="MISSING RECORD"><p>RAVEN could not find that company record.</p><Link className="button button--secondary" to="/companies">Return to Company List</Link></Panel>;
   }
 
-  if (error) return <p className="state-message state-message--error" role="alert">{error}</p>;
-  if (!company) return null;
-
-  const websiteUrl = getWebsiteUrl(company.website);
+  const generated = searchParams.get("generated") === "true";
+  const manual = searchParams.get("manual") === "true";
   return (
-    <article className="company-profile">
-      <header className="company-profile__header">
-        <p className="eyebrow">COMPANY PROFILE</p>
-        <h1>{company.name}</h1>
-        <p className="company-profile__meta">
-          {displayValue(company.country)}
-          {websiteUrl ? <><span aria-hidden="true"> · </span><a href={websiteUrl} target="_blank" rel="noreferrer">{displayWebsite(company.website)}</a></> : null}
-        </p>
-      </header>
-
-      <Tabs items={profileTabs} activeId="overview" />
-
-      <Panel className="profile-overview" title="About" eyebrow="OVERVIEW">
-        <div className="research-empty-state">
-          <h3>Research has not started yet.</h3>
-          <p>RAVEN will eventually gather public sources and build a standardized Company Profile here.</p>
-        </div>
-        <div className="information-block">
-          <h3>Company information</h3>
-          <dl className="definition-list">
-            <div><dt>Name</dt><dd>{company.name}</dd></div>
-            <div><dt>Country</dt><dd>{displayValue(company.country)}</dd></div>
-            <div><dt>Website</dt><dd>{websiteUrl ? <a href={websiteUrl} target="_blank" rel="noreferrer">{displayWebsite(company.website)}</a> : "—"}</dd></div>
-          </dl>
-        </div>
-      </Panel>
-    </article>
+    <div className="page-stack company-detail-page">
+      <Link className="back-link" to="/companies">← Back to Company List</Link>
+      {generated ? <div className="success-banner" role="status"><strong>Profile generation started.</strong> RAVEN is using the matched public sources to build this profile.</div> : null}
+      {manual ? <div className="info-banner" role="status"><strong>Manual profile mode.</strong> Review the company details below and complete the fields with your own evidence.</div> : null}
+      <article className="company-detail-card">
+        <header className="company-detail-header"><div className="company-detail-heading"><span className="company-avatar company-avatar--large" aria-hidden="true">{company.logo}</span><div><p className="eyebrow">COMPANY PROFILE</p><h1>{company.name}</h1><p className="company-detail-subtitle">{company.industry} · {company.country}</p></div></div><span className={`status status--large status--${company.status?.toLowerCase().replaceAll(" ", "-")}`}>{company.status}</span></header>
+        <div className="company-detail-body"><Panel title="Company overview" eyebrow="PROFILE SUMMARY"><p className="company-summary">{company.summary}</p><div className="detail-grid"><div><span>Country</span><strong>{company.country}</strong></div><div><span>Industry</span><strong>{company.industry}</strong></div><div><span>Headquarters</span><strong>{company.headquarters}</strong></div><div><span>Company size</span><strong>{company.employees}</strong></div></div></Panel><Panel title="Identifiers &amp; sources" eyebrow="VERIFICATION"><dl className="definition-list"><div><dt>Website</dt><dd><a href={company.website ?? undefined} target="_blank" rel="noreferrer">{company.website}</a></dd></div><div><dt>LinkedIn</dt><dd><a href={company.linkedinUrl ?? undefined} target="_blank" rel="noreferrer">View company page ↗</a></dd></div><div><dt>Last updated</dt><dd>{formatDate(company.updatedAt)}</dd></div><div><dt>Profile status</dt><dd>{company.status}</dd></div></dl></Panel></div>
+      </article>
+    </div>
   );
 }

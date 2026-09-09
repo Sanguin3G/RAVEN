@@ -14,10 +14,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           </NavLink>
           <nav className="primary-nav" aria-label="Primary navigation">
-            <NavLink to="/companies">Companies</NavLink>
-            <NavLink to="/">Research</NavLink>
-            <span className="nav-placeholder" title="Available after research is implemented.">Changes <small>Later</small></span>
-            <span className="nav-placeholder" title="Available after research is implemented.">Ask RAVEN <small>Later</small></span>
+            <NavLink to="/">Dashboard</NavLink>
+            <NavLink to="/companies">Company List</NavLink>
+            <NavLink to="/companies/new">Add Company Profile</NavLink>
           </nav>
           <NavLink className="settings-link" to="/settings">Settings</NavLink>
         </div>
