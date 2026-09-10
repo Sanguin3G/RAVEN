@@ -39,21 +39,22 @@ Blocked:
 - [x] Backend API integration tests for creation, listing, retrieval, validation, and not-found behavior
 - [x] React company creation, list, and detail flow
 - [x] Crawl4AI Local availability probe at `GET /api/system/crawler-status`; Docker setup uses localhost-only port exposure
-- [ ] Search, crawl, AI, research, RAG, Deep Research, and tracking workflows
+- [x] Brave search, Crawl4AI acquisition, source persistence, staged research, source review, Gemini profile candidates, profile confirmation, and research-event logging
+- [ ] RAG, Ask RAVEN answers, Deep Research, MCP, Exa, Firecrawl, and scheduled tracking
 
 ## Provider Status
 
 | Capability | Provider | Status |
 | --- | --- | --- |
-| Search | Brave | Not started |
+| Search | Brave | Implemented; configured only when a server-side key is present |
 | Search | Exa | Not started |
 | Search | Crawl4AI Cloud | Not started |
 | Search | Firecrawl | Not started |
 | Crawl | Crawl4AI Local | Docker and availability probe implemented and verified against local image 0.9.3 |
 | Crawl | Crawl4AI Cloud | Not started |
 | Crawl | Firecrawl | Not started |
-| Fast AI | Gemini Flash-Lite | Not started |
-| Deep AI | Gemini Flash | Not started |
+| Fast AI | Gemini Flash-Lite | Implemented as a mockable structured-output adapter; live key not verified in this change |
+| Deep AI | Gemini Flash | Configuration only; Deep Research is not implemented |
 | MCP | Exa | Not started |
 | MCP | Firecrawl | Not started |
 
