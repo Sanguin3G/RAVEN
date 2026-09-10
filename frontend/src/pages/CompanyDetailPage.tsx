@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
+import { getCompanySources, getResearchRun, type ResearchRun, type SourceDocument } from "../api/research";
 import type { Company } from "../types/company";
 
 function formatDate(value: string) {
@@ -15,9 +16,17 @@ export function CompanyDetailPage() {
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [researchRun, setResearchRun] = useState<ResearchRun | null>(null);
+  const [sources, setSources] = useState<SourceDocument[]>([]);
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const researchRunId = searchParams.get("researchRun");
 
   useEffect(() => {
-    if (!id) { setLoading(false); return; }
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
     getCompany(id)
       .then((result) => { if (active) setCompany(result); })
@@ -26,23 +35,39 @@ export function CompanyDetailPage() {
     return () => { active = false; };
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !researchRunId) return;
+
+    let active = true;
+    Promise.all([getResearchRun(researchRunId), getCompanySources(id)])
+      .then(([run, acquiredSources]) => {
+        if (!active) return;
+        setResearchRun(run);
+        setSources(acquiredSources.filter((source) => source.researchRunId === run.id));
+      })
+      .catch((reason: unknown) => {
+        if (active) setResearchError(getApiErrorMessage(reason, "Could not load the research result."));
+      });
+    return () => { active = false; };
+  }, [id, researchRunId]);
+
   if (loading) return <Panel className="narrow-page empty-state" title="Loading company" eyebrow="RAVEN API"><p>Fetching this company from the backend.</p></Panel>;
 
   if (!company) {
     return <Panel className="narrow-page empty-state" title="Company not found" eyebrow="MISSING RECORD"><p>{error || "RAVEN could not find that company record."}</p><Link className="button button--secondary" to="/companies">Return to Company List</Link></Panel>;
   }
 
-  const generated = searchParams.get("generated") === "true";
-  const manual = searchParams.get("manual") === "true";
+  const researchStatus = researchRun?.status.toLowerCase();
   return (
     <div className="page-stack company-detail-page">
       <Link className="back-link" to="/companies">← Back to Company List</Link>
-      {generated ? <div className="success-banner" role="status"><strong>Profile generation started.</strong> RAVEN is using the matched public sources to build this profile.</div> : null}
-      {manual ? <div className="info-banner" role="status"><strong>Manual profile mode.</strong> Review the company details below and complete the fields with your own evidence.</div> : null}
+      {researchRun ? <div className={`success-banner research-banner research-banner--${researchStatus}`} role="status"><strong>Research {researchRun.status.toLowerCase()}.</strong> {researchRun.status === "Completed" ? `${researchRun.sourcesCrawled} public source${researchRun.sourcesCrawled === 1 ? " was" : "s were"} acquired.` : researchRun.error || "RAVEN is processing public sources."}</div> : null}
+      {researchError ? <div className="form-error" role="alert">{researchError}</div> : null}
       <article className="company-detail-card">
         <header className="company-detail-header"><div className="company-detail-heading"><span className="company-avatar company-avatar--large" aria-hidden="true">{company.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">COMPANY IDENTITY</p><h1>{company.name}</h1><p className="company-detail-subtitle">{company.country || "Country not provided"}</p></div></div></header>
-        <div className="company-detail-body"><Panel title="Company overview" eyebrow="STABLE IDENTITY"><div className="detail-grid"><div><span>Country</span><strong>{company.country || "Not provided"}</strong></div><div><span>Website</span><strong>{company.website || "Not provided"}</strong></div><div><span>Created</span><strong>{formatDate(company.createdAt)}</strong></div><div><span>Last updated</span><strong>{formatDate(company.updatedAt)}</strong></div></div></Panel><Panel title="Identifiers &amp; sources" eyebrow="VERIFICATION"><dl className="definition-list"><div><dt>Website</dt><dd>{company.website ? <a href={company.website} target="_blank" rel="noreferrer">{company.website} ↗</a> : "Not provided"}</dd></div><div><dt>Company ID</dt><dd>{company.id}</dd></div><div><dt>Last updated</dt><dd>{formatDate(company.updatedAt)}</dd></div></dl></Panel></div>
+        <div className="company-detail-body"><Panel title="Company overview" eyebrow="STABLE IDENTITY"><div className="detail-grid"><div><span>Country</span><strong>{company.country || "Not provided"}</strong></div><div><span>Website</span><strong>{company.website || "Not provided"}</strong></div><div><span>Created</span><strong>{formatDate(company.createdAt)}</strong></div><div><span>Last updated</span><strong>{formatDate(company.updatedAt)}</strong></div></div></Panel><Panel title="Identifiers" eyebrow="VERIFICATION"><dl className="definition-list"><div><dt>Website</dt><dd>{company.website ? <a href={company.website} target="_blank" rel="noreferrer">{company.website} ↗</a> : "Not provided"}</dd></div><div><dt>Company ID</dt><dd>{company.id}</dd></div><div><dt>Last updated</dt><dd>{formatDate(company.updatedAt)}</dd></div></dl></Panel></div>
       </article>
+      {researchRun ? <Panel title="Research evidence" eyebrow="BRAVE SEARCH → CRAWL4AI LOCAL"><dl className="definition-list"><div><dt>Status</dt><dd>{researchRun.status}</dd></div><div><dt>Sources found</dt><dd>{researchRun.sourcesFound}</dd></div><div><dt>Sources acquired</dt><dd>{researchRun.sourcesCrawled}</dd></div><div><dt>Search provider</dt><dd>{researchRun.actualSearchProvider || researchRun.requestedSearchProvider}</dd></div><div><dt>Crawler</dt><dd>{researchRun.actualCrawlerProvider || researchRun.requestedCrawlerProvider}</dd></div></dl>{sources.length ? <ul className="source-list">{sources.map((source) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a><small>{source.sourceDomain || source.crawlerProvider}</small><p>{source.contentPreview}</p></li>)}</ul> : <p className="state-message">No source documents were acquired for this research run.</p>}</Panel> : null}
     </div>
   );
 }
