@@ -1,0 +1,129 @@
+using Raven.Api.Features.Research.Sources;
+
+namespace Raven.Api.Tests;
+
+public sealed class SourceTaxonomyTests
+{
+    private readonly SourceClassifier _classifier = new();
+    private readonly SourceAuthorityPolicy _policy = new();
+
+    [Fact]
+    public void OfficialHost_IsClassifiedAsOfficialWebsite()
+    {
+        var result = _classifier.Classify(new(
+            "https://www.fpt-is.com/about-us",
+            "About FPT IS",
+            "Company overview",
+            "fpt-is.com"));
+
+        Assert.Equal(SourceKind.OfficialWebsite, result.SourceKind);
+        Assert.Equal("fpt-is.com", result.Domain);
+        Assert.Contains("official company domain", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void OfficialSubdomain_IsRecognizedAndOfficialDocumentsAreSeparated()
+    {
+        var result = _classifier.Classify(new(
+            "https://investor.example.com/reports/annual-report-2025.pdf",
+            "Annual Report 2025",
+            null,
+            "example.com"));
+
+        Assert.Equal(SourceKind.OfficialDocument, result.SourceKind);
+        Assert.Equal("investor.example.com", result.Domain);
+    }
+
+    [Fact]
+    public void TopCv_IsRecognizedByHost()
+    {
+        var result = _classifier.Classify(new(
+            "https://www.topcv.vn/cong-ty/fpt-is/123.html",
+            "FPT IS tuyển dụng",
+            "Quy mô công ty",
+            "fpt-is.com"));
+
+        Assert.Equal(SourceKind.TopCv, result.SourceKind);
+        Assert.Contains("TopCV", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void LinkedIn_IsSupportingSource()
+    {
+        var result = _classifier.Classify(new(
+            "https://www.linkedin.com/company/fpt-information-system/",
+            "FPT Information System",
+            null,
+            "fpt-is.com"));
+
+        Assert.Equal(SourceKind.LinkedIn, result.SourceKind);
+        Assert.Contains("supporting", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("https://masothue.com/0101248141", "Công ty FPT - Mã số thuế", SourceKind.BusinessRegistry)]
+    [InlineData("https://registry.example.org/company/fpt", "Company registration record", SourceKind.BusinessRegistry)]
+    public void RegistrySignals_AreClassifiedAsBusinessRegistry(string url, string title, SourceKind expected)
+    {
+        var result = _classifier.Classify(new(url, title, null));
+
+        Assert.Equal(expected, result.SourceKind);
+    }
+
+    [Theory]
+    [InlineData("https://vnexpress.net/fpt-mo-rong-hoat-dong-123.html", "FPT expands operations", SourceKind.News)]
+    [InlineData("https://example.org/article/fpt", "FPT company article", SourceKind.News)]
+    public void NewsSignals_AreClassifiedAsNews(string url, string title, SourceKind expected)
+    {
+        var result = _classifier.Classify(new(url, title, null));
+
+        Assert.Equal(expected, result.SourceKind);
+    }
+
+    [Fact]
+    public void UnknownValidDomain_FallsBackToExternalWebsite()
+    {
+        var result = _classifier.Classify(new(
+            "https://partner.example.org/customers/fpt",
+            "FPT customer story",
+            "",
+            "fpt-is.com"));
+
+        Assert.Equal(SourceKind.ExternalWebsite, result.SourceKind);
+        Assert.Contains("supporting company context", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MissingOrInvalidUrl_RemainsSearchResult()
+    {
+        var result = _classifier.Classify(new(null, "FPT result", "A discovery snippet"));
+
+        Assert.Equal(SourceKind.SearchResult, result.SourceKind);
+        Assert.Contains("discovery metadata", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AuthorityPolicy_PrefersRegistryForLegalIdentityAndAddress()
+    {
+        Assert.True(_policy.IsPreferred(SourceField.LegalIdentity, SourceKind.BusinessRegistry, SourceKind.OfficialWebsite));
+        Assert.True(_policy.IsPreferred(SourceField.RegisteredAddress, SourceKind.BusinessRegistry, SourceKind.TopCv));
+        Assert.True(_policy.Compare(SourceField.LegalIdentity, SourceKind.BusinessRegistry, SourceKind.SearchResult) > 0);
+    }
+
+    [Fact]
+    public void AuthorityPolicy_PrefersOfficialWebsiteForProductsAndLocations()
+    {
+        Assert.True(_policy.IsPreferred(SourceField.ProductsServices, SourceKind.OfficialWebsite, SourceKind.TopCv));
+        Assert.True(_policy.IsPreferred(SourceField.OperatingLocations, SourceKind.OfficialWebsite, SourceKind.LinkedIn));
+        Assert.True(_policy.IsPreferred(SourceField.ProductsServices, SourceKind.OfficialDocument, SourceKind.ExternalWebsite));
+    }
+
+    [Fact]
+    public void AuthorityPolicy_UsesFieldSpecificOrderingForEmployeeScaleAndLeadership()
+    {
+        Assert.True(_policy.IsPreferred(SourceField.EmployeeScale, SourceKind.OfficialDocument, SourceKind.OfficialWebsite));
+        Assert.True(_policy.IsPreferred(SourceField.EmployeeScale, SourceKind.TopCv, SourceKind.LinkedIn));
+        Assert.True(_policy.IsPreferred(SourceField.Leadership, SourceKind.OfficialWebsite, SourceKind.News));
+        Assert.True(_policy.IsPreferred(SourceField.Leadership, SourceKind.News, SourceKind.TopCv));
+    }
+}

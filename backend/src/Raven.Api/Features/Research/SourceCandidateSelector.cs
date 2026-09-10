@@ -16,8 +16,17 @@ public sealed record SourceCandidate(
 public sealed class SourceCandidateSelector(SourceUrlNormalizer urlNormalizer)
 {
     private const int MaximumCandidates = 5;
+    private const int MaximumDiscoveryCandidates = 50;
 
     public IReadOnlyList<SourceCandidate> Select(Company company, IEnumerable<SearchResult> searchResults)
+        => Discover(company, searchResults).Take(MaximumCandidates).ToArray();
+
+    /// <summary>
+    /// Normalizes, filters, de-duplicates, and ranks discovery results without
+    /// applying the small Day-2 acquisition limit. Research review uses this
+    /// bounded list so a person can choose among more than five candidates.
+    /// </summary>
+    public IReadOnlyList<SourceCandidate> Discover(Company company, IEnumerable<SearchResult> searchResults)
     {
         var officialHost = GetHost(company.Website);
         var candidates = new List<SourceCandidate>();
@@ -43,7 +52,7 @@ public sealed class SourceCandidateSelector(SourceUrlNormalizer urlNormalizer)
             .Select(group => group.OrderByDescending(candidate => candidate.Score).ThenBy(candidate => candidate.SearchRank).First())
             .OrderByDescending(candidate => candidate.Score)
             .ThenBy(candidate => candidate.SearchRank)
-            .Take(MaximumCandidates)
+            .Take(MaximumDiscoveryCandidates)
             .ToArray();
     }
 

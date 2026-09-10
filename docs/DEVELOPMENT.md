@@ -27,11 +27,15 @@ npm run dev
 
 The frontend development server uses port 5173. The API listens on `http://localhost:5180` in development and exposes Company endpoints, `POST /api/companies/{id}/research`, `GET /api/research-runs/{id}`, `GET /api/companies/{id}/sources`, `GET /api/sources/{id}`, `GET /health`, `GET /api/system/crawler-status`, and OpenAPI at `/openapi/v1.json`.
 
+## Day 3 endpoints
+
+In addition to the legacy research endpoint, use `POST /api/companies/{id}/research/discover`, `GET /api/research-runs/{id}/candidates`, `POST /api/research-runs/{id}/acquire`, `GET /api/research-runs/{id}/sources`, `POST /api/research-runs/{id}/profile/generate`, `POST /api/research-runs/{id}/profile/confirm`, and `GET /api/companies/{id}/profile`. `GET /api/system/provider-status` returns safe configured/available state only.
+
 ## Configuration and secrets
 
 .env.example lists planned provider variable names: BRAVE_SEARCH_API_KEY, EXA_API_KEY, CRAWL4AI_CLOUD_API_KEY, FIRECRAWL_API_KEY, GEMINI_API_KEY, OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, OPENAI_COMPATIBLE_MODEL, RAVEN_CONNECTION_STRING, CRAWL4AI_LOCAL_BASE_URL, and CRAWL4AI_API_TOKEN.
 
-Never commit a populated `.env`. RAVEN does not load `.env` files, so export provider values into the API process or use user secrets. The Brave adapter reads `BRAVE_SEARCH_API_KEY` (or `Providers__Brave__ApiKey`); Crawl4AI Local reads `CRAWL4AI_LOCAL_BASE_URL` and `CRAWL4AI_API_TOKEN` (or the `Crawl4AI__Local` configuration section). The API reads its SQLite connection string from appsettings.json or the standard ASP.NET Core `ConnectionStrings__Raven` environment variable.
+Never commit a populated `.env`. RAVEN does not load `.env` files, so export provider values into the API process or use user secrets. The Brave adapter reads `BRAVE_SEARCH_API_KEY` (or `Providers__Brave__ApiKey`); Crawl4AI Local reads `CRAWL4AI_LOCAL_BASE_URL` and `CRAWL4AI_API_TOKEN` (or the `Crawl4AI__Local` configuration section); Gemini reads `GEMINI_API_KEY` with optional `GEMINI_FAST_MODEL` and `GEMINI_DEEP_MODEL` overrides. The API reads its SQLite connection string from appsettings.json or the standard ASP.NET Core `ConnectionStrings__Raven` environment variable.
 
 ## Docker
 

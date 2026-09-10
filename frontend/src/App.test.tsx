@@ -24,7 +24,36 @@ const researchRun = {
   startedAt: "2026-09-10T00:00:00Z",
   completedAt: "2026-09-10T00:01:00Z",
   error: null,
+  stage: "AwaitingSourceSelection",
+  researchHint: null,
+  queriesTotal: 4,
+  queriesCompleted: 4,
+  uniqueCandidates: 2,
+  recommendedCandidates: 2,
+  crawlTotal: 0,
+  crawlCompleted: 0,
+  crawlSucceeded: 0,
+  crawlFailed: 0,
+  documentsAdded: 0,
+  duplicatesSkipped: 0,
 };
+
+const acquiredResearchRun = {
+  ...researchRun,
+  status: "Completed",
+  stage: "EvidenceReady",
+  sourcesSelected: 2,
+  sourcesCrawled: 2,
+  crawlTotal: 2,
+  crawlCompleted: 2,
+  crawlSucceeded: 2,
+  documentsAdded: 2,
+};
+
+const researchCandidates = [
+  { id: "66666666-6666-6666-6666-666666666666", researchRunId: researchRun.id, url: "https://fptsoftware.com/about", normalizedUrl: "https://fptsoftware.com/about", domain: "fptsoftware.com", title: "About FPT Software", snippet: null, sourceKind: "OfficialWebsite", recommendationReasons: ["Official domain"], recommended: true, selected: false, acquisitionStatus: "Pending", acquisitionError: null, iconUrl: null, discoveredAt: "2026-09-10T00:00:00Z" },
+  { id: "77777777-7777-7777-7777-777777777777", researchRunId: researchRun.id, url: "https://fptsoftware.com/services", normalizedUrl: "https://fptsoftware.com/services", domain: "fptsoftware.com", title: "FPT services", snippet: null, sourceKind: "OfficialWebsite", recommendationReasons: ["Official domain"], recommended: true, selected: false, acquisitionStatus: "Pending", acquisitionError: null, iconUrl: null, discoveredAt: "2026-09-10T00:00:00Z" },
+];
 
 const researchSources = [{
   id: "55555555-5555-5555-5555-555555555555",
@@ -33,6 +62,8 @@ const researchSources = [{
   url: "https://fptsoftware.com/about",
   title: "About FPT Software",
   sourceDomain: "fptsoftware.com",
+  sourceKind: "OfficialWebsite",
+  iconUrl: null,
   retrievedAt: "2026-09-10T00:00:00Z",
   crawlerProvider: "crawl4ai-local",
   contentPreview: "FPT Software company information.",
@@ -43,7 +74,11 @@ beforeEach(() => {
   let createdCompany: typeof apiCompanies[number] | null = null;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
-    if (url.endsWith("/research") && init?.method === "POST") return jsonResponse(researchRun);
+    if (url.endsWith("/matches") && init?.method === "POST") return jsonResponse([]);
+    if (url.endsWith("/profile")) return jsonResponse({ message: "No accepted profile" }, 404);
+    if (url.endsWith("/research/discover") && init?.method === "POST") return jsonResponse(researchRun);
+    if (url.endsWith("/candidates")) return jsonResponse(researchCandidates);
+    if (url.endsWith("/acquire") && init?.method === "POST") return jsonResponse(acquiredResearchRun);
     if (url.endsWith("/sources")) return jsonResponse(researchSources);
     if (url.includes("/api/research-runs/")) return jsonResponse(researchRun);
     if (url.endsWith("/api/companies") && init?.method === "POST") {
@@ -64,8 +99,8 @@ it("renders the Day 2 dashboard and new navigation", async () => {
 
   expect(screen.getByRole("heading", { name: "Company intelligence, at a glance." })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Company List" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Add Company Profile" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Companies" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Research Company" })).toBeInTheDocument();
   expect(screen.queryByText("Ask RAVEN")).not.toBeInTheDocument();
   await screen.findByText("FPT Software");
 });
@@ -93,22 +128,24 @@ it("opens a company detail from the list", async () => {
   expect(screen.getByText("https://fptsoftware.com")).toBeInTheDocument();
 });
 
-it("starts public-source research and shows its acquired evidence", async () => {
+it("runs staged public-source research and shows its acquired evidence", async () => {
   const user = userEvent.setup();
   renderWithRouter(<App />, "/companies/new");
   await user.type(screen.getByLabelText(/Company name/), "FPT Software");
   await user.click(screen.getByRole("button", { name: "Research public sources" }));
 
-  expect(await screen.findByText(/Research completed/)).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "About FPT Software" })).toHaveAttribute("href", "https://fptsoftware.com/about");
-  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research", expect.objectContaining({ method: "POST" }));
+  expect(await screen.findByText(/Review source candidates/i)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /Acquire 2 selected sources/i }));
+  expect(await screen.findByText(/Evidence ready/i)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open source" })).toHaveAttribute("href", "https://fptsoftware.com/about");
+  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research/discover", expect.objectContaining({ method: "POST" }));
 });
 
-it("marks only Add Company Profile as active on the research page", () => {
+it("marks only Research Company as active on the research page", () => {
   renderWithRouter(<App />, "/companies/new");
 
-  expect(screen.getByRole("link", { name: "Add Company Profile" })).toHaveClass("active");
-  expect(screen.getByRole("link", { name: "Company List" })).not.toHaveClass("active");
+  expect(screen.getByRole("link", { name: "Research Company" })).toHaveClass("active");
+  expect(screen.getByRole("link", { name: "Companies" })).not.toHaveClass("active");
 });
 
 it("switches and persists the selected theme", async () => {

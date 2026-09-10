@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Search;
 
 namespace Raven.Api.Tests;
@@ -32,9 +33,16 @@ public sealed class ResearchApiTests(RavenApiFactory factory) : IClassFixture<Ra
         var run = await response.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions);
         Assert.NotNull(run);
         Assert.Equal(ResearchRunStatus.Completed, run.Status);
-        Assert.Equal(9, run.SourcesFound);
+        Assert.Equal(ResearchStage.EvidenceReady, run.Stage);
+        Assert.Equal(12, run.SourcesFound);
         Assert.Equal(3, run.SourcesSelected);
         Assert.Equal(2, run.SourcesCrawled);
+        Assert.Equal(3, run.CrawlTotal);
+        Assert.Equal(3, run.CrawlCompleted);
+        Assert.Equal(2, run.CrawlSucceeded);
+        Assert.Equal(1, run.CrawlFailed);
+        Assert.Equal(2, run.DocumentsAdded);
+        Assert.Equal(0, run.DuplicatesSkipped);
         Assert.Contains("Some selected URLs", run.Error);
 
         var fetchedRun = await client.GetFromJsonAsync<ResearchRunResponse>($"/api/research-runs/{run.Id}", JsonOptions);
@@ -64,6 +72,7 @@ public sealed class ResearchApiTests(RavenApiFactory factory) : IClassFixture<Ra
         var run = await response.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions);
         Assert.NotNull(run);
         Assert.Equal(ResearchRunStatus.Failed, run.Status);
+        Assert.Equal(ResearchStage.Failed, run.Stage);
         Assert.Contains("not configured", run.Error);
     }
 
@@ -79,8 +88,113 @@ public sealed class ResearchApiTests(RavenApiFactory factory) : IClassFixture<Ra
         var run = await response.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions);
         Assert.NotNull(run);
         Assert.Equal(ResearchRunStatus.Failed, run.Status);
+        Assert.Equal(ResearchStage.Failed, run.Stage);
         Assert.Equal(0, run.SourcesCrawled);
+        Assert.Equal(3, run.CrawlFailed);
         Assert.Contains("No selected URLs could be crawled", run.Error);
+    }
+
+    [Fact]
+    public async Task Discover_persists_candidates_and_waits_for_selection_before_crawling()
+    {
+        var crawler = new TrackingCrawlerProvider();
+        using var client = CreateClient(new SuccessfulSearchProvider(), crawler);
+        var company = await CreateCompanyAsync(client);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/research/discover",
+            new DiscoverResearchRequest("products and locations"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var run = await response.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions);
+        Assert.NotNull(run);
+        Assert.Equal(ResearchStage.AwaitingSourceSelection, run.Stage);
+        Assert.Equal(ResearchRunStatus.Searching, run.Status);
+        Assert.Equal(5, run.QueriesTotal);
+        Assert.Equal(5, run.QueriesCompleted);
+        Assert.Equal(15, run.SourcesFound);
+        Assert.Equal(3, run.UniqueCandidates);
+        Assert.Equal(3, run.RecommendedCandidates);
+        Assert.Empty(crawler.RequestedUrls);
+
+        var candidates = await client.GetFromJsonAsync<ResearchCandidateResponse[]>(
+            $"/api/research-runs/{run.Id}/candidates",
+            JsonOptions);
+        Assert.NotNull(candidates);
+        Assert.Equal(3, candidates.Length);
+        Assert.All(candidates, candidate =>
+        {
+            Assert.Equal(run.Id, candidate.ResearchRunId);
+            Assert.True(candidate.Recommended);
+            Assert.Equal(SourceKind.OfficialWebsite, candidate.SourceKind);
+            Assert.NotEmpty(candidate.RecommendationReasons);
+            Assert.NotNull(candidate.IconUrl);
+        });
+
+        var acquireResponse = await client.PostAsJsonAsync(
+            $"/api/research-runs/{run.Id}/acquire",
+            new AcquireResearchCandidatesRequest(candidates.Take(2).Select(candidate => candidate.Id).ToArray()));
+
+        Assert.Equal(HttpStatusCode.OK, acquireResponse.StatusCode);
+        var acquired = await acquireResponse.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions);
+        Assert.NotNull(acquired);
+        Assert.Equal(ResearchStage.EvidenceReady, acquired.Stage);
+        Assert.Equal(2, acquired.SourcesSelected);
+        Assert.Equal(2, acquired.CrawlTotal);
+        Assert.Equal(2, acquired.CrawlCompleted);
+        Assert.Equal(2, acquired.DocumentsAdded);
+        Assert.Equal(2, crawler.RequestedUrls.Count);
+
+        var sourceResponse = await client.GetAsync($"/api/research-runs/{run.Id}/sources");
+        var sourceContent = await sourceResponse.Content.ReadAsStringAsync();
+        Assert.True(sourceResponse.IsSuccessStatusCode, sourceContent);
+        var sources = JsonSerializer.Deserialize<SourceDocumentResponse[]>(sourceContent, JsonOptions);
+        Assert.NotNull(sources);
+        Assert.Equal(2, sources.Length);
+    }
+
+    [Fact]
+    public async Task Acquire_rejects_empty_or_foreign_candidate_ids()
+    {
+        using var client = CreateClient(new SuccessfulSearchProvider(), new TrackingCrawlerProvider());
+        var company = await CreateCompanyAsync(client);
+        var discoverResponse = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/research/discover",
+            new DiscoverResearchRequest());
+        var run = (await discoverResponse.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions))!;
+
+        var emptyResponse = await client.PostAsJsonAsync(
+            $"/api/research-runs/{run.Id}/acquire",
+            new AcquireResearchCandidatesRequest([]));
+        Assert.Equal(HttpStatusCode.BadRequest, emptyResponse.StatusCode);
+
+        var foreignResponse = await client.PostAsJsonAsync(
+            $"/api/research-runs/{run.Id}/acquire",
+            new AcquireResearchCandidatesRequest([Guid.NewGuid()]));
+        Assert.Equal(HttpStatusCode.BadRequest, foreignResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Acquire_counts_duplicate_content_as_duplicate_and_not_as_document()
+    {
+        using var client = CreateClient(new SuccessfulSearchProvider(), new DuplicateContentCrawlerProvider());
+        var company = await CreateCompanyAsync(client);
+        var discoverResponse = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/research/discover",
+            new DiscoverResearchRequest());
+        var run = (await discoverResponse.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions))!;
+        var candidates = (await client.GetFromJsonAsync<ResearchCandidateResponse[]>(
+            $"/api/research-runs/{run.Id}/candidates", JsonOptions))!;
+
+        var acquireResponse = await client.PostAsJsonAsync(
+            $"/api/research-runs/{run.Id}/acquire",
+            new AcquireResearchCandidatesRequest(candidates.Select(candidate => candidate.Id).ToArray()));
+        var acquired = (await acquireResponse.Content.ReadFromJsonAsync<ResearchRunResponse>(JsonOptions))!;
+
+        Assert.Equal(3, acquired.CrawlSucceeded);
+        Assert.Equal(1, acquired.DocumentsAdded);
+        Assert.Equal(2, acquired.DuplicatesSkipped);
+        Assert.Equal(ResearchStage.EvidenceReady, acquired.Stage);
     }
 
     [Fact]
@@ -138,6 +252,43 @@ public sealed class ResearchApiTests(RavenApiFactory factory) : IClassFixture<Ra
             Task.FromResult(request.Url.Contains("services", StringComparison.Ordinal)
                 ? new CrawlResult(Id, request.Url, null, null, null, false, "blocked", DateTimeOffset.UtcNow)
                 : new CrawlResult(Id, request.Url, request.Url, "FPT", $"evidence content {request.Url}", true, null, DateTimeOffset.UtcNow));
+    }
+
+    private sealed class TrackingCrawlerProvider : ICrawlerProvider
+    {
+        public string Id => "crawl4ai-local";
+
+        public List<string> RequestedUrls { get; } = [];
+
+        public Task<CrawlResult> CrawlAsync(CrawlRequest request, CancellationToken cancellationToken = default)
+        {
+            RequestedUrls.Add(request.Url);
+            return Task.FromResult(new CrawlResult(
+                Id,
+                request.Url,
+                request.Url,
+                "FPT",
+                $"evidence content {request.Url}",
+                true,
+                null,
+                DateTimeOffset.UtcNow));
+        }
+    }
+
+    private sealed class DuplicateContentCrawlerProvider : ICrawlerProvider
+    {
+        public string Id => "crawl4ai-local";
+
+        public Task<CrawlResult> CrawlAsync(CrawlRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CrawlResult(
+                Id,
+                request.Url,
+                request.Url,
+                "FPT",
+                "same evidence content",
+                true,
+                null,
+                DateTimeOffset.UtcNow));
     }
 
     private sealed class AlwaysFailingCrawlerProvider : ICrawlerProvider

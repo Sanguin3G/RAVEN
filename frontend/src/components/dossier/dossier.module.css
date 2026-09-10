@@ -1,0 +1,593 @@
+.workspace {
+  --dossier-gap: clamp(0.8rem, 1.8vw, 1.25rem);
+  display: grid;
+  gap: var(--dossier-gap);
+  min-width: 0;
+}
+
+.identityHeader {
+  align-items: start;
+  background: linear-gradient(130deg, color-mix(in srgb, var(--primary) 15%, var(--surface-raised)), var(--surface-raised) 68%);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px var(--shadow);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  min-width: 0;
+  padding: clamp(1rem, 2.4vw, 1.55rem);
+}
+
+.identityMain {
+  align-items: start;
+  display: flex;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.identityMark {
+  align-items: center;
+  background: var(--primary);
+  border: 2px solid color-mix(in srgb, var(--surface-raised) 70%, var(--primary));
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-raised) 38%, transparent), 0 2px 3px var(--shadow);
+  color: var(--surface-raised);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  height: 3.25rem;
+  justify-content: center;
+  letter-spacing: 0.04em;
+  width: 3.25rem;
+}
+
+.identityCopy {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.identityCopy h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.legalName {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.identityMeta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem 0.75rem;
+  margin: 0.2rem 0 0;
+}
+
+.identityMeta span,
+.identityMeta a {
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  font-weight: 700;
+}
+
+.identityMeta span:not(:last-child)::after {
+  color: var(--border-strong);
+  content: "·";
+  margin-left: 0.75rem;
+}
+
+.identityAside {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 9rem;
+  text-align: right;
+}
+
+.identityAside strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.identityAside span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.tabList {
+  align-items: end;
+  border-bottom: 1px solid var(--border-strong);
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0 0.35rem;
+  scrollbar-gutter: stable;
+}
+
+.tab {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+  min-height: 2.55rem;
+  padding: 0.55rem 0.82rem;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.tabActive {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+  color: var(--primary);
+  margin-bottom: -1px;
+}
+
+.tabPanel {
+  min-width: 0;
+  outline: none;
+}
+
+.tabPanel:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.contentGrid {
+  display: grid;
+  gap: var(--dossier-gap);
+  grid-template-columns: minmax(0, 1.65fr) minmax(15rem, 0.75fr);
+}
+
+.section,
+.contextCard,
+.emptyState,
+.handoff {
+  background: linear-gradient(to bottom, var(--surface-raised), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 2px 5px var(--shadow);
+  min-width: 0;
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.sectionStack {
+  display: grid;
+  gap: var(--dossier-gap);
+  min-width: 0;
+}
+
+.sectionHeader {
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.6rem;
+}
+
+.sectionHeader h2,
+.contextCard h2,
+.handoff h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.sectionHeader span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.summary {
+  color: var(--text);
+  font-size: 0.91rem;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 80ch;
+  white-space: pre-wrap;
+}
+
+.unknown {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.atAGlance {
+  display: grid;
+  gap: 0.55rem 1.1rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  margin: 0;
+}
+
+.atAGlance div,
+.contextList div,
+.identifierList div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.atAGlance dt,
+.contextList dt,
+.identifierList dt {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.atAGlance dd,
+.contextList dd,
+.identifierList dd {
+  color: var(--text);
+  font-size: 0.8rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sectionTitle {
+  color: var(--text);
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  margin: 1.1rem 0 0.55rem;
+}
+
+.plainList,
+.linkList {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plainList li,
+.linkList li {
+  border-left: 3px solid var(--info);
+  padding: 0.35rem 0.65rem;
+}
+
+.plainList strong,
+.linkList strong {
+  color: var(--text);
+  display: block;
+  font-size: 0.8rem;
+}
+
+.plainList span,
+.linkList span {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.contextStack {
+  align-content: start;
+  display: grid;
+  gap: var(--dossier-gap);
+}
+
+.contextCard h2 {
+  margin-bottom: 0.8rem;
+}
+
+.contextList,
+.identifierList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.contextStatus {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+.statusDot {
+  background: var(--border-strong);
+  border-radius: 50%;
+  display: inline-block;
+  height: 0.62rem;
+  width: 0.62rem;
+}
+
+.statusDotReady { background: var(--success); }
+.statusDotWorking { background: var(--primary); }
+.statusDotWaiting { background: var(--warning); }
+.statusDotFailed { background: var(--danger); }
+
+.contextStatus strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.contextNote,
+.tabIntro {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.sourcesGrid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.emptyState {
+  background: color-mix(in srgb, var(--info) 8%, var(--surface-raised));
+  border-left: 4px solid var(--info);
+  box-shadow: none;
+}
+
+.emptyState h2 {
+  font-size: 1rem;
+  margin: 0 0 0.35rem;
+}
+
+.emptyState p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.timeline {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.timelineHeader {
+  align-items: start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.timelineHeader h2 {
+  margin: 0;
+}
+
+.timelineHeader p {
+  color: var(--text-muted);
+  font-size: 0.79rem;
+  margin: 0.25rem 0 0;
+}
+
+.timelineStatus {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 0.3rem 0.45rem;
+  white-space: nowrap;
+}
+
+.timelineStatusWorking { border-color: var(--primary); color: var(--primary); }
+.timelineStatusWaiting { border-color: var(--warning); color: var(--warning); }
+.timelineStatusFailed { border-color: var(--danger); color: var(--danger); }
+.timelineStatusCompleted { border-color: var(--success); color: var(--success); }
+
+.steps {
+  display: grid;
+  gap: 0.55rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  align-items: start;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: 0.8rem minmax(0, 1fr);
+}
+
+.stepMarker {
+  background: var(--border);
+  border: 2px solid var(--surface-raised);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+  height: 0.7rem;
+  margin-top: 0.22rem;
+  width: 0.7rem;
+}
+
+.stepCompleted .stepMarker { background: var(--success); box-shadow: 0 0 0 1px var(--success); }
+.stepActive .stepMarker { background: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.stepWaiting .stepMarker { background: var(--warning); box-shadow: 0 0 0 1px var(--warning); }
+.stepFailed .stepMarker { background: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+
+.stepCopy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.stepCopy strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.stepCopy span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.counters {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.6rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  margin: 0;
+  padding-top: 0.85rem;
+}
+
+.counters div {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.counters dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.counters dd {
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.errorMessage {
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-raised));
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.handoff {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ai) 13%, var(--surface-raised)), var(--surface-raised));
+  border-color: color-mix(in srgb, var(--ai) 42%, var(--border));
+}
+
+.handoffHeader {
+  align-items: start;
+  display: flex;
+  gap: 0.85rem;
+}
+
+.aiMark {
+  align-items: center;
+  background: color-mix(in srgb, var(--ai) 19%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 55%, var(--border));
+  border-radius: 4px;
+  color: var(--ai);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  height: 2rem;
+  justify-content: center;
+  letter-spacing: 0.04em;
+  width: 2rem;
+}
+
+.handoff h2 {
+  margin: 0;
+}
+
+.handoff p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.58;
+  margin: 0.7rem 0 0;
+  max-width: 68ch;
+}
+
+.handoffContext {
+  border-top: 1px solid color-mix(in srgb, var(--ai) 28%, var(--border));
+  display: grid;
+  gap: 0.6rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  margin: 1rem 0 0;
+  padding-top: 0.85rem;
+}
+
+.handoffContext div {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.handoffContext dt {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.handoffContext dd {
+  color: var(--text);
+  font-size: 0.78rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.unavailable {
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface-raised));
+  border-left-color: var(--warning);
+}
+
+@media (max-width: 760px) {
+  .identityHeader,
+  .timelineHeader {
+    display: grid;
+  }
+
+  .identityAside {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .identityMain {
+    display: grid;
+  }
+
+  .identityMark {
+    height: 2.7rem;
+    width: 2.7rem;
+  }
+
+  .tabList {
+    margin-inline: -0.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statusDotWorking + * {
+    animation: none;
+  }
+}

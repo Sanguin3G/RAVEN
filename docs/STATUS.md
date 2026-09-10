@@ -1,8 +1,10 @@
 # RAVEN Status
-Last updated: 2026-09-08
+Last updated: 2026-09-10
 Current milestone: M1 — Core Research
 
 ## Current Goal
+
+Day 3 integrated vertical slice: rich Company identity and duplicate checks; staged Brave discovery, human source selection, Crawl4AI acquisition, source taxonomy/classification, evidence persistence, Gemini structured profile candidates, deterministic evidence validation, human confirmation, immutable profile versions, and research-event logging. RAG, real Ask RAVEN answers, Deep Research, MCP, Exa, and Firecrawl remain out of scope.
 
 Turn the Day 1 Company and Crawl4AI foundation into the first evidence-backed Company → Brave → Crawl4AI Local → Gemini → Profile vertical slice. No search, crawling, AI, source-persistence, or research workflow is implemented yet.
 
