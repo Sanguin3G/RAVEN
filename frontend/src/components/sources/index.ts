@@ -3,4 +3,4 @@ export { EvidenceCard, type EvidenceCardProps, type EvidenceRecord, type Evidenc
 export { ResearchActivity, type ResearchActivityCounters, type ResearchActivityItem, type ResearchActivityProps, type ResearchActivityStatus, type ResearchStage } from "./ResearchActivity";
 export { SourceBadge, type SourceBadgeProps } from "./SourceBadge";
 export { SourceIcon, type SourceIconProps } from "./SourceIcon";
-export { domainFromUrl, displayDomain, formatRetrievedAt, safeExternalUrl, sourceIconIdentity, sourceKindLabel, type SourceIconIdentity, type SourceKind } from "./sourceUtils";
+export { domainFromUrl, displayDomain, formatRetrievedAt, safeExternalUrl, sourceFaviconUrl, sourceIconIdentity, sourceKindLabel, type SourceIconIdentity, type SourceKind } from "./sourceUtils";

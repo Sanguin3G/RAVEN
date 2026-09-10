@@ -20,6 +20,12 @@ public static class SystemEndpoints
             .WithSummary("Return safe provider configuration and availability state")
             .Produces<ProviderStatusResponse>(StatusCodes.Status200OK);
 
+        app.MapPut("/api/system/model-preferences", UpdateModelPreferences)
+            .WithTags("System")
+            .WithSummary("Set the approved runtime Gemini model preferences for this local workspace")
+            .Produces<RuntimeModelPreferenceResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
         return app;
     }
 
@@ -31,6 +37,7 @@ public static class SystemEndpoints
     private static async Task<Ok<ProviderStatusResponse>> GetProviderStatusAsync(
         IOptions<BraveSearchOptions> brave,
         IOptions<GeminiOptions> gemini,
+        IRuntimeModelPreferences modelPreferences,
         ICrawlerStatusProbe crawlerStatusProbe,
         CancellationToken cancellationToken)
     {
@@ -38,7 +45,16 @@ public static class SystemEndpoints
         return TypedResults.Ok(new ProviderStatusResponse(
             new ProviderConfigurationStatus("brave", !string.IsNullOrWhiteSpace(brave.Value.ApiKey), null, null),
             new ProviderConfigurationStatus("crawl4ai-local", !string.IsNullOrWhiteSpace(crawler.Provider), crawler.Available, null),
-            new ProviderConfigurationStatus("gemini", !string.IsNullOrWhiteSpace(gemini.Value.ApiKey), null, gemini.Value.FastModel),
-            gemini.Value.DeepModel));
+            new ProviderConfigurationStatus("gemini", !string.IsNullOrWhiteSpace(gemini.Value.ApiKey), null, modelPreferences.Current.FastModel),
+            modelPreferences.Current.DeepModel));
+    }
+
+    private static IResult UpdateModelPreferences(
+        UpdateRuntimeModelPreferencesRequest request,
+        IRuntimeModelPreferences modelPreferences)
+    {
+        return modelPreferences.TryUpdate(request, out var preferences)
+            ? Results.Ok(preferences)
+            : Results.BadRequest(new { message = "Only the approved Gemini Flash models can be selected." });
     }
 }

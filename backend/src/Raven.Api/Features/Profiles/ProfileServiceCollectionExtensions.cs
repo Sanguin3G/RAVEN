@@ -15,11 +15,15 @@ public static class ProfileServiceCollectionExtensions
             serviceProvider.GetRequiredService<ISourceAuthorityPolicy>()));
         services.AddScoped<IProfileGenerationService>(serviceProvider =>
         {
-            var gemini = serviceProvider.GetRequiredService<IOptions<GeminiOptions>>().Value;
             var configured = serviceProvider.GetRequiredService<IOptions<ProfileGenerationOptions>>().Value;
+            var runtimePreferences = serviceProvider.GetRequiredService<IRuntimeModelPreferences>().Current;
             var options = new ProfileGenerationOptions
             {
-                Model = string.IsNullOrWhiteSpace(configured.Model) ? gemini.FastModel : configured.Model,
+                // The Settings page owns the Fast Research selection for each new
+                // profile-generation scope. Deployment configuration supplies the
+                // initial value through RuntimeModelPreferences, rather than
+                // silently overriding an explicit workspace selection here.
+                Model = runtimePreferences.FastModel,
                 PromptTemplateVersion = configured.PromptTemplateVersion
             };
             return new ProfileGenerationService(

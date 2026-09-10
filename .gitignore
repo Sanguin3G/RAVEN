@@ -12,3 +12,6 @@ dist/
 .vs/
 .idea/
 .DS_Store
+/.playwright-cli/
+/frontend/.playwright-cli/
+/output/playwright/

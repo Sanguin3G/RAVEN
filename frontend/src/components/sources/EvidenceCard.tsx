@@ -44,7 +44,7 @@ export function EvidenceCard({ evidence }: EvidenceCardProps) {
   return (
     <article className={styles.evidenceCard} data-testid={`evidence-${evidence.id}`}>
       <header className={styles.evidenceHeader}>
-        <SourceIcon domain={domain} iconUrl={evidence.iconUrl} kind={evidence.kind} size="medium" />
+        <SourceIcon domain={domain} iconUrl={evidence.iconUrl} kind={evidence.kind} provider={evidence.crawlerProvider} size="medium" />
         <span className={styles.evidenceHeading}>
           <span className={styles.evidenceBadges}>
             <SourceBadge kind={evidence.kind} />

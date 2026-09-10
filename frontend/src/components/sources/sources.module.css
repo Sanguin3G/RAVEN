@@ -16,6 +16,7 @@
 .sourceIconMedium { height: 2rem; width: 2rem; }
 .sourceIconLarge { height: 2.65rem; width: 2.65rem; }
 .sourceIcon img { display: block; height: 100%; object-fit: cover; width: 100%; }
+.sourceIconGlyph { display: block; flex: 0 0 auto; }
 .sourceIconMonogram { line-height: 1; }
 .sourceIconToneOfficial { background: color-mix(in srgb, var(--info, #3f7fa8) 20%, var(--surface-raised, #fff)); color: var(--info, #3f7fa8); }
 .sourceIconToneTopcv { background: color-mix(in srgb, #ef6b4d 17%, var(--surface-raised, #fff)); color: #b64931; }
@@ -23,6 +24,9 @@
 .sourceIconToneRegistry { background: color-mix(in srgb, var(--warning, #ae7217) 18%, var(--surface-raised, #fff)); color: var(--warning, #8b5a0b); }
 .sourceIconToneGithub { background: color-mix(in srgb, #24292f 14%, var(--surface-raised, #fff)); color: #24292f; }
 .sourceIconToneNews { background: color-mix(in srgb, var(--ai, #7658a6) 18%, var(--surface-raised, #fff)); color: var(--ai, #7658a6); }
+.sourceIconToneBrave { background: color-mix(in srgb, #fb542b 16%, var(--surface-raised, #fff)); color: #c13d1d; }
+.sourceIconToneCrawl4ai { background: color-mix(in srgb, #397bc9 16%, var(--surface-raised, #fff)); color: #2e66aa; }
+.sourceIconToneGemini { background: color-mix(in srgb, #6a5ae0 15%, var(--surface-raised, #fff)); color: #5547b7; }
 .sourceIconToneExternal, .sourceIconToneSearch, .sourceIconToneGeneric { background: var(--surface-muted, #e8eef6); color: var(--text-muted, #58697d); }
 
 .sourceBadge {

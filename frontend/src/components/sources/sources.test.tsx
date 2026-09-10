@@ -7,12 +7,29 @@ import { SourceBadge } from "./SourceBadge";
 import { SourceIcon } from "./SourceIcon";
 
 describe("source presentation primitives", () => {
-  it("uses a safe known fallback identity and rejects unsafe icon URLs", () => {
+  it("uses a real known favicon and rejects unsafe icon URLs", () => {
     render(<SourceIcon domain="topcv.vn" iconUrl="javascript:alert(1)" kind="TopCv" />);
 
     expect(screen.getByRole("img", { name: "TopCV source icon" })).toBeInTheDocument();
-    expect(screen.getByText("TC")).toBeInTheDocument();
+    expect(document.querySelector('img[src*="google.com/s2/favicons"]')).toHaveAttribute("src", expect.stringContaining("domain=topcv.vn"));
     expect(document.querySelector('img[src^="javascript:"]')).not.toBeInTheDocument();
+  });
+
+  it("maps provider identities to safe recognisable favicon hosts", () => {
+    const { rerender } = render(<SourceIcon kind="LinkedIn" />);
+    expect(document.querySelector('img[src*="domain=linkedin.com"]')).toBeInTheDocument();
+
+    rerender(<SourceIcon kind="Gemini" />);
+    expect(document.querySelector('img[src*="domain=ai.google.dev"]')).toBeInTheDocument();
+
+    rerender(<SourceIcon kind="BusinessRegistry" />);
+    expect(document.querySelector('img[src*="domain=dangkykinhdoanh.gov.vn"]')).toBeInTheDocument();
+  });
+
+  it("uses the company host when no provider icon is available", () => {
+    render(<SourceIcon kind="OfficialWebsite" domain="https://www.example.com/about" />);
+
+    expect(document.querySelector('img[src*="domain=example.com"]')).toBeInTheDocument();
   });
 
   it("renders source badges with human-readable source identity", () => {

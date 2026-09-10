@@ -41,6 +41,7 @@ public static class AiServiceCollectionExtensions
         });
         services.AddScoped<IAiModelProvider>(serviceProvider =>
             serviceProvider.GetRequiredService<GeminiProvider>());
+        services.AddSingleton<IRuntimeModelPreferences, RuntimeModelPreferences>();
 
         return services;
     }
