@@ -1,15 +1,27 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Panel } from "../components/Panel";
-import { mockCompanies } from "../data/mockCompanies";
+import { getApiErrorMessage } from "../api/client";
+import { getCompanies } from "../api/companies";
+import type { Company } from "../types/company";
 
-const statusCounts = {
-  tracked: mockCompanies.length,
-  ready: mockCompanies.filter((company) => company.status === "Ready").length,
-  researching: mockCompanies.filter((company) => company.status === "Researching").length,
-};
+function getInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
+}
 
 export function DashboardPage() {
-  const recentCompanies = [...mockCompanies].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCompanies()
+      .then(setCompanies)
+      .catch((reason: unknown) => setError(getApiErrorMessage(reason, "Could not load dashboard data.")))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const recentCompanies = [...companies].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4);
 
   return (
     <div className="page-stack dashboard-page">
@@ -26,29 +38,30 @@ export function DashboardPage() {
       </section>
 
       <section className="stats-grid" aria-label="Workspace summary">
-        <div className="stat-card"><span className="stat-card__label">Tracked companies</span><strong>{statusCounts.tracked}</strong><span className="stat-card__detail">Across your workspace</span></div>
-        <div className="stat-card"><span className="stat-card__label">Ready profiles</span><strong>{statusCounts.ready}</strong><span className="stat-card__detail">Profile data available</span></div>
-        <div className="stat-card"><span className="stat-card__label">Research in progress</span><strong>{statusCounts.researching}</strong><span className="stat-card__detail">Awaiting source review</span></div>
+        <div className="stat-card"><span className="stat-card__label">Tracked companies</span><strong>{loading ? "—" : companies.length}</strong><span className="stat-card__detail">From the RAVEN API</span></div>
+        <div className="stat-card"><span className="stat-card__label">Company identities</span><strong>{loading ? "—" : companies.length}</strong><span className="stat-card__detail">Persisted in the backend</span></div>
+        <div className="stat-card"><span className="stat-card__label">Profile data</span><strong>—</strong><span className="stat-card__detail">Not available in the current API</span></div>
       </section>
 
       <div className="dashboard-columns">
         <Panel title="Recently updated" eyebrow="COMPANY LIST" className="dashboard-recent">
-          <div className="company-preview-list">
+          {error ? <div className="empty-state"><strong>Could not load companies.</strong><p>{error}</p></div> : null}
+          {!error && !loading && recentCompanies.length === 0 ? <div className="empty-state"><strong>No companies yet.</strong><p>Create a company identity to see it here.</p></div> : null}
+          {!error && loading ? <div className="empty-state"><strong>Loading companies…</strong><p>Fetching records from the backend.</p></div> : null}
+          {!error && !loading && recentCompanies.length ? <div className="company-preview-list">
             {recentCompanies.map((company) => (
               <Link className="company-preview" key={company.id} to={`/companies/${company.id}`}>
-                <span className="company-avatar" aria-hidden="true">{company.logo}</span>
-                <span className="company-preview__main"><strong>{company.name}</strong><small>{company.industry} · {company.country}</small></span>
-                <span className={`status status--${company.status?.toLowerCase().replaceAll(" ", "-")}`}>{company.status}</span>
+                <span className="company-avatar" aria-hidden="true">{getInitials(company.name)}</span>
+                <span className="company-preview__main"><strong>{company.name}</strong><small>{company.country || "Country not provided"}</small></span>
+                <span className="status">Identity</span>
               </Link>
             ))}
-          </div>
+          </div> : null}
           <Link className="text-link" to="/companies">See all companies →</Link>
         </Panel>
 
         <Panel title="Workspace activity" eyebrow="OVERVIEW" className="activity-panel">
-          <div className="activity-item"><span className="activity-dot activity-dot--success" /><span><strong>Profile ready</strong><small>FPT Software profile is ready to review</small></span><time>Today</time></div>
-          <div className="activity-item"><span className="activity-dot activity-dot--ai" /><span><strong>Research started</strong><small>VNG Corporation is being researched</small></span><time>Yesterday</time></div>
-          <div className="activity-item"><span className="activity-dot activity-dot--warning" /><span><strong>Review needed</strong><small>Masan Group has new company signals</small></span><time>Sep 04</time></div>
+          <div className="empty-state"><strong>No activity endpoint yet.</strong><p>Research activity will appear here when the backend exposes it.</p></div>
         </Panel>
       </div>
     </div>

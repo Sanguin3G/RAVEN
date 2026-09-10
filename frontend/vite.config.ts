@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "VITE_");
-  const apiTarget = env.VITE_API_PROXY_TARGET || "http://localhost:5000";
+  const apiTarget = env.VITE_API_PROXY_TARGET || "http://localhost:5180";
 
   return {
     plugins: [react()],
