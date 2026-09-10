@@ -1,4 +1,5 @@
 using Raven.Api.Features.Companies;
+using Raven.Api.Features.Research.Sources;
 
 namespace Raven.Api.Features.Research;
 
@@ -13,6 +14,9 @@ public sealed class SourceDocument
     public required string NormalizedUrl { get; init; }
     public string? Title { get; init; }
     public string? SourceDomain { get; init; }
+    public SourceKind SourceKind { get; init; } = SourceKind.ExternalWebsite;
+    public string? IconUrl { get; init; }
+    public string? StructuredFactsJson { get; init; }
     public DateTimeOffset RetrievedAt { get; init; }
     public required string Content { get; init; }
     public required string ContentHash { get; init; }

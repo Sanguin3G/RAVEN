@@ -1,4 +1,4 @@
-import type { Company, CreateCompanyRequest } from "../types/company";
+import type { Company, CompanyMatchRequest, CompanyMatchResponse, CreateCompanyRequest } from "../types/company";
 import { request } from "./client";
 
 export function getCompanies() {
@@ -20,6 +20,14 @@ export async function searchCompanies(query: string, country?: string) {
 
 export function getCompany(id: string) {
   return request<Company>(`/api/companies/${encodeURIComponent(id)}`);
+}
+
+export function findCompanyMatches(identity: CompanyMatchRequest) {
+  return request<CompanyMatchResponse[]>("/api/companies/matches", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(identity),
+  });
 }
 
 export function createCompany(company: CreateCompanyRequest) {

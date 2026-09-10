@@ -19,6 +19,13 @@ public static class CompanyEndpoints
             .Produces<CompanyResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        companies.MapPost("/matches", FindCompanyMatchesAsync)
+            .WithName("FindCompanyMatches")
+            .WithSummary("Find likely existing company identities")
+            .WithDescription("Matches a submitted identity using registration number, website host, legal name, and display name without preventing duplicate creation.")
+            .Produces<CompanyMatchResponse[]>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
         companies.MapPost("/", CreateCompanyAsync)
             .WithName("CreateCompany")
             .WithSummary("Create a company")
@@ -59,7 +66,40 @@ public static class CompanyEndpoints
                 });
         }
 
-        var company = await companies.CreateAsync(request.Name, request.Website, request.Country, cancellationToken);
+        var company = await companies.CreateAsync(
+            request.Name,
+            request.Website,
+            request.Country,
+            request.LegalName,
+            request.RegistrationNumber,
+            request.Headquarters,
+            cancellationToken);
         return TypedResults.Created($"/api/companies/{company.Id}", company);
     }
+
+    private static async Task<Results<Ok<CompanyMatchResponse[]>, ValidationProblem>> FindCompanyMatchesAsync(
+        CompanyMatchRequest request,
+        ICompanyService companies,
+        CancellationToken cancellationToken)
+    {
+        if (!HasIdentityValue(request))
+        {
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>
+                {
+                    ["identity"] = ["At least one company identity field is required."]
+                });
+        }
+
+        var matches = await companies.FindMatchesAsync(request, cancellationToken);
+        return TypedResults.Ok(matches.ToArray());
+    }
+
+    private static bool HasIdentityValue(CompanyMatchRequest request) =>
+        !string.IsNullOrWhiteSpace(request.Name) ||
+        !string.IsNullOrWhiteSpace(request.Website) ||
+        !string.IsNullOrWhiteSpace(request.Country) ||
+        !string.IsNullOrWhiteSpace(request.LegalName) ||
+        !string.IsNullOrWhiteSpace(request.RegistrationNumber) ||
+        !string.IsNullOrWhiteSpace(request.Headquarters);
 }

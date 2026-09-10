@@ -6,10 +6,19 @@ public static class ResearchEndpoints
 {
     public static IEndpointRouteBuilder MapResearchEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapPost("/api/companies/{companyId:guid}/research/discover", DiscoverResearchAsync)
+            .WithTags("Research")
+            .WithName("DiscoverCompanyResearch")
+            .WithSummary("Discover and classify public source candidates for a company")
+            .WithDescription("Runs bounded deterministic discovery and leaves the run waiting for human source selection.")
+            .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapPost("/api/companies/{companyId:guid}/research", ResearchCompanyAsync)
             .WithTags("Research")
             .WithName("ResearchCompany")
-            .WithSummary("Discover and acquire public source documents for a company")
+            .WithSummary("Discover and acquire recommended public source documents for a company")
+            .WithDescription("Compatibility endpoint that performs discovery and automatically acquires recommended candidates.")
             .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
@@ -23,6 +32,29 @@ public static class ResearchEndpoints
             .WithTags("Research")
             .WithName("ListCompanyResearchRuns")
             .Produces<ResearchRunResponse[]>(StatusCodes.Status200OK);
+
+        app.MapGet("/api/research-runs/{researchRunId:guid}/candidates", ListResearchCandidatesAsync)
+            .WithTags("Research")
+            .WithName("ListResearchCandidates")
+            .WithSummary("List persisted source candidates for a research run")
+            .Produces<ResearchCandidateResponse[]>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/research-runs/{researchRunId:guid}/acquire", AcquireResearchAsync)
+            .WithTags("Research")
+            .WithName("AcquireResearchCandidates")
+            .WithSummary("Acquire selected source candidates")
+            .WithDescription("The server accepts candidate IDs persisted for this run; arbitrary URLs are not accepted.")
+            .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/research-runs/{researchRunId:guid}/sources", ListResearchSourcesAsync)
+            .WithTags("Sources")
+            .WithName("ListResearchRunSources")
+            .WithSummary("List source documents acquired by a research run")
+            .Produces<SourceDocumentResponse[]>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         app.MapGet("/api/companies/{companyId:guid}/sources", ListCompanySourcesAsync)
             .WithTags("Sources")
@@ -39,28 +71,81 @@ public static class ResearchEndpoints
         return app;
     }
 
-    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> ResearchCompanyAsync(Guid companyId, IResearchCompanyService research, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> DiscoverResearchAsync(
+        Guid companyId,
+        DiscoverResearchRequest? request,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        var run = await research.DiscoverAsync(companyId, request, cancellationToken);
+        return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+    }
+
+    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> ResearchCompanyAsync(
+        Guid companyId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
     {
         var run = await research.ResearchAsync(companyId, cancellationToken);
         return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
     }
 
-    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> GetResearchRunAsync(Guid researchRunId, IResearchCompanyService research, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> AcquireResearchAsync(
+        Guid researchRunId,
+        AcquireResearchCandidatesRequest request,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        var run = await research.AcquireAsync(researchRunId, request, cancellationToken);
+        return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+    }
+
+    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> GetResearchRunAsync(
+        Guid researchRunId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
     {
         var run = await research.GetRunAsync(researchRunId, cancellationToken);
         return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
     }
 
-    private static async Task<Ok<ResearchRunResponse[]>> ListResearchRunsAsync(Guid companyId, IResearchCompanyService research, CancellationToken cancellationToken) =>
+    private static async Task<Ok<ResearchRunResponse[]>> ListResearchRunsAsync(
+        Guid companyId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken) =>
         TypedResults.Ok((await research.ListRunsAsync(companyId, cancellationToken)).ToArray());
 
-    private static async Task<Results<Ok<SourceDocumentResponse[]>, NotFound>> ListCompanySourcesAsync(Guid companyId, IResearchCompanyService research, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<ResearchCandidateResponse[]>, NotFound>> ListResearchCandidatesAsync(
+        Guid researchRunId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await research.ListCandidatesAsync(researchRunId, cancellationToken);
+        return candidates is null ? TypedResults.NotFound() : TypedResults.Ok(candidates.ToArray());
+    }
+
+    private static async Task<Results<Ok<SourceDocumentResponse[]>, NotFound>> ListResearchSourcesAsync(
+        Guid researchRunId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        var sources = await research.ListRunSourcesAsync(researchRunId, cancellationToken);
+        return sources is null ? TypedResults.NotFound() : TypedResults.Ok(sources.ToArray());
+    }
+
+    private static async Task<Results<Ok<SourceDocumentResponse[]>, NotFound>> ListCompanySourcesAsync(
+        Guid companyId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
     {
         var sources = await research.ListSourcesAsync(companyId, cancellationToken);
         return sources is null ? TypedResults.NotFound() : TypedResults.Ok(sources.ToArray());
     }
 
-    private static async Task<Results<Ok<SourceDocumentDetailResponse>, NotFound>> GetSourceAsync(Guid sourceId, IResearchCompanyService research, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<SourceDocumentDetailResponse>, NotFound>> GetSourceAsync(
+        Guid sourceId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
     {
         var source = await research.GetSourceAsync(sourceId, cancellationToken);
         return source is null ? TypedResults.NotFound() : TypedResults.Ok(source);

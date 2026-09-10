@@ -24,9 +24,13 @@ public sealed class BraveSearchProvider(HttpClient httpClient, IOptions<BraveSea
         }
 
         var query = $"/res/v1/web/search?q={Uri.EscapeDataString(request.Query)}&count={Math.Clamp(request.MaxResults, 1, 20)}";
-        if (!string.IsNullOrWhiteSpace(request.Country))
+        // The Company identity form intentionally accepts a human-readable country
+        // (for example, "Vietnam"). Brave accepts only ISO 3166-1 alpha-2 values
+        // here, so never forward arbitrary user text as an external API parameter.
+        var countryCode = NormalizeCountryCode(request.Country);
+        if (countryCode is not null)
         {
-            query += $"&country={Uri.EscapeDataString(request.Country)}";
+            query += $"&country={countryCode}";
         }
 
         if (!string.IsNullOrWhiteSpace(request.Language))
@@ -82,6 +86,14 @@ public sealed class BraveSearchProvider(HttpClient httpClient, IOptions<BraveSea
         {
             throw new ProviderException(Id, "Brave Search returned an invalid response.", ProviderFailureKind.InvalidResponse, exception);
         }
+    }
+
+    private static string? NormalizeCountryCode(string? country)
+    {
+        var value = country?.Trim();
+        return value is { Length: 2 } && value.All(char.IsAsciiLetter)
+            ? value.ToUpperInvariant()
+            : null;
     }
 
     private static IReadOnlyList<SearchResult> ReadResults(JsonElement root)

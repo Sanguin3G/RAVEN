@@ -2,6 +2,8 @@ using Microsoft.Extensions.Options;
 using System.Text.Json.Serialization;
 using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Search;
+using Raven.Api.Features.Research.Events;
+using Raven.Api.Features.Research.Sources;
 
 namespace Raven.Api.Features.Research;
 
@@ -29,6 +31,9 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         });
         services.AddSingleton<SourceUrlNormalizer>();
         services.AddSingleton<SourceCandidateSelector>();
+        services.AddSingleton<ISourceClassifier, SourceClassifier>();
+        services.AddSingleton<ISourceAuthorityPolicy, SourceAuthorityPolicy>();
+        services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
         services.AddScoped<IResearchCompanyService, ResearchCompanyService>();
         return services;
     }

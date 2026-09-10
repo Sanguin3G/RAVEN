@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
+using Raven.Api.Features.Ai;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.Profiles;
 using Raven.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +37,8 @@ builder.Services.AddHttpClient<ICrawlerStatusProbe, Crawl4AiLocalStatusProbe>((s
     client.Timeout = TimeSpan.FromSeconds(3);
 });
 builder.Services.AddResearchDiscovery(builder.Configuration);
+builder.Services.AddGeminiAi(builder.Configuration);
+builder.Services.AddCompanyProfiles(builder.Configuration);
 
 var app = builder.Build();
 
@@ -45,6 +49,7 @@ app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initiali
 app.MapCompanyEndpoints();
 app.MapSystemEndpoints();
 app.MapResearchEndpoints();
+app.MapProfileEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

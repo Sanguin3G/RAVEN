@@ -1,46 +1,48 @@
 # RAVEN Implementation Plan
-This is a direction-setting plan for a two-person team over approximately 20 working days. GitHub Issues own granular work; [STATUS.md](STATUS.md) records active execution.
+
+This plan guides a two-person project. [STATUS.md](STATUS.md) is the integrated implementation record.
 
 ## Roles
 
-**Person A — Backend / AI primary** owns the API, persistence, provider adapters, research orchestration, and retrieval services. **Person B — Frontend / Product primary** owns the React experience and presentation of profiles, sources, history, and answers.
+**Person A — Backend / AI primary** owns API, persistence, provider adapters, research orchestration, and retrieval. **Person B — Frontend / Product primary** owns the React workspace, source presentation, profile experience, and future question-answering surfaces.
 
-Both collaborators may work outside their primary area. Shared responsibility covers DTO/API contracts, architecture decisions, integration, testing, and the final demo.
+Both collaborators share contracts, architecture decisions, integration, testing, and release quality. Coordinate before changing shared DTOs, Program.cs, frontend bootstrap/routing, Docker Compose, migrations, or STATUS.md.
 
 ## M1 — Core Research
 
-**Target: approximately Day 5**
+**Status: implemented vertical slice; stabilize and demo.**
 
-~~~text
-Company → Brave → Crawl4AI Local → Gemini → Company Profile → React
-~~~
+```text
+Company → Brave → source review → Crawl4AI Local → evidence
+→ Gemini → profile confirmation → React dossier
+```
 
-Person A primarily delivers ASP.NET and SQLite foundation, Brave search, Crawl4AI integration, Gemini integration, and the deterministic research workflow. Person B primarily delivers the React foundation, company create/list flow, research progress UX, profile display, and source UX.
+Delivered:
 
-**Exit condition:** a real company can be researched end-to-end and shown in React with supporting sources.
+- rich identity input and duplicate suggestions;
+- staged discovery, selection, acquisition, evidence review, and profile review;
+- source taxonomy, bounded official-domain planning, TopCV parsing, LinkedIn and registry discovery;
+- evidence provenance, profile candidates, validation, immutable profile versions, and research events;
+- Company workspace, source UI, responsive shell, provider status, and local runtime model choices.
 
-**Current M1 foundation:** Company identity creation, listing, and retrieval now persist in SQLite, and the React company flow can consume that API. Crawl4AI Local has Docker and availability-check foundations only; Brave, crawling, Gemini, source persistence, and profile generation remain work for the rest of M1.
+Remaining M1 work is quality work: real-provider failure handling, usability polish, demo data, regression coverage, and documentation accuracy.
 
 ## M2 — Company Knowledge
 
-**Target: approximately Day 11**
+**Target: after M1 stabilization.**
 
-Implement persistent sources, ResearchRun, immutable profile versions, refresh, change-tracking foundations, RAG, and Ask Company. Person A primarily owns storage, embeddings, retrieval, and backend endpoints. Person B primarily owns Company Detail, Sources, History, Changes, and Ask Company screens.
+Implement profile refresh, change detection, source chunking, embeddings, company-filtered retrieval, and real Ask RAVEN answers with citations.
 
-**Exit condition:** researched company knowledge survives restart, can be questioned with citations, and can be refreshed without losing historical evidence or profiles.
+**Exit condition:** accepted knowledge survives restart, can be reopened and questioned with citations, and a refresh preserves historical evidence and profiles.
 
-## M3 — Complete RAVEN
+## M3 — Investigative Research
 
-**Target: approximately Day 17**
+**Target: after M2.**
 
-Implement Agent Framework, Deep Research, Exa MCP, additional retrieval providers, provider settings, and fallback. Parallel Luna implementation is encouraged here because provider adapters have naturally separate scopes.
+Implement Deep Research using RAG first, then controlled external research through normal provider interfaces and optional MCP. Add Exa/Firecrawl only when their value is demonstrated by the workflow.
 
-**Exit condition:** Deep Research is RAG-first and may acquire external evidence when needed; balanced, Easy Cloud, and Cloud Robust configurations are usable.
+**Exit condition:** RAVEN can explain whether an answer came from stored evidence or newly acquired evidence, while keeping persistence application-owned.
 
-## Stabilization
+## Stabilization principles
 
-**Days 18–20**
-
-Work only on bugs, relevant tests, failure handling, Docker Compose, UX polish, documentation updates, and demo preparation. Avoid major architecture changes in this phase.
-
-**Final exit condition:** a fresh environment can demonstrate research, evidence, RAG, Deep Research, provider configuration, and tracking.
+Prefer small feature branches, focused reviews, mockable provider tests, and working vertical slices. Do not add distributed infrastructure merely to simulate activity; recorded run state and staged HTTP operations are sufficient for the MVP.

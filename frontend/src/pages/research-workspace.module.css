@@ -1,0 +1,58 @@
+.page { width: 100%; }
+.workspace { align-items: start; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr); }
+.primaryColumn, .contextColumn { display: grid; gap: 1.25rem; min-width: 0; }
+.contextColumn { position: sticky; top: calc(var(--topbar-height, 4.35rem) + 1rem); }
+.identityPanel, .matchPanel, .sourcesPanel, .evidencePanel, .failurePanel, .contextPanel { min-width: 0; }
+.fieldset { border: 0; margin: 0; padding: 0; }
+.visuallyHidden { height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; clip: rect(0 0 0 0); white-space: nowrap; }
+.formGrid { display: grid; gap: 0 0.9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.textarea { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 3px; box-shadow: inset 0 1px 2px var(--shadow); color: var(--text); display: block; font: inherit; line-height: 1.45; min-height: 5.5rem; padding: 0.58rem; resize: vertical; width: 100%; }
+.textarea:focus { border-color: var(--primary); box-shadow: inset 0 1px 2px var(--shadow), 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent); outline: none; }
+.panelIntro { max-width: 70ch; }
+.matchList { display: grid; gap: 0.85rem; }
+.matchCard { background: var(--surface-muted); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 4px; display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) auto; padding: 0.95rem; }
+.matchCard h3 { margin-bottom: 0.25rem; }
+.matchCard p { margin-bottom: 0.35rem; }
+.matchReason { color: var(--text); font-size: 0.82rem; font-weight: 700; }
+.matchMeta, .identitySummary { display: flex; flex-wrap: wrap; gap: 0.8rem 1.2rem; margin: 0.8rem 0 0; }
+.matchMeta div, .identitySummary div { display: grid; gap: 0.15rem; min-width: 8rem; }
+.matchMeta dt, .identitySummary dt { color: var(--text-muted); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.matchMeta dd, .identitySummary dd { color: var(--text); font-size: 0.77rem; margin: 0; overflow-wrap: anywhere; }
+.overrideBox { align-items: center; border-top: 1px solid var(--border); display: flex; gap: 1rem; justify-content: space-between; margin-top: 1.2rem; padding-top: 1rem; }
+.overrideBox p { font-size: 0.8rem; margin: 0.2rem 0 0; }
+.sectionSummary { align-items: center; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 1rem; }
+.sectionSummary strong { color: var(--text); font-size: 1rem; }
+.sectionSummary p { font-size: 0.8rem; margin: 0.2rem 0 0; }
+.selectionPill, .successPill { border: 1px solid var(--primary); border-radius: 999px; color: var(--primary); font-size: 0.72rem; font-weight: 900; padding: 0.35rem 0.55rem; white-space: nowrap; }
+.successPill { border-color: var(--success); color: var(--success); }
+.candidateGrid, .evidenceGrid { display: grid; gap: 0.8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.evidenceGrid { grid-template-columns: 1fr; }
+.acquisitionIssues { background: color-mix(in srgb, var(--warning) 10%, var(--surface-muted)); border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border)); border-left: 4px solid var(--warning); margin-top: 1rem; padding: 0.8rem 1rem; }
+.acquisitionIssues h3 { margin-bottom: 0.35rem; }
+.acquisitionIssues ul { color: var(--text-muted); font-size: 0.8rem; line-height: 1.5; margin: 0; padding-left: 1.15rem; }
+.acquisitionIssues strong { color: var(--text); }
+.profileNextStep { align-items: center; background: color-mix(in srgb, var(--ai) 10%, var(--surface-muted)); border: 1px solid color-mix(in srgb, var(--ai) 40%, var(--border)); border-left: 4px solid var(--ai); display: flex; gap: 1rem; justify-content: space-between; margin-top: 1.2rem; padding: 0.9rem 1rem; }
+.profileNextStep h3 { margin-bottom: 0.2rem; }
+.profileNextStep p { font-size: 0.8rem; margin-bottom: 0; }
+.profileNextStep .eyebrow { color: var(--ai); font-size: 0.65rem; margin-bottom: 0.3rem; }
+.workflowList { display: grid; gap: 0.8rem; list-style: decimal; margin: 0; padding-left: 1.2rem; }
+.workflowList li { color: var(--text); padding-left: 0.2rem; }
+.workflowList strong, .workflowList span { display: block; }
+.workflowList span { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; margin-top: 0.15rem; }
+
+@media (max-width: 1050px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr); }
+  .candidateGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .workspace { grid-template-columns: 1fr; }
+  .contextColumn { position: static; }
+  .formGrid { grid-template-columns: 1fr; }
+  .matchCard, .overrideBox, .profileNextStep { align-items: stretch; display: grid; grid-template-columns: 1fr; }
+  .sectionSummary { align-items: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textarea { scroll-behavior: auto; }
+}

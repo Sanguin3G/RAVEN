@@ -10,5 +10,12 @@ public interface ICompanyService
         string name,
         string? website,
         string? country,
+        string? legalName,
+        string? registrationNumber,
+        string? headquarters,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<CompanyMatchResponse>> FindMatchesAsync(
+        CompanyMatchRequest request,
         CancellationToken cancellationToken);
 }

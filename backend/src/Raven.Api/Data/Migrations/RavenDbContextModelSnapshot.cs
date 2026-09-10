@@ -29,15 +29,24 @@ namespace Raven.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Headquarters")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTimeOffset?>("LastResearchedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LegalName")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegistrationNumber")
+                        .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
@@ -52,6 +61,298 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("Companies");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Profiles.CompanyProfileCandidate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AiModel")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AiProvider")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CandidateJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PromptTemplateVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ResearchRunId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResearchRunId", "GeneratedAt");
+
+                    b.ToTable("CompanyProfileCandidates");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Profiles.CompanyProfileVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AiModel")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AiProvider")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ConfirmedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProfileJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PromptTemplateVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ResearchRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "ConfirmedAt");
+
+                    b.HasIndex("CompanyId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("CompanyProfileVersions");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Profiles.ProfileEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CompanyProfileCandidateId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CompanyProfileVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FieldPath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceDocumentIdsJson")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileVersionId", "FieldPath");
+
+                    b.ToTable("ProfileEvidences");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Research.Events.ResearchEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CachedTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ConversationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("DurationMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("EstimatedCost")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalRequestId")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("HttpStatus")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InputHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputSummary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("InputTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OutputSummary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OutputTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PromptTemplateVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ResearchRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Stage")
+                        .HasMaxLength(48)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ToolName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResearchRunId", "Sequence");
+
+                    b.ToTable("ResearchEvents");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Research.ResearchCandidate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcquisitionError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcquisitionStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("DiscoveredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IconUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecommendationReasonsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Recommended")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ResearchRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SearchRank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Selected")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Snippet")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResearchRunId", "NormalizedUrl")
+                        .IsUnique();
+
+                    b.ToTable("ResearchCandidates");
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Research.ResearchRun", b =>
@@ -74,9 +375,36 @@ namespace Raven.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("CrawlCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CrawlFailed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CrawlSucceeded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CrawlTotal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DocumentsAdded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DuplicatesSkipped")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Error")
                         .HasMaxLength(4000)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("QueriesCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("QueriesTotal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RecommendedCandidates")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("RequestedCrawlerProvider")
                         .IsRequired()
@@ -88,6 +416,10 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ResearchHint")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("SourcesCrawled")
                         .HasColumnType("INTEGER");
 
@@ -97,6 +429,11 @@ namespace Raven.Api.Data.Migrations
                     b.Property<int>("SourcesSelected")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTimeOffset>("StartedAt")
                         .HasColumnType("TEXT");
 
@@ -104,6 +441,9 @@ namespace Raven.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("UniqueCandidates")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -135,6 +475,10 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IconUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NormalizedUrl")
                         .IsRequired()
                         .HasMaxLength(2048)
@@ -148,6 +492,15 @@ namespace Raven.Api.Data.Migrations
 
                     b.Property<string>("SourceDomain")
                         .HasMaxLength(253)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StructuredFactsJson")
+                        .HasMaxLength(16000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -168,6 +521,17 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("CompanyId", "NormalizedUrl");
 
                     b.ToTable("SourceDocuments");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Research.ResearchCandidate", b =>
+                {
+                    b.HasOne("Raven.Api.Features.Research.ResearchRun", "ResearchRun")
+                        .WithMany("Candidates")
+                        .HasForeignKey("ResearchRunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ResearchRun");
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Research.ResearchRun", b =>
@@ -209,6 +573,8 @@ namespace Raven.Api.Data.Migrations
 
             modelBuilder.Entity("Raven.Api.Features.Research.ResearchRun", b =>
                 {
+                    b.Navigation("Candidates");
+
                     b.Navigation("SourceDocuments");
                 });
 #pragma warning restore 612, 618

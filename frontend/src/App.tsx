@@ -6,6 +6,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { AddCompanyProfilePage } from "./pages/AddCompanyProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { StatusPage } from "./pages/StatusPage";
 
 export function App() {
   return (
@@ -16,6 +17,7 @@ export function App() {
         <Route path="/companies/new" element={<AddCompanyProfilePage />} />
         <Route path="/companies/:id" element={<CompanyDetailPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/status" element={<StatusPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppShell>

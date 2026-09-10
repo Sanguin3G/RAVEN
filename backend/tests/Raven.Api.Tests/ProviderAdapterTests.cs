@@ -28,6 +28,33 @@ public sealed class ProviderAdapterTests
     }
 
     [Fact]
+    public async Task Brave_omits_human_readable_country_names_that_are_not_valid_api_codes()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            Assert.DoesNotContain("country=Vietnam", request.RequestUri!.Query);
+            Assert.DoesNotContain("country=", request.RequestUri.Query);
+            return Json("""{"web":{"results":[]}}""");
+        })) { BaseAddress = new Uri("https://api.search.brave.com") };
+        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }));
+
+        await provider.SearchAsync(new SearchRequest("Viettel Telecom", 5, "Vietnam"));
+    }
+
+    [Fact]
+    public async Task Brave_sends_iso_country_codes()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            Assert.Contains("country=VN", request.RequestUri!.Query);
+            return Json("""{"web":{"results":[]}}""");
+        })) { BaseAddress = new Uri("https://api.search.brave.com") };
+        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }));
+
+        await provider.SearchAsync(new SearchRequest("Viettel Telecom", 5, "vn"));
+    }
+
+    [Fact]
     public async Task Brave_reports_configuration_and_authentication_failures_explicitly()
     {
         using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized))) { BaseAddress = new Uri("https://api.search.brave.com") };

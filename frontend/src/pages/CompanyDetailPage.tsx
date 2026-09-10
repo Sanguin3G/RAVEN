@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
+import { CompanyDossier } from "../components/dossier/CompanyDossier";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
 import { getCompanySources, getResearchRun, type ResearchRun, type SourceDocument } from "../api/research";
+import { getCurrentCompanyProfile } from "../api/profiles";
 import type { Company } from "../types/company";
+import type { CompanyProfileVersion } from "../types/profile";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(value));
@@ -19,6 +22,7 @@ export function CompanyDetailPage() {
   const [researchRun, setResearchRun] = useState<ResearchRun | null>(null);
   const [sources, setSources] = useState<SourceDocument[]>([]);
   const [researchError, setResearchError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<CompanyProfileVersion | null>(null);
   const researchRunId = searchParams.get("researchRun");
 
   useEffect(() => {
@@ -34,6 +38,18 @@ export function CompanyDetailPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    Promise.all([getCurrentCompanyProfile(id).catch(() => null), getCompanySources(id).catch(() => [])])
+      .then(([currentProfile, companySources]) => {
+        if (!active) return;
+        setProfile(currentProfile);
+        if (!researchRunId) setSources(companySources);
+      });
+    return () => { active = false; };
+  }, [id, researchRunId]);
 
   useEffect(() => {
     if (!id || !researchRunId) return;
@@ -55,6 +71,15 @@ export function CompanyDetailPage() {
 
   if (!company) {
     return <Panel className="narrow-page empty-state" title="Company not found" eyebrow="MISSING RECORD"><p>{error || "RAVEN could not find that company record."}</p><Link className="button button--secondary" to="/companies">Return to Company List</Link></Panel>;
+  }
+
+  if (profile) {
+    return <CompanyDossier
+      company={{ id: company.id, displayName: company.name, legalName: company.legalName, registrationNumber: company.registrationNumber, website: company.website, country: company.country, headquarters: company.headquarters, industry: profile.primaryIndustry, lastResearchedAt: company.lastResearchedAt }}
+      profile={{ ...profile, publicLinks: profile.publicLinks?.map((link) => link.url) ?? [], evidenceCount: profile.evidence?.length ?? 0 }}
+      sources={sources.map((source) => ({ id: source.id, url: source.url, title: source.title, domain: source.sourceDomain, kind: source.sourceKind, iconUrl: source.iconUrl, preview: source.contentPreview, retrievedAt: source.retrievedAt, crawlerProvider: source.crawlerProvider, status: "acquired" }))}
+      research={researchRun ? { status: researchRun.stage === "Failed" ? "failed" : researchRun.stage === "Completed" ? "completed" : "waiting", stageLabel: researchRun.stage, runId: researchRun.id, error: researchRun.error, counters: [{ label: "Documents added", value: researchRun.documentsAdded }, { label: "Candidates", value: researchRun.uniqueCandidates }] } : { status: "completed", summary: "Current accepted dossier" }}
+    />;
   }
 
   const researchStatus = researchRun?.status.toLowerCase();
