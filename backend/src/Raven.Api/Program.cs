@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Crawling;
+using Raven.Api.Features.Research;
 using Raven.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,12 +23,18 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.Configure<Crawl4AiLocalOptions>(
     builder.Configuration.GetSection(Crawl4AiLocalOptions.SectionName));
+builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
+{
+    options.BaseUrl = builder.Configuration["CRAWL4AI_LOCAL_BASE_URL"] ?? options.BaseUrl;
+    options.ApiToken = builder.Configuration["CRAWL4AI_API_TOKEN"] ?? options.ApiToken;
+});
 builder.Services.AddHttpClient<ICrawlerStatusProbe, Crawl4AiLocalStatusProbe>((services, client) =>
 {
     var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Crawl4AiLocalOptions>>().Value;
     client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
     client.Timeout = TimeSpan.FromSeconds(3);
 });
+builder.Services.AddResearchDiscovery(builder.Configuration);
 
 var app = builder.Build();
 
@@ -37,6 +44,7 @@ app.MapHealthChecks("/health");
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
 app.MapCompanyEndpoints();
 app.MapSystemEndpoints();
+app.MapResearchEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

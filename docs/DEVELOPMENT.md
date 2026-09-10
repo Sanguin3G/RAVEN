@@ -25,17 +25,17 @@ npm install
 npm run dev
 ~~~
 
-The frontend development server uses port 5173. The API listens on `http://localhost:5180` in development and exposes Company endpoints, `GET /health`, `GET /api/system/crawler-status`, and OpenAPI at `/openapi/v1.json`.
+The frontend development server uses port 5173. The API listens on `http://localhost:5180` in development and exposes Company endpoints, `POST /api/companies/{id}/research`, `GET /api/research-runs/{id}`, `GET /api/companies/{id}/sources`, `GET /api/sources/{id}`, `GET /health`, `GET /api/system/crawler-status`, and OpenAPI at `/openapi/v1.json`.
 
 ## Configuration and secrets
 
-.env.example lists planned provider variable names: BRAVE_SEARCH_API_KEY, EXA_API_KEY, CRAWL4AI_CLOUD_API_KEY, FIRECRAWL_API_KEY, GEMINI_API_KEY, OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, OPENAI_COMPATIBLE_MODEL, RAVEN_CONNECTION_STRING, and CRAWL4AI_LOCAL_BASE_URL.
+.env.example lists planned provider variable names: BRAVE_SEARCH_API_KEY, EXA_API_KEY, CRAWL4AI_CLOUD_API_KEY, FIRECRAWL_API_KEY, GEMINI_API_KEY, OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, OPENAI_COMPATIBLE_MODEL, RAVEN_CONNECTION_STRING, CRAWL4AI_LOCAL_BASE_URL, and CRAWL4AI_API_TOKEN.
 
-Never commit a populated .env. RAVEN does not currently load .env files, so the provider values remain placeholders. The API reads its SQLite connection string from appsettings.json or the standard ASP.NET Core ConnectionStrings__Raven environment variable. Crawl4AI Local settings are configured in appsettings.json; the current probe only reports whether its health endpoint is reachable.
+Never commit a populated `.env`. RAVEN does not load `.env` files, so export provider values into the API process or use user secrets. The Brave adapter reads `BRAVE_SEARCH_API_KEY` (or `Providers__Brave__ApiKey`); Crawl4AI Local reads `CRAWL4AI_LOCAL_BASE_URL` and `CRAWL4AI_API_TOKEN` (or the `Crawl4AI__Local` configuration section). The API reads its SQLite connection string from appsettings.json or the standard ASP.NET Core `ConnectionStrings__Raven` environment variable.
 
 ## Docker
 
-docker-compose.yml starts Crawl4AI Local as unclecode/crawl4ai:latest, binding port 11235 to localhost only. Current Crawl4AI images require `CRAWL4AI_API_TOKEN` to listen beyond the container loopback interface; Compose supplies a development-only default so the Day 1 health probe works. Before authenticated crawl endpoints are added, set a distinct value in the untracked root `.env` file and make the backend send it as a bearer token. Inspect the container with:
+docker-compose.yml starts Crawl4AI Local as unclecode/crawl4ai:latest. In WSL development it publishes port 11235 on the Debian virtual interface so WSL localhost forwarding exposes it as `http://127.0.0.1:11235` to Windows; WSL NAT keeps it off the physical LAN by default. Current Crawl4AI images require `CRAWL4AI_API_TOKEN` to listen beyond the container loopback interface; Compose supplies a development-only default. For local crawling, pass the same value to the API process; production must use a distinct secret. The `crawl4ai-local` adapter sends it as a bearer token to `POST /crawl`. Inspect the container with:
 
 ~~~powershell
 docker compose logs crawl4ai
