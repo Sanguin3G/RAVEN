@@ -1,103 +1,77 @@
 # RAVEN Architecture
+
 ## Current implementation boundary
 
-The repository currently contains the Day 1 foundation: an ASP.NET Core API with migrated SQLite persistence, Company create/list/get endpoints, development CORS, and a timeout-bounded Crawl4AI Local availability probe. It also contains the React/Vite company-flow UI and Docker Compose for Crawl4AI Local. Research workflows and provider adapters remain intended architecture rather than implemented functionality. See [STATUS.md](STATUS.md) for the live inventory.
+RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. The implemented M1 workflow is deterministic and staged; it does not contain RAG, agents, MCP, queues, or background workers.
+
+```text
+Company identity
+→ deterministic discovery
+→ persisted ResearchCandidate review
+→ selected-source acquisition
+→ SourceDocument evidence
+→ Gemini structured profile candidate
+→ deterministic evidence validation
+→ human confirmation
+→ immutable CompanyProfileVersion + ProfileEvidence
+```
+
+Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress.
 
 ## Technology stack
 
-~~~text
-Frontend        React + TypeScript
-Backend         ASP.NET Core
-Database        SQLite
-ORM             Entity Framework Core
+```text
+Frontend        React + TypeScript + Vite + Phosphor icons
+Backend         ASP.NET Core minimal APIs
+Database        SQLite + Entity Framework Core
+Search          Brave Search
+Crawler         Crawl4AI Local (Docker)
+AI              Gemini structured output
+```
 
-Search          Brave / Exa / Crawl4AI Cloud / Firecrawl
-Crawler         Crawl4AI Local / Crawl4AI Cloud / Firecrawl
+## Provider boundaries
 
-AI              Gemini
-Agents          Microsoft Agent Framework
-MCP             Exa MCP / optionally Firecrawl MCP
+Search, crawling, and AI inference are independent capabilities:
 
-RAG             embeddings + vector retrieval
-Infrastructure  Docker
-~~~
+```text
+ISearchProvider       → BraveSearchProvider
+ICrawlerProvider      → Crawl4AiLocalProvider
+IAiModelProvider      → GeminiProvider
+```
 
-## Provider architecture
+Application workflows depend on those neutral capabilities rather than provider-specific DTOs. External calls are mockable in tests. Configuration and status endpoints expose only configured/available/model state; they never return credentials.
 
-Search, crawling, and AI are independent capabilities. Provider-specific work stays behind capability interfaces; workflows operate on interfaces and record requested and actual providers, including fallback.
+Brave discovers candidate URLs. Crawl4AI reads selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts.
 
-~~~text
-ISearchProvider
-├── Brave
-├── Exa
-├── Crawl4AI Cloud
-└── Firecrawl
+## Research and sources
 
-ICrawlerProvider
-├── Crawl4AI Local
-├── Crawl4AI Cloud
-└── Firecrawl
+`ResearchRun` owns the staged lifecycle and truthful counters. `ResearchCandidate` preserves discovery, classification, recommendation, selection, and acquisition state. The server accepts persisted candidate IDs for acquisition rather than arbitrary client URLs.
 
-IAiModelProvider
-├── Gemini
-└── OpenAI-compatible
-~~~
+Supported source kinds include OfficialWebsite, OfficialDocument, BusinessRegistry, TopCv, LinkedIn, News, ExternalWebsite, and SearchResult. Source classification, URL normalization, deduplication, recommendation reasons, field-aware authority policy, and bounded same-domain official-site planning are application concerns. TopCV parsing supplements rather than replaces the original `SourceDocument`.
 
-The balanced preset orders search as Brave, Exa, Crawl4AI Cloud, Firecrawl; and crawling as Crawl4AI Local, Crawl4AI Cloud, Firecrawl. Easy Cloud uses Crawl4AI Cloud for both. Cloud Robust uses Exa and Firecrawl. Fall back only for retryable failures such as timeouts, rate limits, temporary network faults, and 5xx responses; invalid configuration, auth failure, bad input, and unsupported capability fail visibly.
+`SourceDocument` is the durable raw evidence record. Duplicate content increments duplicate counters instead of pretending another document was persisted. `ResearchEvent` stores safe operational metadata such as stage, provider, duration, status, and sanitized errors—not keys, headers, cookies, hidden reasoning, or unbounded document content.
 
-## Fast Research
+## Profiles and provenance
 
-Fast Research is deterministic: application code controls ordinary profile generation and an LLM does not autonomously decide the workflow.
+Company identity remains separate from research output. Gemini receives a bounded package of identity hints and acquired source evidence, returns structured JSON, and must leave unsupported values unknown. `ProfileInputBuilder` and `CompanyProfileValidator` validate source IDs, company ownership, permitted field paths, and duplicate evidence references.
 
-~~~text
-Company → Search provider → URL ranking → Crawler provider → Source documents
-→ Cleaning/chunking → Embeddings → RAG → Gemini Flash-Lite
-→ Structured profile → Validation → Persistence
-~~~
+Generated candidates are not accepted facts. A human confirmation creates an immutable `CompanyProfileVersion` with `ProfileEvidence`. The latest accepted version is available through the Company workspace; previous versions remain in storage.
 
-The workflow creates an observable ResearchRun, persists clean source content, and derives a validated profile from selected evidence. Missing scalar data is null; missing collections are empty. Model IDs remain configuration-driven.
+## Runtime model preferences
 
-## Deep Research
+Gemini configuration establishes startup defaults. The local Settings page may switch the approved Fast and Deep model choices between `gemini-3.5-flash-lite` and `gemini-3.8-flash` through a runtime-only preference service. Fast choice applies to new profile-generation scopes; preferences reset on API restart and do not alter or reveal secrets.
 
-Deep Research is agentic and reserved for investigative questions.
+## Frontend composition
 
-~~~text
-Question → CompanyResearchAgent → Internal RAG → Enough evidence?
-Yes → grounded answer with citations
-No  → search / crawl / MCP → Gemini Flash → grounded answer
-~~~
+The React application uses a fixed, collapsible desktop sidebar and a mobile drawer, contextual top bar, System Status route, Company workspace tabs, reusable source cards/icons, Settings, and an explicit Ask RAVEN handoff surface. Source icons use safe domain favicon resolution with provider-aware and Phosphor fallbacks.
 
-Microsoft Agent Framework hosts CompanyResearchAgent. It follows RAG-first behavior and may inspect profiles/sources or use search, crawling, Exa MCP, and optionally Firecrawl MCP. Application code owns persistence. The agent must not receive unrestricted SQL or database-mutation tools. Answers distinguish stored evidence from newly gathered evidence.
+## Future seams
 
-## Core data model
+The existing evidence model leaves deliberate attachment points for:
 
-~~~text
-Company
- ├── ResearchRuns
- ├── SourceDocuments
- │     └── SourceChunks
- ├── CompanyProfileVersions
- │     └── ProfileEvidence
- └── ProfileChanges
-~~~
+```text
+SourceDocument → SourceChunk → embeddings → company-filtered retrieval
+→ Ask RAVEN answers with citations
+```
 
-ResearchRun records lifecycle, requested/actual providers, model, counts, and errors. SourceDocument retains normalized source content; SourceChunk supports retrieval. CompanyProfileVersion is immutable. ProfileEvidence maps profile fields to source/chunk evidence. ProfileChange records old/new values. EF models and migrations are the detailed schema authority.
-
-## Tracking
-
-~~~text
-Research history + Profile version history + Change detection
-~~~
-
-A successful refresh creates a new profile version rather than overwriting history. Scheduled monitoring is optional after manual refresh works.
-
-## Important architecture decisions
-
-- SQLite is the portable MVP source of record.
-- Search and crawling are separate provider abstractions.
-- Brave plus Crawl4AI Local is the recommended default.
-- Profiles are versioned rather than overwritten.
-- Fast Research is deterministic; Agent Framework is primarily for Deep Research.
-- Internal RAG is consulted before external Deep Research where appropriate.
-- MCP extends agent capabilities; it does not replace ordinary provider APIs.
-- Crawl4AI availability is checked on demand; its absence must not prevent API startup.
+Deep Research, Microsoft Agent Framework, MCP, Exa, Firecrawl, scheduled monitoring, and change detection remain future work. They must preserve the same source provenance and deterministic Fast Research path.

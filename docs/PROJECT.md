@@ -1,77 +1,68 @@
 # RAVEN Project
+
 ## Business problem
 
-Organizations research prospective companies manually across scattered public sources, then repeatedly reconstruct the same facts when circumstances change. RAVEN should turn that work into reusable, standardized Company Profiles with inspectable evidence.
+Organizations research prospective companies across scattered public sources, then reconstruct the same facts whenever they need an updated view. RAVEN turns this work into reusable Company Profiles with inspectable evidence.
 
 ## Core user flow
 
-~~~text
-Company
-  ↓
-Public-source research
-  ↓
-Source collection
-  ↓
-Standardized Company Profile
-  ↓
-Central storage
-  ↓
-Ask / reuse knowledge
-  ↓
-Refresh
-  ↓
-Track changes
-~~~
+```text
+Company identity and research hints
+→ find likely duplicate or create separately
+→ discover public sources
+→ researcher selects sources
+→ acquire and preserve evidence
+→ generate a structured profile candidate
+→ validate provenance
+→ human confirmation
+→ immutable Company Profile version
+```
 
-## Core Company Profile
+User-entered identity data is a research hint, not automatically a verified profile fact. Unknown information remains unknown: unsupported scalar values are `null`, and unsupported collections are empty.
 
-~~~text
-Company name             Legal name
-Website                  Country
-Headquarters
+## Current product surface
 
-Industry                 Company size
-Products / services      Markets
+RAVEN currently supports:
 
-Summary                  Sources / evidence
-Research timestamp
-~~~
+- rich Company identity fields and non-blocking duplicate suggestions;
+- deterministic Brave discovery with bounded official-domain planning;
+- persisted candidate review, source taxonomy, recommendation reasons, and source selection;
+- Crawl4AI Local evidence acquisition with truthful success, failure, duplicate, and document counters;
+- TopCV, LinkedIn, business-registry, official-document, news, and external-source classification;
+- structured Gemini profile candidates, deterministic evidence-reference validation, and explicit confirmation;
+- immutable Company Profile versions, ProfileEvidence, SourceDocuments, and research events;
+- a React Company workspace with dossier, Sources, Research, Changes placeholder, and Ask RAVEN handoff placeholder.
 
-Unknown information remains unknown. AI must not invent values merely to complete a schema.
+## Company Profile
 
-## Current foundation
+The durable dossier answers: **what is this company?** It includes identity, classification, summary, products/services, markets, leadership, locations, public links, and field-level evidence where available. It does not invent revenue, valuation, funding, or other unsupported facts.
 
-The implemented foundation supports persistent Company identities through the API. It deliberately stores only stable identity fields (name, optional website, and optional country); generated profile and research fields remain deferred until the evidence-backed research flow is implemented.
+## Priorities
 
-## Main product features
+### P0 — delivered in M1
 
-### P0
+```text
+Company management     Source discovery and acquisition
+Evidence preservation  Standardized profiles
+SQLite persistence     Profile versions
+Research activity      Human review and confirmation
+```
 
-~~~text
-Company management       Automated research
-Source preservation      Standardized profiles
-SQLite persistence       Research history
-Profile refresh          Profile versions
-Change tracking          RAG
-Ask Company
-~~~
+### P1 — next
 
-### P1
+```text
+Profile refresh        Change detection
+Source chunks / RAG    Ask RAVEN with citations
+```
 
-~~~text
-Microsoft Agent Framework    Deep Research
-MCP                          Multiple search providers
-Multiple crawler providers   Provider settings and fallback
-Global company intelligence
-~~~
+### P2 — later
 
-### P2
-
-~~~text
-Scheduled monitoring     Notifications
-Advanced analytics       Local models
-~~~
+```text
+Deep Research / Agent Framework    MCP
+Exa / Firecrawl providers          Scheduled monitoring
+Notifications                      Advanced analytics
+```
 
 ## Non-goals
 
-RAVEN is not intended to become a distributed enterprise platform during this project. The initial scope excludes microservices, Kafka, Kubernetes, enterprise-scale crawling, and large multi-agent swarms. Technical implementation belongs in [ARCHITECTURE.md](ARCHITECTURE.md).
+RAVEN is not a distributed enterprise platform during this project. The MVP excludes microservices, Kafka, Kubernetes, unrestricted crawler recursion, and large multi-agent swarms. Technical boundaries are defined in [ARCHITECTURE.md](ARCHITECTURE.md).

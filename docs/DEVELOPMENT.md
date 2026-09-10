@@ -1,82 +1,123 @@
 # RAVEN Development
+
 ## Requirements
 
-Install the .NET 10 SDK, Node.js, Docker Engine (Docker Desktop or a WSL distribution), and Git. Provider credentials are needed only after their adapters are implemented.
+Install the .NET 10 SDK, Node.js, Docker Engine, and Git. Live provider use also needs server-side credentials for Brave and Gemini plus a matching Crawl4AI Local token.
 
 ## Local startup
 
-From the repository root, start the local crawler:
+From the repository root, start Crawl4AI Local:
 
-~~~powershell
+```powershell
 docker compose up -d crawl4ai
-~~~
+```
 
-Start the API from backend:
+Start the API from `backend`:
 
-~~~powershell
+```powershell
 dotnet restore Raven.sln
 dotnet run --project src/Raven.Api
-~~~
+```
 
-Start the frontend from frontend:
+Start the frontend from `frontend`:
 
-~~~powershell
+```powershell
 npm install
 npm run dev
-~~~
+```
 
-The frontend development server uses port 5173. The API listens on `http://localhost:5180` in development and exposes Company endpoints, `POST /api/companies/{id}/research`, `GET /api/research-runs/{id}`, `GET /api/companies/{id}/sources`, `GET /api/sources/{id}`, `GET /health`, `GET /api/system/crawler-status`, and OpenAPI at `/openapi/v1.json`.
+The frontend uses port 5173. The API uses `http://localhost:5180`, serves OpenAPI at `/openapi/v1.json` in development, and exposes `/health`.
 
-## Day 3 endpoints
+## API surface
 
-In addition to the legacy research endpoint, use `POST /api/companies/{id}/research/discover`, `GET /api/research-runs/{id}/candidates`, `POST /api/research-runs/{id}/acquire`, `GET /api/research-runs/{id}/sources`, `POST /api/research-runs/{id}/profile/generate`, `POST /api/research-runs/{id}/profile/confirm`, and `GET /api/companies/{id}/profile`. `GET /api/system/provider-status` returns safe configured/available state only.
+Core Company endpoints:
+
+```text
+POST /api/companies
+GET  /api/companies
+GET  /api/companies/{id}
+POST /api/companies/matches
+```
+
+Staged research endpoints:
+
+```text
+POST /api/companies/{id}/research/discover
+POST /api/companies/{id}/research                 (legacy discover + auto-acquire)
+GET  /api/companies/{id}/research-runs
+GET  /api/research-runs/{id}
+GET  /api/research-runs/{id}/candidates
+POST /api/research-runs/{id}/acquire
+GET  /api/research-runs/{id}/sources
+GET  /api/companies/{id}/sources
+GET  /api/sources/{id}
+```
+
+Profile endpoints:
+
+```text
+POST /api/research-runs/{id}/profile/generate
+POST /api/research-runs/{id}/profile/confirm
+GET  /api/companies/{id}/profile
+```
+
+System endpoints:
+
+```text
+GET /api/system/crawler-status
+GET /api/system/provider-status
+PUT /api/system/model-preferences
+```
+
+The model-preference endpoint permits only `gemini-3.5-flash-lite` and `gemini-3.8-flash`. It holds the local runtime choice until the API restarts; it does not write configuration or accept credentials.
 
 ## Configuration and secrets
 
-.env.example lists planned provider variable names: BRAVE_SEARCH_API_KEY, EXA_API_KEY, CRAWL4AI_CLOUD_API_KEY, FIRECRAWL_API_KEY, GEMINI_API_KEY, OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, OPENAI_COMPATIBLE_MODEL, RAVEN_CONNECTION_STRING, CRAWL4AI_LOCAL_BASE_URL, and CRAWL4AI_API_TOKEN.
+Never commit a populated `.env` file. RAVEN does not load `.env` automatically; export values into the API process or use user secrets.
 
-Never commit a populated `.env`. RAVEN does not load `.env` files, so export provider values into the API process or use user secrets. The Brave adapter reads `BRAVE_SEARCH_API_KEY` (or `Providers__Brave__ApiKey`); Crawl4AI Local reads `CRAWL4AI_LOCAL_BASE_URL` and `CRAWL4AI_API_TOKEN` (or the `Crawl4AI__Local` configuration section); Gemini reads `GEMINI_API_KEY` with optional `GEMINI_FAST_MODEL` and `GEMINI_DEEP_MODEL` overrides. The API reads its SQLite connection string from appsettings.json or the standard ASP.NET Core `ConnectionStrings__Raven` environment variable.
+| Capability | Environment variables |
+| --- | --- |
+| Brave | `BRAVE_SEARCH_API_KEY` |
+| Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
+| Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
+| SQLite | `ConnectionStrings__Raven` |
+
+The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
 
 ## Docker
 
-docker-compose.yml starts Crawl4AI Local as unclecode/crawl4ai:latest. In WSL development it publishes port 11235 on the Debian virtual interface so WSL localhost forwarding exposes it as `http://127.0.0.1:11235` to Windows; WSL NAT keeps it off the physical LAN by default. Current Crawl4AI images require `CRAWL4AI_API_TOKEN` to listen beyond the container loopback interface; Compose supplies a development-only default. For local crawling, pass the same value to the API process; production must use a distinct secret. The `crawl4ai-local` adapter sends it as a bearer token to `POST /crawl`. Inspect the container with:
+`docker-compose.yml` runs `unclecode/crawl4ai:latest` and exposes its port locally. Current Crawl4AI images need `CRAWL4AI_API_TOKEN` for host traffic. Give the API the same token and keep production values distinct from development values.
 
-~~~powershell
+```powershell
 docker compose logs crawl4ai
-~~~
+```
 
-Do not silently substitute a cloud crawler when the local service fails. Future fallback must be configured and reported to the user.
+Do not silently substitute a cloud crawler if the local crawler fails; surface the source-level failure and continue eligible work.
 
 ## Database
 
-SQLite is the current database. API startup applies EF Core migrations. With the documented backend startup command, the default database file is backend/src/Raven.Api/raven.db. Create and apply migrations from backend with:
+SQLite is the source of record. API startup applies EF Core migrations. With the documented backend startup command, the default file is `backend/src/Raven.Api/raven.db`.
 
-~~~powershell
+```powershell
+# from backend
 dotnet ef migrations add <MigrationName> --project src/Raven.Api --startup-project src/Raven.Api
 dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Api
-~~~
-
-EF models and migrations are the detailed schema authority.
+```
 
 ## Tests and checks
 
-A backend integration-test project is registered. Current checks are:
-
-~~~powershell
+```powershell
 # from backend
 dotnet build Raven.sln
 dotnet test Raven.sln
 
 # from frontend
+npm test -- --run
 npm run build
-~~~
+```
 
-When test projects are added, record their exact commands here. Provider adapters must be tested through mocks or fixtures; normal automated tests must not require paid services or real credentials.
+Provider tests must use fakes, mocks, or fixtures. Normal automated tests must not require live provider credentials, paid traffic, TopCV availability, LinkedIn access, or a running crawler.
 
 ## Git workflow
 
-Use main, short-lived feature branches, small pull requests, and GitHub Issues. Prefer feat/<issue>-short-name and fix/<issue>-short-name. A pull request normally corresponds to one logical issue. Coordinate before editing shared contracts, Program.cs, frontend bootstrap/routing, Docker Compose, EF migration ordering, or STATUS.md.
-
-## Codex workflow
-
-Terra handles planning, parallel task decomposition, integration review, and STATUS.md updates. Luna agents handle focused implementation tasks. Keep task ownership narrow and expose registration helpers rather than directly changing shared integration hotspots.
+Use `main` plus short-lived feature branches and small pull requests. Coordinate before editing shared contracts, Program.cs, frontend routing/bootstrap, Docker Compose, migrations, or STATUS.md. Do not merge a feature branch until its relevant tests and integration checks are green.
