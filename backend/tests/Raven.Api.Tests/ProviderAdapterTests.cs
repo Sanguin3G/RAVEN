@@ -60,6 +60,20 @@ public sealed class ProviderAdapterTests
     }
 
     [Fact]
+    public async Task Crawl4Ai_uses_raw_markdown_when_fit_markdown_is_empty()
+    {
+        using var client = new HttpClient(new StubHandler(_ =>
+            Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"fit_markdown":"","raw_markdown":"# Full page"},"metadata":{}}]}""")))
+        { BaseAddress = new Uri("http://localhost:11235") };
+        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }));
+
+        var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about"));
+
+        Assert.True(result.Success);
+        Assert.Equal("# Full page", result.Markdown);
+    }
+
+    [Fact]
     public async Task Crawl4Ai_returns_a_page_failure_without_throwing()
     {
         using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.BadGateway))) { BaseAddress = new Uri("http://localhost:11235") };

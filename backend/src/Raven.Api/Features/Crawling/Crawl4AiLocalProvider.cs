@@ -109,10 +109,15 @@ public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4
         return markdown.ValueKind switch
         {
             JsonValueKind.String => markdown.GetString(),
-            JsonValueKind.Object => ReadString(markdown, "fit_markdown") ?? ReadString(markdown, "raw_markdown"),
+            JsonValueKind.Object => FirstNonEmpty(
+                ReadString(markdown, "fit_markdown"),
+                ReadString(markdown, "raw_markdown")),
             _ => null
         };
     }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string? ReadString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
