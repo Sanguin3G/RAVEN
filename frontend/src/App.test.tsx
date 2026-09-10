@@ -10,14 +10,45 @@ const apiCompanies: Company[] = [
   { id: "22222222-2222-2222-2222-222222222222", name: "Masan Group", website: "https://www.masangroup.com", country: "Vietnam", createdAt: "2026-08-21T00:00:00Z", updatedAt: "2026-09-04T16:20:00Z" },
 ];
 
+const researchRun = {
+  id: "44444444-4444-4444-4444-444444444444",
+  companyId: "33333333-3333-3333-3333-333333333333",
+  status: "Completed",
+  requestedSearchProvider: "brave",
+  actualSearchProvider: "brave",
+  requestedCrawlerProvider: "crawl4ai-local",
+  actualCrawlerProvider: "crawl4ai-local",
+  sourcesFound: 3,
+  sourcesSelected: 2,
+  sourcesCrawled: 2,
+  startedAt: "2026-09-10T00:00:00Z",
+  completedAt: "2026-09-10T00:01:00Z",
+  error: null,
+};
+
+const researchSources = [{
+  id: "55555555-5555-5555-5555-555555555555",
+  companyId: researchRun.companyId,
+  researchRunId: researchRun.id,
+  url: "https://fptsoftware.com/about",
+  title: "About FPT Software",
+  sourceDomain: "fptsoftware.com",
+  retrievedAt: "2026-09-10T00:00:00Z",
+  crawlerProvider: "crawl4ai-local",
+  contentPreview: "FPT Software company information.",
+}];
+
 beforeEach(() => {
   localStorage.clear();
   let createdCompany: typeof apiCompanies[number] | null = null;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
-    if (init?.method === "POST") {
+    if (url.endsWith("/research") && init?.method === "POST") return jsonResponse(researchRun);
+    if (url.endsWith("/sources")) return jsonResponse(researchSources);
+    if (url.includes("/api/research-runs/")) return jsonResponse(researchRun);
+    if (url.endsWith("/api/companies") && init?.method === "POST") {
       const body = JSON.parse(String(init.body)) as { name: string; website?: string; country?: string };
-      const company = { id: "33333333-3333-3333-3333-333333333333", name: body.name, website: body.website || null, country: body.country || null, createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z" };
+      const company = { id: researchRun.companyId, name: body.name, website: body.website || null, country: body.country || null, createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z" };
       createdCompany = company;
       return jsonResponse(company, 201);
     }
@@ -62,29 +93,22 @@ it("opens a company detail from the list", async () => {
   expect(screen.getByText("https://fptsoftware.com")).toBeInTheDocument();
 });
 
-it("searches and opens the company match popup", async () => {
+it("starts public-source research and shows its acquired evidence", async () => {
   const user = userEvent.setup();
   renderWithRouter(<App />, "/companies/new");
-  await user.type(screen.getByLabelText(/Company name/), "FPT");
-  await user.click(screen.getByRole("button", { name: "Search matching companies" }));
-  await user.click(await screen.findByRole("button", { name: /FPT Software/ }));
+  await user.type(screen.getByLabelText(/Company name/), "FPT Software");
+  await user.click(screen.getByRole("button", { name: "Research public sources" }));
 
-  expect(screen.getByRole("dialog")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Auto Generate Profile" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Manually Create Profile" })).toBeInTheDocument();
+  expect(await screen.findByText(/Research completed/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "About FPT Software" })).toHaveAttribute("href", "https://fptsoftware.com/about");
+  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research", expect.objectContaining({ method: "POST" }));
 });
 
-it("supports manual profile creation for an unmatched company", async () => {
-  const user = userEvent.setup();
+it("marks only Add Company Profile as active on the research page", () => {
   renderWithRouter(<App />, "/companies/new");
-  await user.type(screen.getByLabelText(/Company name/), "Unknown Atlas Co");
-  await user.click(screen.getByRole("button", { name: "Search matching companies" }));
-  await user.click(await screen.findByRole("button", { name: "Create company identity" }));
-  await screen.findByRole("dialog");
-  await user.click(screen.getByRole("button", { name: "Manually Create Profile" }));
 
-  expect(await screen.findByRole("heading", { name: "Unknown Atlas Co" })).toBeInTheDocument();
-  expect(screen.getByText(/Manual profile mode/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Add Company Profile" })).toHaveClass("active");
+  expect(screen.getByRole("link", { name: "Company List" })).not.toHaveClass("active");
 });
 
 it("switches and persists the selected theme", async () => {

@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
           <nav className="primary-nav" aria-label="Primary navigation">
             <NavLink to="/">Dashboard</NavLink>
-            <NavLink to="/companies">Company List</NavLink>
+            <NavLink to="/companies" end>Company List</NavLink>
             <NavLink to="/companies/new">Add Company Profile</NavLink>
           </nav>
           <NavLink className="settings-link" to="/settings">Settings</NavLink>
