@@ -5,6 +5,7 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles;
+using Raven.Api.Features.Settings;
 using Raven.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,8 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
     policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
 }));
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IResearchSettingsStore, EfResearchSettingsStore>();
+builder.Services.AddScoped<IResearchSettingsService, ResearchSettingsService>();
 builder.Services.Configure<Crawl4AiLocalOptions>(
     builder.Configuration.GetSection(Crawl4AiLocalOptions.SectionName));
 builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
@@ -48,6 +51,7 @@ app.MapHealthChecks("/health");
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
 app.MapCompanyEndpoints();
 app.MapSystemEndpoints();
+app.MapResearchSettingsEndpoints();
 app.MapResearchEndpoints();
 app.MapProfileEndpoints();
 

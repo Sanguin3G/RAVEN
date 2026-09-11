@@ -1,4 +1,5 @@
 using Raven.Api.Features.Companies;
+using Raven.Api.Features.Research.Intelligence;
 
 namespace Raven.Api.Features.Research;
 
@@ -9,6 +10,8 @@ public sealed class ResearchRun
     public Company Company { get; init; } = null!;
     public ResearchRunStatus Status { get; set; } = ResearchRunStatus.Searching;
     public ResearchStage Stage { get; set; } = ResearchStage.Discovering;
+    public GroundingMode GroundingMode { get; set; } = GroundingMode.Auto;
+    public Guid? ResolvedIdentityCandidateId { get; set; }
     public DateTimeOffset StartedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAt { get; set; }
     public required string RequestedSearchProvider { get; init; }
@@ -48,6 +51,8 @@ public enum ResearchStage
 {
     Identifying,
     Discovering,
+    Grounding,
+    AwaitingIdentitySelection,
     AwaitingSourceSelection,
     Acquiring,
     EvidenceReady,

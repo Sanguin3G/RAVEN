@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Raven.Api.Data;
 
@@ -10,9 +11,11 @@ using Raven.Api.Data;
 namespace Raven.Api.Data.Migrations
 {
     [DbContext(typeof(RavenDbContext))]
-    partial class RavenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260911070455_AddResearchIntelligenceTracking")]
+    partial class AddResearchIntelligenceTracking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");

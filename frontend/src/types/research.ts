@@ -1,7 +1,11 @@
 export type ResearchRunStatus = "Searching" | "Crawling" | "Completed" | "Failed";
 
+export type GroundingMode = "Auto" | "Always" | "Off";
+
 export type ResearchStage =
   | "Identifying"
+  | "Grounding"
+  | "AwaitingIdentitySelection"
   | "Discovering"
   | "AwaitingSourceSelection"
   | "Acquiring"
@@ -36,6 +40,8 @@ export interface ResearchRun {
   completedAt?: string | null;
   error?: string | null;
   stage: ResearchStage;
+  groundingMode?: GroundingMode | null;
+  resolvedIdentityCandidateId?: string | null;
   researchHint?: string | null;
   queriesTotal: number;
   queriesCompleted: number;
@@ -47,6 +53,28 @@ export interface ResearchRun {
   crawlFailed: number;
   documentsAdded: number;
   duplicatesSkipped: number;
+}
+
+export type GroundedEntityType = "ParentGroup" | "Company" | "Subsidiary" | "Affiliate" | "Brand" | "Unknown";
+export type GroundingConfidence = "Low" | "Medium" | "High";
+
+export interface ResearchIdentityCandidate {
+  id: string;
+  researchRunId: string;
+  temporaryId: string;
+  displayName: string;
+  legalName?: string | null;
+  country?: string | null;
+  website?: string | null;
+  officialDomain?: string | null;
+  entityType: GroundedEntityType;
+  relationshipHint?: string | null;
+  confidence: GroundingConfidence;
+  rationale?: string | null;
+  supportingCandidateIds: string[];
+  recommended: boolean;
+  selected: boolean;
+  createdAt: string;
 }
 
 export interface ResearchCandidate {
@@ -64,6 +92,10 @@ export interface ResearchCandidate {
   acquisitionStatus: "Pending" | "Acquiring" | "Acquired" | "Failed" | "DuplicateSkipped" | "Unavailable";
   acquisitionError?: string | null;
   iconUrl?: string | null;
+  entityRelationship?: "SameEntity" | "Parent" | "Subsidiary" | "Affiliate" | "DifferentEntity" | "Uncertain" | null;
+  semanticRelevance?: "High" | "Medium" | "Low" | null;
+  semanticPurposes?: string[];
+  semanticRationale?: string | null;
   discoveredAt: string;
 }
 

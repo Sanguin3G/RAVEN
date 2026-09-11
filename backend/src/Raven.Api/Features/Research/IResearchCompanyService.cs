@@ -19,6 +19,15 @@ public interface IResearchCompanyService
         Guid researchRunId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ResearchIdentityCandidateResponse>?> ListIdentityCandidatesAsync(
+        Guid researchRunId,
+        CancellationToken cancellationToken);
+
+    Task<ResearchRunResponse?> SelectIdentityAsync(
+        Guid researchRunId,
+        SelectResearchIdentityRequest request,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<SourceDocumentResponse>?> ListSourcesAsync(Guid companyId, CancellationToken cancellationToken);
     Task<IReadOnlyList<SourceDocumentResponse>?> ListRunSourcesAsync(
         Guid researchRunId,

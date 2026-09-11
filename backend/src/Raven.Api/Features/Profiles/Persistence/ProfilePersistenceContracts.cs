@@ -23,4 +23,13 @@ public interface ICompanyProfilePersistenceService
     Task<CompanyProfileVersion?> GetCurrentProfileAsync(
         Guid companyId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CompanyProfileVersion>> ListProfileVersionsAsync(
+        Guid companyId,
+        CancellationToken cancellationToken = default);
+
+    Task<CompanyProfileVersion?> GetProfileVersionAsync(
+        Guid companyId,
+        int version,
+        CancellationToken cancellationToken = default);
 }

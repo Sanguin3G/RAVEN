@@ -1,21 +1,42 @@
 import { request } from "./client";
 import type {
   AcquireResearchCandidatesRequest,
+  GroundingMode,
   ResearchCandidate,
+  ResearchIdentityCandidate,
   ResearchRun,
   SourceDocument,
 } from "../types/research";
 
 export type { ResearchRun, SourceDocument } from "../types/research";
 
-export function discoverResearch(companyId: string, researchHint?: string) {
-  const body: { researchHint?: string } = {};
+export function discoverResearch(
+  companyId: string,
+  researchHint?: string,
+  groundingMode?: GroundingMode,
+  useAcceptedProfileIdentity = false,
+) {
+  const body: { researchHint?: string; groundingMode?: GroundingMode; useAcceptedProfileIdentity?: boolean } = {};
   if (researchHint?.trim()) body.researchHint = researchHint.trim();
+  if (groundingMode) body.groundingMode = groundingMode;
+  if (useAcceptedProfileIdentity) body.useAcceptedProfileIdentity = true;
 
   return request<ResearchRun>(`/api/companies/${encodeURIComponent(companyId)}/research/discover`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+export function getResearchIdentityCandidates(researchRunId: string) {
+  return request<ResearchIdentityCandidate[]>(`/api/research-runs/${encodeURIComponent(researchRunId)}/identity-candidates`);
+}
+
+export function selectResearchIdentityCandidate(researchRunId: string, candidateId: string) {
+  return request<ResearchRun>(`/api/research-runs/${encodeURIComponent(researchRunId)}/identity/select`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ candidateId }),
   });
 }
 

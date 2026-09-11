@@ -1,0 +1,387 @@
+.panel {
+  background: linear-gradient(to bottom, var(--surface-raised), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 2px 5px var(--shadow);
+  min-width: 0;
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.panelHeader {
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.7rem;
+}
+
+.headingGroup {
+  align-items: center;
+  display: flex;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.headingIcon {
+  align-items: center;
+  border: 1px solid;
+  border-radius: 4px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 2.15rem;
+  justify-content: center;
+  width: 2.15rem;
+}
+
+.headingIconHistory {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  color: var(--primary);
+}
+
+.headingIconChanges {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+  color: var(--warning);
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  margin: 0 0 0.18rem;
+  text-transform: uppercase;
+}
+
+.panelHeader h2 {
+  color: var(--text);
+  font-size: 1.02rem;
+  margin: 0;
+}
+
+.refreshButton {
+  align-items: center;
+  background: linear-gradient(to bottom, var(--primary-highlight), var(--primary));
+  border: 1px solid color-mix(in srgb, var(--primary) 70%, var(--border-strong));
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-raised) 34%, transparent), 0 1px 1px var(--shadow);
+  color: var(--surface-raised);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  gap: 0.35rem;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: linear-gradient(to bottom, var(--primary), var(--primary-hover));
+}
+
+.refreshButton:focus-visible,
+.versionButton:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.refreshButton:disabled {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: wait;
+}
+
+.stateMessage {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.stateError {
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-raised));
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+  line-height: 1.45;
+  padding: 0.65rem 0.75rem;
+}
+
+.emptyState {
+  align-items: start;
+  background: color-mix(in srgb, var(--info) 8%, var(--surface-raised));
+  border-left: 4px solid var(--info);
+  color: var(--info);
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.8rem 0.85rem;
+}
+
+.emptyState strong {
+  color: var(--text);
+  display: block;
+  font-size: 0.82rem;
+  margin-bottom: 0.2rem;
+}
+
+.emptyState p {
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.versionList,
+.changeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.versionList {
+  display: grid;
+  gap: 0.45rem;
+  position: relative;
+}
+
+.versionList::before {
+  background: var(--border);
+  bottom: 1rem;
+  content: "";
+  left: 0.6rem;
+  position: absolute;
+  top: 1rem;
+  width: 1px;
+}
+
+.versionItem {
+  min-width: 0;
+  position: relative;
+}
+
+.versionButton {
+  align-items: start;
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  display: flex;
+  font: inherit;
+  gap: 0.7rem;
+  padding: 0.6rem 0.45rem;
+  text-align: left;
+  width: 100%;
+}
+
+.versionItemSelectable .versionButton {
+  cursor: pointer;
+}
+
+.versionItemSelectable .versionButton:hover {
+  background: color-mix(in srgb, var(--info) 8%, var(--surface-raised));
+  border-color: var(--border);
+  border-radius: 4px;
+}
+
+.versionMarker {
+  align-items: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--success);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 1.25rem;
+  justify-content: center;
+  margin-top: 0.05rem;
+  position: relative;
+  width: 1.25rem;
+  z-index: 1;
+}
+
+.versionMarker > span {
+  background: var(--border-strong);
+  border-radius: 50%;
+  height: 0.35rem;
+  width: 0.35rem;
+}
+
+.versionCopy {
+  display: grid;
+  gap: 0.13rem;
+  min-width: 0;
+}
+
+.versionTitle {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.versionTitle strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.currentBadge {
+  background: color-mix(in srgb, var(--success) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 45%, var(--border));
+  border-radius: 999px;
+  color: var(--success);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 0.14rem 0.38rem;
+  text-transform: uppercase;
+}
+
+.versionDate,
+.versionMeta,
+.changeDetectedAt {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.versionMeta {
+  overflow-wrap: anywhere;
+}
+
+.versionAction {
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  margin-left: auto;
+  opacity: 0;
+  padding-top: 0.12rem;
+}
+
+.versionItemSelectable .versionButton:hover .versionAction,
+.versionItemSelectable .versionButton:focus-visible .versionAction {
+  opacity: 1;
+}
+
+.changeDate {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.changeList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.changeItem {
+  align-items: start;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: 4px;
+  display: flex;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.7rem 0.75rem;
+}
+
+.changeAdded { border-left-color: var(--success); }
+.changeRemoved { border-left-color: var(--danger); }
+.changeChanged { border-left-color: var(--warning); }
+
+.changeMarker {
+  align-items: center;
+  border-radius: 50%;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 1.5rem;
+  justify-content: center;
+  margin-top: 0.05rem;
+  width: 1.5rem;
+}
+
+.changeAdded .changeMarker { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.changeRemoved .changeMarker { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.changeChanged .changeMarker { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+
+.changeBody {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.changeBody > strong {
+  color: var(--text);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.changeType {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.valueTransition {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.oldValue,
+.newValue {
+  border-radius: 3px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  padding: 0.18rem 0.35rem;
+}
+
+.oldValue {
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+.newValue {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.transitionArrow {
+  color: var(--text-muted);
+  font-weight: 900;
+}
+
+.changeDetectedAt {
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 560px) {
+  .panelHeader {
+    display: grid;
+  }
+
+  .refreshButton {
+    justify-self: start;
+  }
+
+  .changeDate {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .versionAction {
+    transition: none;
+  }
+}

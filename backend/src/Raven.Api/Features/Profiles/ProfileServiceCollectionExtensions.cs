@@ -3,6 +3,7 @@ using Raven.Api.Features.Ai;
 using Raven.Api.Features.Profiles.Generation;
 using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Research.Sources;
+using Raven.Api.Features.Profiles.Changes;
 
 namespace Raven.Api.Features.Profiles;
 
@@ -32,6 +33,8 @@ public static class ProfileServiceCollectionExtensions
                 options);
         });
         services.AddScoped<ICompanyProfilePersistenceService, CompanyProfilePersistenceService>();
+        services.AddScoped<IProfileDiffService, ProfileDiffService>();
+        services.AddScoped<IProfileChangeQueryService, ProfileChangeQueryService>();
         services.AddScoped<ICompanyProfileWorkflowService, CompanyProfileWorkflowService>();
         return services;
     }

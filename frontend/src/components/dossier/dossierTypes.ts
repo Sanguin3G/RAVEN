@@ -1,4 +1,6 @@
 import type { SourceKind } from "../sources/sourceUtils";
+import type { CompanyProfileVersion } from "../../types/profile";
+import type { ProfileChange } from "../../api/profileTracking";
 
 export type DossierTab = "overview" | "sources" | "research" | "changes" | "ask";
 
@@ -109,6 +111,15 @@ export interface DossierResearch {
   counters?: DossierResearchCounter[] | null;
 }
 
+export interface DossierTracking {
+  versions: CompanyProfileVersion[];
+  changes: ProfileChange[];
+  isLoading?: boolean;
+  error?: string | null;
+  isRefreshing?: boolean;
+  onRefreshResearch?: () => void | Promise<void>;
+}
+
 export interface CompanyDossierProps {
   company: DossierCompany;
   profile?: DossierProfile | null;
@@ -117,4 +128,5 @@ export interface CompanyDossierProps {
   activeTab?: DossierTab;
   initialTab?: DossierTab;
   onTabChange?: (tab: DossierTab) => void;
+  tracking?: DossierTracking | null;
 }

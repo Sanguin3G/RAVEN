@@ -4,6 +4,9 @@ using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Search;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Sources;
+using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Ai;
+using Raven.Api.Features.Settings;
 
 namespace Raven.Api.Features.Research;
 
@@ -34,6 +37,12 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddSingleton<ISourceClassifier, SourceClassifier>();
         services.AddSingleton<ISourceAuthorityPolicy, SourceAuthorityPolicy>();
         services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
+        services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(
+            serviceProvider.GetRequiredService<IAiModelProvider>(),
+            researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));
+        services.AddScoped<ISourceSemanticReranker>(serviceProvider => new GeminiSourceSemanticReranker(
+            serviceProvider.GetRequiredService<IAiModelProvider>(),
+            researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));
         services.AddScoped<IResearchCompanyService, ResearchCompanyService>();
         return services;
     }

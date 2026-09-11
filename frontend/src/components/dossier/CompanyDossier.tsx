@@ -16,7 +16,7 @@ const tabs: Array<{ id: DossierTab; label: string }> = [
   { id: "ask", label: "Ask RAVEN" },
 ];
 
-export function CompanyDossier({ company, profile, sources, research, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
+export function CompanyDossier({ company, profile, sources, research, tracking, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
   const [internalTab, setInternalTab] = useState<DossierTab>(initialTab);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const idPrefix = useId();
@@ -56,7 +56,7 @@ export function CompanyDossier({ company, profile, sources, research, activeTab,
         {selectedTab === "overview" && <CompanyOverview company={company} profile={profile} />}
         {selectedTab === "sources" && <CompanySourcesTab sources={sources} />}
         {selectedTab === "research" && <CompanyResearchTab research={research} />}
-        {selectedTab === "changes" && <CompanyChangesTab />}
+        {selectedTab === "changes" && <CompanyChangesTab tracking={tracking} />}
         {selectedTab === "ask" && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
       </div>
     </div>

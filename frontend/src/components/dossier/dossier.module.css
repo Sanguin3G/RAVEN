@@ -555,6 +555,11 @@
   border-left-color: var(--warning);
 }
 
+.trackingStack {
+  display: grid;
+  gap: 1rem;
+}
+
 @media (max-width: 760px) {
   .identityHeader,
   .timelineHeader {

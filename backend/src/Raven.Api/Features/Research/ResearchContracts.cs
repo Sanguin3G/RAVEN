@@ -1,6 +1,7 @@
 namespace Raven.Api.Features.Research;
 
 using Raven.Api.Features.Research.Sources;
+using Raven.Api.Features.Research.Intelligence;
 
 public sealed record ResearchRunResponse(
     Guid Id,
@@ -27,9 +28,36 @@ public sealed record ResearchRunResponse(
     int CrawlSucceeded,
     int CrawlFailed,
     int DocumentsAdded,
-    int DuplicatesSkipped);
+    int DuplicatesSkipped,
+    GroundingMode GroundingMode,
+    Guid? ResolvedIdentityCandidateId);
 
-public sealed record DiscoverResearchRequest(string? ResearchHint = null);
+public sealed record DiscoverResearchRequest(
+    string? ResearchHint = null,
+    GroundingMode? GroundingMode = null,
+    bool UseAcceptedProfileIdentity = false);
+
+/// <summary>Returns a persisted possible real-world research target.</summary>
+public sealed record ResearchIdentityCandidateResponse(
+    Guid Id,
+    Guid ResearchRunId,
+    string TemporaryId,
+    string DisplayName,
+    string? LegalName,
+    string? Country,
+    string? Website,
+    string? OfficialDomain,
+    GroundedEntityType EntityType,
+    string? RelationshipHint,
+    GroundingConfidence Confidence,
+    string? Rationale,
+    IReadOnlyList<Guid> SupportingCandidateIds,
+    bool Recommended,
+    bool Selected,
+    DateTimeOffset CreatedAt);
+
+/// <summary>Selects one server-owned identity candidate for a research run.</summary>
+public sealed record SelectResearchIdentityRequest(Guid CandidateId);
 
 public sealed record ResearchCandidateResponse(
     Guid Id,
@@ -46,7 +74,11 @@ public sealed record ResearchCandidateResponse(
     CandidateAcquisitionStatus AcquisitionStatus,
     string? AcquisitionError,
     string? IconUrl,
-    DateTimeOffset DiscoveredAt);
+    DateTimeOffset DiscoveredAt,
+    EntityRelationship? EntityRelationship = null,
+    CandidateRelevance? SemanticRelevance = null,
+    IReadOnlyList<string>? SemanticPurposes = null,
+    string? SemanticRationale = null);
 
 public sealed record AcquireResearchCandidatesRequest(IReadOnlyList<Guid> CandidateIds);
 
