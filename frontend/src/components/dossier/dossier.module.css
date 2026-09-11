@@ -363,6 +363,11 @@
   margin: 0;
 }
 
+.researchStack {
+  display: grid;
+  gap: 1rem;
+}
+
 .timeline {
   display: grid;
   gap: 0.9rem;
@@ -553,6 +558,11 @@
 .unavailable {
   background: color-mix(in srgb, var(--warning) 9%, var(--surface-raised));
   border-left-color: var(--warning);
+}
+
+.trackingStack {
+  display: grid;
+  gap: 1rem;
 }
 
 @media (max-width: 760px) {

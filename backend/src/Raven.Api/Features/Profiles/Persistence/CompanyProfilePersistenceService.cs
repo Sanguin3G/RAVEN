@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Raven.Api.Data;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.Profiles.Changes;
 
 namespace Raven.Api.Features.Profiles.Persistence;
 
@@ -13,9 +14,12 @@ namespace Raven.Api.Features.Profiles.Persistence;
 /// shape is intentionally extensible; source provenance is additionally stored
 /// in ProfileEvidences so it remains queryable and survives rehydration.
 /// </summary>
-public sealed class CompanyProfilePersistenceService(RavenDbContext dbContext)
+public sealed class CompanyProfilePersistenceService(
+    RavenDbContext dbContext,
+    IProfileDiffService? profileDiffService = null)
     : ICompanyProfilePersistenceService
 {
+    private readonly IProfileDiffService profileDiffService = profileDiffService ?? new ProfileDiffService();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -141,6 +145,13 @@ public sealed class CompanyProfilePersistenceService(RavenDbContext dbContext)
                 .Select(profile => (int?)profile.Version)
                 .MaxAsync(cancellationToken) ?? 0;
 
+            var previousPersisted = currentVersion == 0
+                ? null
+                : await dbContext.CompanyProfileVersions
+                    .AsNoTracking()
+                    .Where(profile => profile.CompanyId == company.Id && profile.Version == currentVersion)
+                    .SingleOrDefaultAsync(cancellationToken);
+
             var confirmedAt = DateTimeOffset.UtcNow;
             var accepted = CompanyProfileVersion.FromCandidate(
                 validation.Candidate,
@@ -153,6 +164,18 @@ public sealed class CompanyProfilePersistenceService(RavenDbContext dbContext)
 
             accepted.ProfileJson = profileJson;
             dbContext.CompanyProfileVersions.Add(accepted);
+
+            if (previousPersisted is not null)
+            {
+                var previous = HydrateVersion(previousPersisted, []);
+                if (previous is not null)
+                {
+                    foreach (var change in profileDiffService.Compare(previous, accepted, confirmedAt))
+                    {
+                        dbContext.ProfileChanges.Add(change);
+                    }
+                }
+            }
 
             foreach (var evidence in accepted.Evidence)
             {
@@ -221,6 +244,64 @@ public sealed class CompanyProfilePersistenceService(RavenDbContext dbContext)
             .Where(evidence => evidence.CompanyProfileVersionId == latest.Id)
             .ToListAsync(cancellationToken);
         return HydrateVersion(latest, evidenceRows);
+    }
+
+    public async Task<IReadOnlyList<CompanyProfileVersion>> ListProfileVersionsAsync(
+        Guid companyId,
+        CancellationToken cancellationToken = default)
+    {
+        var persisted = await dbContext.CompanyProfileVersions
+            .AsNoTracking()
+            .Where(profile => profile.CompanyId == companyId)
+            .OrderByDescending(profile => profile.Version)
+            .ToListAsync(cancellationToken);
+
+        return await HydrateVersionsAsync(persisted, cancellationToken);
+    }
+
+    public async Task<CompanyProfileVersion?> GetProfileVersionAsync(
+        Guid companyId,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        var persisted = await dbContext.CompanyProfileVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(profile => profile.CompanyId == companyId && profile.Version == version, cancellationToken);
+        if (persisted is null)
+        {
+            return null;
+        }
+
+        var evidenceRows = await dbContext.ProfileEvidences
+            .AsNoTracking()
+            .Where(evidence => evidence.CompanyProfileVersionId == persisted.Id)
+            .ToListAsync(cancellationToken);
+        return HydrateVersion(persisted, evidenceRows);
+    }
+
+    private async Task<IReadOnlyList<CompanyProfileVersion>> HydrateVersionsAsync(
+        IReadOnlyList<CompanyProfileVersion> persisted,
+        CancellationToken cancellationToken)
+    {
+        if (persisted.Count == 0)
+        {
+            return [];
+        }
+
+        var profileIds = persisted.Select(profile => profile.Id).ToArray();
+        var evidenceByProfile = (await dbContext.ProfileEvidences
+            .AsNoTracking()
+            .Where(evidence => evidence.CompanyProfileVersionId.HasValue && profileIds.Contains(evidence.CompanyProfileVersionId.Value))
+            .ToListAsync(cancellationToken))
+            .GroupBy(evidence => evidence.CompanyProfileVersionId!.Value)
+            .ToDictionary(group => group.Key, group => (IReadOnlyCollection<ProfileEvidence>)group.ToArray());
+
+        return persisted
+            .Select(profile => HydrateVersion(
+                profile,
+                evidenceByProfile.GetValueOrDefault(profile.Id, [])))
+            .OfType<CompanyProfileVersion>()
+            .ToArray();
     }
 
     private async Task<ProfileValidationContext?> BuildValidationContextAsync(

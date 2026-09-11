@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
 import { CompanyDossier } from "../components/dossier/CompanyDossier";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
 import { getCompanySources, getResearchRun, type ResearchRun, type SourceDocument } from "../api/research";
 import { getCurrentCompanyProfile } from "../api/profiles";
+import { getCompanyProfileChanges, getCompanyProfileVersions, type ProfileChange } from "../api/profileTracking";
+import { getCompanyMonitoring, updateCompanyMonitoring, type CompanyMonitoring, type UpdateCompanyMonitoring } from "../api/monitoring";
 import type { Company } from "../types/company";
 import type { CompanyProfileVersion } from "../types/profile";
 
@@ -15,6 +17,7 @@ function formatDate(value: string) {
 
 export function CompanyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +26,14 @@ export function CompanyDetailPage() {
   const [sources, setSources] = useState<SourceDocument[]>([]);
   const [researchError, setResearchError] = useState<string | null>(null);
   const [profile, setProfile] = useState<CompanyProfileVersion | null>(null);
+  const [profileVersions, setProfileVersions] = useState<CompanyProfileVersion[]>([]);
+  const [profileChanges, setProfileChanges] = useState<ProfileChange[]>([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+  const [monitoring, setMonitoring] = useState<CompanyMonitoring | null>(null);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [monitoringSaving, setMonitoringSaving] = useState(false);
+  const [monitoringError, setMonitoringError] = useState<string | null>(null);
   const researchRunId = searchParams.get("researchRun");
 
   useEffect(() => {
@@ -52,6 +63,51 @@ export function CompanyDetailPage() {
   }, [id, researchRunId]);
 
   useEffect(() => {
+    if (!id) return;
+    let active = true;
+    setTrackingLoading(true);
+    setTrackingError(null);
+    Promise.all([getCompanyProfileVersions(id), getCompanyProfileChanges(id)])
+      .then(([versions, changes]) => {
+        if (!active) return;
+        setProfileVersions(versions);
+        setProfileChanges(changes);
+      })
+      .catch((reason: unknown) => {
+        if (active) setTrackingError(getApiErrorMessage(reason, "Could not load profile tracking."));
+      })
+      .finally(() => { if (active) setTrackingLoading(false); });
+    return () => { active = false; };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    setMonitoringLoading(true);
+    setMonitoringError(null);
+    getCompanyMonitoring(id)
+      .then((result) => { if (active) setMonitoring(result); })
+      .catch((reason: unknown) => {
+        if (active) setMonitoringError(getApiErrorMessage(reason, "Could not load monitoring settings."));
+      })
+      .finally(() => { if (active) setMonitoringLoading(false); });
+    return () => { active = false; };
+  }, [id]);
+
+  const saveMonitoring = async (update: UpdateCompanyMonitoring) => {
+    if (!id) return;
+    setMonitoringSaving(true);
+    setMonitoringError(null);
+    try {
+      setMonitoring(await updateCompanyMonitoring(id, update));
+    } catch (reason) {
+      setMonitoringError(getApiErrorMessage(reason, "Could not save monitoring settings."));
+    } finally {
+      setMonitoringSaving(false);
+    }
+  };
+
+  useEffect(() => {
     if (!id || !researchRunId) return;
 
     let active = true;
@@ -79,6 +135,21 @@ export function CompanyDetailPage() {
       profile={{ ...profile, publicLinks: profile.publicLinks?.map((link) => link.url) ?? [], evidenceCount: profile.evidence?.length ?? 0 }}
       sources={sources.map((source) => ({ id: source.id, url: source.url, title: source.title, domain: source.sourceDomain, kind: source.sourceKind, iconUrl: source.iconUrl, preview: source.contentPreview, retrievedAt: source.retrievedAt, crawlerProvider: source.crawlerProvider, status: "acquired" }))}
       research={researchRun ? { status: researchRun.stage === "Failed" ? "failed" : researchRun.stage === "Completed" ? "completed" : "waiting", stageLabel: researchRun.stage, runId: researchRun.id, error: researchRun.error, counters: [{ label: "Documents added", value: researchRun.documentsAdded }, { label: "Candidates", value: researchRun.uniqueCandidates }] } : { status: "completed", summary: "Current accepted dossier" }}
+      tracking={{
+        versions: profileVersions,
+        changes: profileChanges,
+        isLoading: trackingLoading,
+        error: trackingError,
+        onRefreshResearch: () => navigate(`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`),
+      }}
+      monitoring={monitoring ? {
+        monitoring,
+        isLoading: monitoringLoading,
+        isSaving: monitoringSaving,
+        error: monitoringError,
+        onUpdate: saveMonitoring,
+        onResearchNow: () => navigate(`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`),
+      } : null}
     />;
   }
 

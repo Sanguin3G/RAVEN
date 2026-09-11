@@ -47,6 +47,13 @@ public enum ResearchEventCategory
     CandidateDiscovery,
     CandidateRanking,
     OfficialDomainDiscovery,
+    GroundingRequested,
+    GroundingCompleted,
+    GroundingFailed,
+    IdentitySelected,
+    SourceSemanticRerankStarted,
+    SourceSemanticRerankCompleted,
+    ProviderFallback,
     CrawlRequested,
     CrawlCompleted,
     CrawlFailed,
@@ -57,7 +64,9 @@ public enum ResearchEventCategory
     AiCompleted,
     AiFailed,
     ProfileValidated,
-    ProfileConfirmed
+    ProfileConfirmed,
+    MonitoringRunStarted,
+    MonitoringUpdateReady
 }
 
 /// <summary>

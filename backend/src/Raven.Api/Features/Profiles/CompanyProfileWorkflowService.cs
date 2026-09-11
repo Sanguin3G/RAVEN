@@ -125,6 +125,12 @@ public sealed class CompanyProfileWorkflowService(
     public Task<CompanyProfileVersion?> GetCurrentAsync(Guid companyId, CancellationToken cancellationToken) =>
         persistenceService.GetCurrentProfileAsync(companyId, cancellationToken);
 
+    public Task<IReadOnlyList<CompanyProfileVersion>> ListVersionsAsync(Guid companyId, CancellationToken cancellationToken) =>
+        persistenceService.ListProfileVersionsAsync(companyId, cancellationToken);
+
+    public Task<CompanyProfileVersion?> GetVersionAsync(Guid companyId, int version, CancellationToken cancellationToken) =>
+        persistenceService.GetProfileVersionAsync(companyId, version, cancellationToken);
+
     private async Task WriteEventAsync(ResearchRun run, ResearchEventCategory category, ResearchEventStatus status, string? summary, CancellationToken cancellationToken) =>
         await eventWriter.WriteAsync(new ResearchEvent
         {

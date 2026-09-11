@@ -18,3 +18,26 @@ GET {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000
 
 ### Check Crawl4AI Local
 GET {{baseUrl}}/api/system/crawler-status
+
+### Queue bounded Deep Research (replace the company ID with an existing company)
+POST {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000/deep-research
+Content-Type: application/json
+
+{
+  "question": "What evidence describes this company's products and markets?"
+}
+
+### Poll a Deep Research run
+GET {{baseUrl}}/api/deep-research-runs/00000000-0000-0000-0000-000000000000
+
+### List saved company research
+GET {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000/saved-research
+
+### Save a completed server-owned Deep Research run
+POST {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000/saved-research
+Content-Type: application/json
+
+{
+  "deepResearchRunId": "00000000-0000-0000-0000-000000000000",
+  "title": "Products and markets investigation"
+}

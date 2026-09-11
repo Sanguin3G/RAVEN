@@ -137,3 +137,69 @@ it("shows truthful discovery activity while the discovery request is pending", a
   resolveDiscover(jsonResponse(run));
   await waitFor(() => expect(screen.getByRole("heading", { name: "Review source candidates" })).toBeInTheDocument());
 });
+
+it("shows ambiguous grounded targets and resumes targeted discovery after selection", async () => {
+  const user = userEvent.setup();
+  const identityCandidate = {
+    id: "44444444-4444-4444-4444-444444444444",
+    researchRunId: run.id,
+    temporaryId: "fpt-software",
+    displayName: "FPT Software",
+    legalName: "FPT Software Company Limited",
+    country: "Vietnam",
+    website: "https://fptsoftware.com",
+    officialDomain: "fptsoftware.com",
+    entityType: "Subsidiary",
+    relationshipHint: "Technology services subsidiary of FPT Corporation",
+    confidence: "High",
+    rationale: "The official domain and Vietnam signal match the selected technology subsidiary.",
+    supportingCandidateIds: [candidate.id],
+    recommended: true,
+    selected: false,
+    createdAt: "2026-09-10T00:00:00Z",
+  };
+  const targetedRun = { ...run, stage: "AwaitingSourceSelection" };
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
+    if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
+    if (url.endsWith("/research/discover")) return jsonResponse({ ...run, stage: "AwaitingIdentitySelection" });
+    if (url.endsWith("/identity-candidates")) return jsonResponse([identityCandidate]);
+    if (url.endsWith("/identity/select")) return jsonResponse(targetedRun);
+    if (url.endsWith("/candidates")) return jsonResponse([candidate]);
+    return jsonResponse([]);
+  });
+
+  renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
+  await user.type(screen.getByLabelText(/Company name/), "FPT");
+  await user.click(screen.getByRole("button", { name: "Research public sources" }));
+
+  expect(await screen.findByRole("heading", { name: "Resolve research target" })).toBeInTheDocument();
+  expect(screen.getByText("The official domain and Vietnam signal match the selected technology subsidiary.")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Research selected company" }));
+
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Review source candidates" })).toBeInTheDocument());
+  expect(fetchMock).toHaveBeenCalledWith(`/api/research-runs/${run.id}/identity/select`, expect.objectContaining({ method: "POST", body: JSON.stringify({ candidateId: identityCandidate.id }) }));
+});
+
+it("sends an explicit one-run grounding override while keeping the default visible", async () => {
+  const user = userEvent.setup();
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
+    if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
+    if (url.endsWith("/research/discover")) return jsonResponse(run);
+    if (url.endsWith("/candidates")) return jsonResponse([candidate]);
+    return jsonResponse([]);
+  });
+
+  renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
+  await user.type(screen.getByLabelText(/Company name/), "FPT Software");
+  expect(screen.getByText("Workspace default · Auto")).toBeInTheDocument();
+  await user.click(screen.getByRole("radio", { name: /On/ }));
+  expect(screen.getByText("One-run override · On")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Research public sources" }));
+
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Review source candidates" })).toBeInTheDocument());
+  expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}/research/discover`, expect.objectContaining({ body: expect.stringContaining('"groundingMode":"Always"') }));
+});

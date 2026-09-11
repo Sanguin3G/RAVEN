@@ -2,7 +2,7 @@
 
 ## Current implementation boundary
 
-RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. The implemented M1 workflow is deterministic and staged; it does not contain RAG, agents, MCP, queues, or background workers.
+RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Day 4 adds bounded agentic Deep Research and small in-process workers, but not RAG, MCP, distributed queues, or microservices.
 
 ```text
 Company identity
@@ -35,13 +35,24 @@ Search, crawling, and AI inference are independent capabilities:
 
 ```text
 ISearchProvider       → BraveSearchProvider
-ICrawlerProvider      → Crawl4AiLocalProvider
+                      → ExaSearchProvider / FirecrawlSearchProvider
+ICrawlerProvider      → Crawl4AiLocalProvider / ExaCrawlerProvider / FirecrawlCrawlerProvider
 IAiModelProvider      → GeminiProvider
 ```
 
 Application workflows depend on those neutral capabilities rather than provider-specific DTOs. External calls are mockable in tests. Configuration and status endpoints expose only configured/available/model state; they never return credentials.
 
-Brave discovers candidate URLs. Crawl4AI reads selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts.
+Provider routing uses persisted priorities and falls back only after retryable rate-limit, timeout, unavailable, or retrieval failures. Authentication, configuration, invalid requests, and malformed responses remain visible failures. Brave/Exa discover candidate URLs; Crawl4AI Local, Exa Contents, and Firecrawl read selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts.
+
+## Identity intelligence and tracking
+
+Internal duplicate matching, external target grounding, and source relevance are distinct concerns. `ICompanyIdentityResolver` receives bounded identity hints plus discovery metadata and persists `ResearchIdentityCandidate` records. Grounding can be Auto, Always, or Off; provider/model failure records a safe warning and continues deterministic research.
+
+`ISourceSemanticReranker` provides bounded, user-facing same-entity/related/different-entity relevance reasons. It can alter default source selection but never removes human review or replaces deterministic source classification.
+
+`ResearchSettingsEntity` persists safe model roles, grounding/reranking preferences, and provider priorities. It never stores secrets. Refresh creates another ResearchRun and profile confirmation remains the only path to a new immutable version. `ProfileDiffService` persists deterministic `ProfileChange` records between accepted versions.
+
+`CompanyMonitoringSetting` is serviced by one ASP.NET Core `BackgroundService`. It runs only while the API is running, creates a review-ready candidate, and never auto-confirms a Company Profile.
 
 ## Research and sources
 
@@ -74,4 +85,8 @@ SourceDocument → SourceChunk → embeddings → company-filtered retrieval
 → Ask RAVEN answers with citations
 ```
 
-Deep Research, Microsoft Agent Framework, MCP, Exa, Firecrawl, scheduled monitoring, and change detection remain future work. They must preserve the same source provenance and deterministic Fast Research path.
+`DeepResearchRun` is a bounded, company-scoped backend operation implemented through Microsoft Agent Framework and `IChatClient`. Its model may invoke only read-only profile/source lookup, configured provider-routed search/crawl, and stored-source text search. Tool/search/crawl/document/duration budgets prevent open-ended work. `DeepResearchActivityRecord` persists only safe activity labels and source IDs—not prompts, credentials, raw tool outputs, or hidden reasoning.
+
+`SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. This is the handoff boundary for Hung's future Ask RAVEN UI: poll `DeepResearchRun`, display safe activity, then save a completed result to company research.
+
+RAG, MCP, Crawl4AI Cloud, and full Ask RAVEN remain future work. They must preserve the same source provenance and deterministic Fast Research path.

@@ -40,6 +40,21 @@ public static class ResearchEndpoints
             .Produces<ResearchCandidateResponse[]>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        app.MapGet("/api/research-runs/{researchRunId:guid}/identity-candidates", ListIdentityCandidatesAsync)
+            .WithTags("Research")
+            .WithName("ListResearchIdentityCandidates")
+            .WithSummary("List possible real-world research targets")
+            .Produces<ResearchIdentityCandidateResponse[]>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/research-runs/{researchRunId:guid}/identity/select", SelectIdentityAsync)
+            .WithTags("Research")
+            .WithName("SelectResearchIdentity")
+            .WithSummary("Select a real-world identity and rebuild targeted discovery")
+            .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapPost("/api/research-runs/{researchRunId:guid}/acquire", AcquireResearchAsync)
             .WithTags("Research")
             .WithName("AcquireResearchCandidates")
@@ -122,6 +137,25 @@ public static class ResearchEndpoints
     {
         var candidates = await research.ListCandidatesAsync(researchRunId, cancellationToken);
         return candidates is null ? TypedResults.NotFound() : TypedResults.Ok(candidates.ToArray());
+    }
+
+    private static async Task<Results<Ok<ResearchIdentityCandidateResponse[]>, NotFound>> ListIdentityCandidatesAsync(
+        Guid researchRunId,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await research.ListIdentityCandidatesAsync(researchRunId, cancellationToken);
+        return candidates is null ? TypedResults.NotFound() : TypedResults.Ok(candidates.ToArray());
+    }
+
+    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> SelectIdentityAsync(
+        Guid researchRunId,
+        SelectResearchIdentityRequest request,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        var run = await research.SelectIdentityAsync(researchRunId, request, cancellationToken);
+        return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
     }
 
     private static async Task<Results<Ok<SourceDocumentResponse[]>, NotFound>> ListResearchSourcesAsync(

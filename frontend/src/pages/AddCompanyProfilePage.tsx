@@ -1,5 +1,6 @@
-import { useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Sparkle } from "@phosphor-icons/react";
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
 import { TextInput } from "../components/TextInput";
@@ -13,15 +14,17 @@ import {
 } from "../components/sources";
 import { getApiErrorMessage } from "../api/client";
 import { confirmCompanyProfile, generateCompanyProfile } from "../api/profiles";
-import { createCompany, findCompanyMatches } from "../api/companies";
+import { createCompany, findCompanyMatches, getCompany } from "../api/companies";
 import {
   acquireResearchCandidates,
   discoverResearch,
   getResearchCandidates,
+  getResearchIdentityCandidates,
   getResearchSources,
+  selectResearchIdentityCandidate,
 } from "../api/research";
 import type { Company, CompanyMatchResponse, CreateCompanyRequest } from "../types/company";
-import type { ResearchCandidate, ResearchRun, SourceDocument } from "../types/research";
+import type { GroundingMode, ResearchCandidate, ResearchIdentityCandidate, ResearchRun, SourceDocument } from "../types/research";
 import type { CompanyProfileCandidate } from "../types/profile";
 import styles from "./research-workspace.module.css";
 
@@ -35,7 +38,8 @@ type IdentityForm = {
   researchHint: string;
 };
 
-type WorkspaceView = "identify" | "matching" | "discovering" | "reviewingSources" | "acquiring" | "reviewingEvidence" | "generatingProfile" | "reviewingProfile" | "completed" | "failed";
+type WorkspaceView = "identify" | "matching" | "discovering" | "resolvingIdentity" | "reviewingSources" | "acquiring" | "reviewingEvidence" | "generatingProfile" | "reviewingProfile" | "completed" | "failed";
+type GroundingOverride = "default" | GroundingMode;
 
 const initialForm: IdentityForm = {
   name: "",
@@ -67,6 +71,8 @@ function activityStage(view: WorkspaceView): ActivityStage {
   switch (view) {
     case "discovering":
       return "discovering";
+    case "resolvingIdentity":
+      return "awaitingSourceSelection";
     case "reviewingSources":
       return "awaitingSourceSelection";
     case "acquiring":
@@ -85,6 +91,54 @@ function activityStage(view: WorkspaceView): ActivityStage {
     case "matching":
       return "identifying";
   }
+}
+
+function entityTypeLabel(entityType: ResearchIdentityCandidate["entityType"]) {
+  switch (entityType) {
+    case "ParentGroup":
+      return "Parent group";
+    case "Subsidiary":
+      return "Subsidiary";
+    case "Affiliate":
+      return "Affiliate";
+    case "Brand":
+      return "Brand";
+    case "Company":
+      return "Company";
+    default:
+      return "Organization";
+  }
+}
+
+function confidenceLabel(confidence: ResearchIdentityCandidate["confidence"]) {
+  return `${confidence.toLowerCase()} confidence`;
+}
+
+function relationshipLabel(relationship?: ResearchCandidate["entityRelationship"]) {
+  switch (relationship) {
+    case "SameEntity":
+      return "Matches selected entity";
+    case "Parent":
+      return "Related parent group";
+    case "Subsidiary":
+      return "Related subsidiary";
+    case "Affiliate":
+      return "Related affiliate";
+    case "DifferentEntity":
+      return "Likely different entity";
+    case "Uncertain":
+      return "Entity relationship uncertain";
+    default:
+      return undefined;
+  }
+}
+
+function semanticSummary(candidate: ResearchCandidate) {
+  const relationship = relationshipLabel(candidate.entityRelationship);
+  const relevance = candidate.semanticRelevance ? `${candidate.semanticRelevance.toLowerCase()} relevance` : undefined;
+  const purposes = candidate.semanticPurposes?.slice(0, 3).join(", ");
+  const rationale = candidate.semanticRationale?.trim();
+  return [relationship, relevance, purposes ? `Useful for ${purposes}` : undefined, rationale].filter(Boolean).join(" · ");
 }
 
 function matchStrengthLabel(strength: CompanyMatchResponse["matchStrength"]) {
@@ -124,16 +178,24 @@ function candidateStatus(candidate: ResearchCandidate): CandidateSource["acquisi
 }
 
 function toCandidateSource(candidate: ResearchCandidate): CandidateSource {
+  const aiSummary = semanticSummary(candidate);
+  const displaySnippet = aiSummary
+    ? [candidate.snippet, `RAVEN assessment: ${aiSummary}`].filter(Boolean).join(" · ")
+    : candidate.snippet;
+  const recommendationReasons = aiSummary && candidate.recommended
+    ? [...candidate.recommendationReasons, `AI: ${aiSummary}`]
+    : candidate.recommendationReasons;
+
   return {
     id: candidate.id,
     url: candidate.url,
     title: candidate.title || candidate.domain || "Untitled source",
     domain: candidate.domain,
-    snippet: candidate.snippet,
+    snippet: displaySnippet,
     kind: candidate.sourceKind,
     iconUrl: candidate.iconUrl,
     recommended: candidate.recommended,
-    recommendationReasons: candidate.recommendationReasons,
+    recommendationReasons,
     selected: candidate.selected,
     acquisitionStatus: candidateStatus(candidate),
     acquisitionMessage: candidate.acquisitionError,
@@ -156,11 +218,15 @@ function toEvidenceRecord(source: SourceDocument): EvidenceRecord {
 }
 
 export function AddCompanyProfilePage() {
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState<IdentityForm>(initialForm);
+  const [groundingOverride, setGroundingOverride] = useState<GroundingOverride>("default");
   const [view, setView] = useState<WorkspaceView>("identify");
   const [company, setCompany] = useState<Company | null>(null);
   const [run, setRun] = useState<ResearchRun | null>(null);
   const [matches, setMatches] = useState<CompanyMatchResponse[]>([]);
+  const [identityCandidates, setIdentityCandidates] = useState<ResearchIdentityCandidate[]>([]);
+  const [selectedIdentityCandidateId, setSelectedIdentityCandidateId] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<ResearchCandidate[]>([]);
   const [sources, setSources] = useState<SourceDocument[]>([]);
   const [loading, setLoading] = useState(false);
@@ -168,6 +234,8 @@ export function AddCompanyProfilePage() {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [profileCandidate, setProfileCandidate] = useState<CompanyProfileCandidate | null>(null);
   const [profileWarnings, setProfileWarnings] = useState<string[]>([]);
+  const identityHeadingRef = useRef<HTMLHeadingElement>(null);
+  const refreshStartedRef = useRef(false);
 
   const selectedCount = useMemo(() => candidates.filter((candidate) => candidate.selected).length, [candidates]);
   const activityCounters = run
@@ -192,21 +260,41 @@ export function AddCompanyProfilePage() {
     setError(null);
   }
 
-  async function discoverForCompany(nextCompany: Company) {
+  async function discoverForCompany(nextCompany: Company, useAcceptedProfileIdentity = false) {
     setCompany(nextCompany);
     setMatches([]);
     setError(null);
     setSelectionError(null);
+    setIdentityCandidates([]);
+    setSelectedIdentityCandidateId(null);
     setLoading(true);
     setView("discovering");
 
     try {
-      const nextRun = await discoverResearch(nextCompany.id, form.researchHint);
+      const nextRun = await discoverResearch(
+        nextCompany.id,
+        form.researchHint,
+        groundingOverride === "default" ? undefined : groundingOverride,
+        useAcceptedProfileIdentity,
+      );
       setRun(nextRun);
       if (nextRun.stage === "Failed") {
         setError(nextRun.error || "RAVEN could not discover public sources.");
         setView("failed");
         return;
+      }
+      if (nextRun.stage === "Grounding" || nextRun.stage === "AwaitingIdentitySelection") {
+        try {
+          const groundedCandidates = await getResearchIdentityCandidates(nextRun.id);
+          if (groundedCandidates.length > 0) {
+            setIdentityCandidates(groundedCandidates);
+            setSelectedIdentityCandidateId(groundedCandidates.find((candidate) => candidate.recommended)?.id || null);
+            setView("resolvingIdentity");
+            return;
+          }
+        } catch {
+          // Grounding is an assistive step. A missing or unavailable resolver must not block deterministic discovery.
+        }
       }
       const discoveredCandidates = await getResearchCandidates(nextRun.id);
       setCandidates(discoveredCandidates.map((candidate) => ({ ...candidate, selected: candidate.selected || candidate.recommended })));
@@ -269,6 +357,99 @@ export function AddCompanyProfilePage() {
 
   async function handleResearchExisting(existingCompany: Company) {
     await discoverForCompany(existingCompany);
+  }
+
+  useEffect(() => {
+    const refreshCompanyId = searchParams.get("refreshCompanyId");
+    if (!refreshCompanyId || refreshStartedRef.current) return;
+
+    refreshStartedRef.current = true;
+    getCompany(refreshCompanyId)
+      .then((existingCompany) => {
+        setForm({
+          name: existingCompany.name,
+          legalName: existingCompany.legalName || "",
+          website: existingCompany.website || "",
+          country: existingCompany.country || "",
+          registrationNumber: existingCompany.registrationNumber || "",
+          headquarters: existingCompany.headquarters || "",
+          researchHint: "",
+        });
+        return discoverForCompany(existingCompany, true);
+      })
+      .catch((reason: unknown) => {
+        setError(getApiErrorMessage(reason, "RAVEN could not prepare this company for a research refresh."));
+        setView("failed");
+      });
+  // A refresh route is a one-shot entry action. The ref prevents rerunning it as local form state changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function handleSelectIdentityCandidate() {
+    if (!run || !selectedIdentityCandidateId) {
+      setSelectionError("Choose the company RAVEN should research before continuing.");
+      return;
+    }
+
+    setSelectionError(null);
+    setError(null);
+    setLoading(true);
+    setView("discovering");
+
+    try {
+      const nextRun = await selectResearchIdentityCandidate(run.id, selectedIdentityCandidateId);
+      setRun(nextRun);
+      if (nextRun.stage === "Failed") {
+        setError(nextRun.error || "RAVEN could not continue targeted discovery.");
+        setView("failed");
+        return;
+      }
+
+      const discoveredCandidates = await getResearchCandidates(nextRun.id);
+      setCandidates(discoveredCandidates.map((candidate) => ({ ...candidate, selected: candidate.selected || candidate.recommended })));
+      setSources([]);
+      setView("reviewingSources");
+    } catch (reason: unknown) {
+      setError(getApiErrorMessage(reason, "RAVEN could not continue targeted discovery."));
+      setView("failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleContinueWithoutGrounding() {
+    if (!run) return;
+    setError(null);
+    setSelectionError(null);
+    setLoading(true);
+    try {
+      const discoveredCandidates = await getResearchCandidates(run.id);
+      setCandidates(discoveredCandidates.map((candidate) => ({ ...candidate, selected: candidate.selected || candidate.recommended })));
+      setIdentityCandidates([]);
+      setSelectedIdentityCandidateId(null);
+      setView("reviewingSources");
+    } catch (reason: unknown) {
+      setError(getApiErrorMessage(reason, "RAVEN could not load the discovered sources."));
+      setView("failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function focusIdentityForm() {
+    setView("identify");
+    setError(null);
+    setSelectionError(null);
+    setMatches([]);
+    setCompany(null);
+    setRun(null);
+    setIdentityCandidates([]);
+    setSelectedIdentityCandidateId(null);
+    setCandidates([]);
+    setSources([]);
+    setProfileCandidate(null);
+    setProfileWarnings([]);
+    window.setTimeout(() => identityHeadingRef.current?.focus(), 0);
   }
 
   function updateCandidateSelection(id: string, selected: boolean) {
@@ -368,6 +549,31 @@ export function AddCompanyProfilePage() {
             <textarea className={styles.textarea} id="research-hint" name="researchHint" value={form.researchHint} onChange={(event) => updateField("researchHint", event.target.value)} placeholder="What should RAVEN pay attention to?" maxLength={500} rows={3} />
             <p className="field__hint">Hints help discovery; they are not accepted profile facts until public evidence supports them.</p>
           </div>
+          <fieldset className={styles.groundingFieldset} aria-describedby="grounding-help">
+            <legend className={styles.visuallyHidden}>AI-assisted grounding</legend>
+            <div className={styles.groundingHeading}>
+              <span className={styles.groundingIcon} aria-hidden="true"><Sparkle size={18} weight="duotone" /></span>
+              <div>
+                <strong>AI-assisted grounding</strong>
+                <span className={styles.groundingDefault}>{groundingOverride === "default" ? "Workspace default · Auto" : groundingOverride === "Always" ? "One-run override · On" : "One-run override · Off"}</span>
+              </div>
+            </div>
+            <p className={styles.groundingHelp} id="grounding-help">Resolve ambiguous company names and improve source recommendations using public search evidence.</p>
+            <div className={styles.groundingOptions}>
+              <label className={styles.groundingOption}>
+                <input name="groundingOverride" type="radio" value="default" checked={groundingOverride === "default"} onChange={() => setGroundingOverride("default")} />
+                <span><strong>Use default</strong><small>Auto when needed</small></span>
+              </label>
+              <label className={styles.groundingOption}>
+                <input name="groundingOverride" type="radio" value="Always" checked={groundingOverride === "Always"} onChange={() => setGroundingOverride("Always")} />
+                <span><strong>On</strong><small>Always ground this run</small></span>
+              </label>
+              <label className={styles.groundingOption}>
+                <input name="groundingOverride" type="radio" value="Off" checked={groundingOverride === "Off"} onChange={() => setGroundingOverride("Off")} />
+                <span><strong>Off</strong><small>Use deterministic research</small></span>
+              </label>
+            </div>
+          </fieldset>
         </fieldset>
         {error && view === "matching" ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="form-actions">
@@ -402,6 +608,47 @@ export function AddCompanyProfilePage() {
       <div className={styles.overrideBox}>
         <div><strong>Different company?</strong><p>Create a separate record while keeping this match available for reference.</p></div>
         <Button type="button" tone="secondary" onClick={() => void createAndDiscover()} loading={loading}>Create separate anyway</Button>
+      </div>
+    </Panel>
+  ) : null;
+
+  const identityResolutionPanel = view === "resolvingIdentity" ? (
+    <Panel title="Resolve research target" eyebrow="STEP 03 · AI GROUNDING" className={styles.identityResolutionPanel}>
+      <p className={styles.panelIntro}>RAVEN found several organizations that could match <strong>{form.name || "this search"}</strong>. Choose the intended target before deeper discovery.</p>
+      <div className={styles.identityCandidateList} role="radiogroup" aria-label="Possible research targets">
+        {identityCandidates.map((candidate) => {
+          const candidateLabelId = `identity-candidate-${candidate.id}`;
+          return (
+            <label className={`${styles.identityCandidateCard} ${selectedIdentityCandidateId === candidate.id ? styles.identityCandidateCardSelected : ""}`} htmlFor={candidateLabelId} key={candidate.id}>
+              <input
+                id={candidateLabelId}
+                name="researchIdentityCandidate"
+                type="radio"
+                value={candidate.id}
+                checked={selectedIdentityCandidateId === candidate.id}
+                onChange={() => { setSelectedIdentityCandidateId(candidate.id); setSelectionError(null); }}
+              />
+              <span className={styles.identityCandidateCopy}>
+                <span className={styles.identityCandidateTopline}>
+                  <strong>{candidate.displayName}</strong>
+                  {candidate.recommended && <span className={styles.identityRecommended}>Recommended</span>}
+                </span>
+                <span className={styles.identityCandidateMeta}>{entityTypeLabel(candidate.entityType)} · {confidenceLabel(candidate.confidence)}</span>
+                <span className={styles.identityCandidateDetails}>
+                  {[candidate.legalName, candidate.country, candidate.officialDomain || candidate.website].filter(Boolean).join(" · ") || "Public identity details are still limited."}
+                </span>
+                {candidate.relationshipHint && <span className={styles.identityCandidateRelationship}>{candidate.relationshipHint}</span>}
+                {candidate.rationale && <span className={styles.identityCandidateRationale}>{candidate.rationale}</span>}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {selectionError ? <p className="form-error" role="alert">{selectionError}</p> : null}
+      <div className="form-actions">
+        <Button type="button" onClick={() => void handleSelectIdentityCandidate()} loading={loading} disabled={identityCandidates.length === 0}>Research selected company</Button>
+        <Button type="button" tone="secondary" onClick={focusIdentityForm} disabled={loading}>Back to edit</Button>
+        <Button type="button" tone="quiet" onClick={() => void handleContinueWithoutGrounding()} disabled={loading}>Continue without grounding</Button>
       </div>
     </Panel>
   ) : null;
@@ -467,16 +714,17 @@ export function AddCompanyProfilePage() {
       <div className="page-title-row">
         <div>
           <p className="eyebrow">PUBLIC-SOURCE INTELLIGENCE</p>
-          <h1>Research a company</h1>
+          <h1 ref={identityHeadingRef} tabIndex={-1}>Research a company</h1>
           <p className="page-intro">Build a defensible company dossier from public evidence. RAVEN separates identity hints, source review, and acquired evidence.</p>
         </div>
-        <Link className="button button--secondary" to="/companies">Back to Company List</Link>
+        <button className="button button--secondary" type="button" onClick={focusIdentityForm}>← Back to company research</button>
       </div>
 
       <div className={styles.workspace}>
         <main className={styles.primaryColumn}>
           {identityPanel}
           {matchPanel}
+          {identityResolutionPanel}
           {candidatePanel}
           {evidencePanel}
           {view === "generatingProfile" ? <Panel title="Building Company Profile" eyebrow="STEP 05 · GEMINI"><p aria-live="polite">Gemini is normalizing only acquired evidence. RAVEN will show a candidate for confirmation when it returns.</p></Panel> : null}
@@ -487,7 +735,14 @@ export function AddCompanyProfilePage() {
         <aside className={styles.contextColumn}>
           <ResearchActivity
             stage={activityStage(view)}
-            items={view === "matching" && matches.length > 0 ? [{ id: "duplicate-review", label: "Review existing company match", status: "waiting", detail: "Choose an existing record or create a separate company." }] : undefined}
+            items={view === "resolvingIdentity"
+              ? [
+                  { id: "grounding-complete", label: "Ground company identity", status: "completed", detail: `RAVEN found ${identityCandidates.length} possible research targets.` },
+                  { id: "identity-review", label: "Choose the research target", status: "waiting", detail: "Select the intended organization to rebuild targeted source queries." },
+                ]
+              : view === "matching" && matches.length > 0
+                ? [{ id: "duplicate-review", label: "Review existing company match", status: "waiting", detail: "Choose an existing record or create a separate company." }]
+                : undefined}
             counters={activityCounters}
             failureMessage={view === "failed" ? error : undefined}
           />

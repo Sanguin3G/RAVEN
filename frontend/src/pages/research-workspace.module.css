@@ -8,6 +8,35 @@
 .formGrid { display: grid; gap: 0 0.9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .textarea { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 3px; box-shadow: inset 0 1px 2px var(--shadow); color: var(--text); display: block; font: inherit; line-height: 1.45; min-height: 5.5rem; padding: 0.58rem; resize: vertical; width: 100%; }
 .textarea:focus { border-color: var(--primary); box-shadow: inset 0 1px 2px var(--shadow), 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent); outline: none; }
+.groundingFieldset { background: color-mix(in srgb, var(--ai) 8%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--ai) 38%, var(--border)); border-left: 4px solid var(--ai); border-radius: 6px; margin: 1rem 0 0; padding: 0.9rem 1rem 1rem; }
+.groundingHeading { align-items: center; display: flex; gap: 0.6rem; }
+.groundingIcon { align-items: center; background: color-mix(in srgb, var(--ai) 18%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--ai) 45%, var(--border)); border-radius: 50%; color: var(--ai); display: inline-flex; height: 2rem; justify-content: center; width: 2rem; }
+.groundingHeading strong { color: var(--text); display: block; font-size: 0.94rem; }
+.groundingDefault { color: var(--ai); display: block; font-size: 0.7rem; font-weight: 800; margin-top: 0.12rem; }
+.groundingHelp { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; margin: 0.7rem 0 0.8rem; max-width: 65ch; }
+.groundingOptions { display: grid; gap: 0.5rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.groundingOption { align-items: center; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; display: flex; gap: 0.55rem; min-height: 3.15rem; padding: 0.55rem 0.6rem; transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease; }
+.groundingOption:hover { border-color: var(--primary); }
+.groundingOption:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+.groundingOption input { accent-color: var(--primary); flex: 0 0 auto; height: 1rem; margin: 0; width: 1rem; }
+.groundingOption span { display: grid; gap: 0.08rem; min-width: 0; }
+.groundingOption strong { color: var(--text); font-size: 0.78rem; }
+.groundingOption small { color: var(--text-muted); font-size: 0.68rem; line-height: 1.25; }
+.identityResolutionPanel { min-width: 0; }
+.identityCandidateList { display: grid; gap: 0.75rem; margin-top: 1rem; }
+.identityCandidateCard { align-items: flex-start; background: var(--surface-muted); border: 1px solid var(--border); border-left: 4px solid var(--border-strong); border-radius: 6px; cursor: pointer; display: grid; gap: 0.7rem; grid-template-columns: auto minmax(0, 1fr); padding: 0.9rem; transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease; }
+.identityCandidateCard:hover { border-color: var(--primary); }
+.identityCandidateCard:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+.identityCandidateCardSelected { background: color-mix(in srgb, var(--primary) 7%, var(--surface-raised)); border-color: var(--primary); border-left-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent); }
+.identityCandidateCard input { accent-color: var(--primary); height: 1.05rem; margin: 0.25rem 0 0; width: 1.05rem; }
+.identityCandidateCopy { display: grid; gap: 0.28rem; min-width: 0; }
+.identityCandidateTopline { align-items: center; display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.identityCandidateTopline strong { color: var(--text); font-size: 1rem; }
+.identityRecommended { background: color-mix(in srgb, var(--success) 14%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--success) 45%, var(--border)); border-radius: 999px; color: var(--success); font-size: 0.65rem; font-weight: 900; letter-spacing: 0.05em; padding: 0.22rem 0.4rem; text-transform: uppercase; }
+.identityCandidateMeta { color: var(--primary); font-size: 0.72rem; font-weight: 800; }
+.identityCandidateDetails, .identityCandidateRelationship, .identityCandidateRationale { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; overflow-wrap: anywhere; }
+.identityCandidateRelationship { color: var(--text); font-weight: 800; }
+.identityCandidateRationale { border-left: 3px solid var(--ai); padding-left: 0.55rem; }
 .panelIntro { max-width: 70ch; }
 .matchList { display: grid; gap: 0.85rem; }
 .matchCard { background: var(--surface-muted); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 4px; display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) auto; padding: 0.95rem; }
@@ -51,6 +80,7 @@
   .formGrid { grid-template-columns: 1fr; }
   .matchCard, .overrideBox, .profileNextStep { align-items: stretch; display: grid; grid-template-columns: 1fr; }
   .sectionSummary { align-items: start; }
+  .groundingOptions { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

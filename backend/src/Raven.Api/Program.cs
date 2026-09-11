@@ -5,6 +5,11 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles;
+using Raven.Api.Features.Settings;
+using Raven.Api.Features.Monitoring;
+using Raven.Api.Features.DeepResearch;
+using Raven.Api.Features.Research.SavedArtifacts;
+using Microsoft.Extensions.AI;
 using Raven.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +28,27 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
     policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
 }));
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IResearchSettingsStore, EfResearchSettingsStore>();
+builder.Services.AddScoped<IResearchSettingsService, ResearchSettingsService>();
+builder.Services.AddSingleton<IMonitoringClock, SystemMonitoringClock>();
+builder.Services.AddScoped<ICompanyMonitoringService, CompanyMonitoringService>();
+builder.Services.AddScoped<ICompanyMonitoringStore, EfCompanyMonitoringStore>();
+builder.Services.AddScoped<ICompanyMonitoringCoordinator, CompanyMonitoringCoordinator>();
+builder.Services.AddHostedService<CompanyMonitoringWorker>();
+builder.Services.AddSingleton<IDeepResearchQueue, DeepResearchQueue>();
+builder.Services.AddHostedService<DeepResearchWorker>();
+builder.Services.AddScoped<IDeepResearchRunStore, EfDeepResearchRunStore>();
+builder.Services.AddScoped<EfDeepResearchActivityStore>();
+builder.Services.AddScoped<IDeepResearchActivityStore>(services => services.GetRequiredService<EfDeepResearchActivityStore>());
+builder.Services.AddScoped<IDeepResearchActivitySink>(services => services.GetRequiredService<EfDeepResearchActivityStore>());
+builder.Services.AddScoped<IDeepResearchToolset, EfDeepResearchToolset>();
+builder.Services.AddScoped<IChatClient, GeminiStructuredChatClient>();
+builder.Services.AddScoped<IDeepResearchAgent, MafDeepResearchAgent>();
+builder.Services.AddScoped<IDeepResearchRunService, DeepResearchRunService>();
+builder.Services.AddScoped<ISavedResearchArtifactStore, EfSavedResearchArtifactStore>();
+builder.Services.AddScoped<ISourceDocumentOwnershipReader, EfSourceDocumentOwnershipReader>();
+builder.Services.AddSingleton<ISavedResearchArtifactClock, SystemSavedResearchArtifactClock>();
+builder.Services.AddScoped<ISavedResearchArtifactService, SavedResearchArtifactService>();
 builder.Services.Configure<Crawl4AiLocalOptions>(
     builder.Configuration.GetSection(Crawl4AiLocalOptions.SectionName));
 builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
@@ -48,8 +74,11 @@ app.MapHealthChecks("/health");
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
 app.MapCompanyEndpoints();
 app.MapSystemEndpoints();
+app.MapResearchSettingsEndpoints();
+app.MapMonitoringEndpoints();
 app.MapResearchEndpoints();
 app.MapProfileEndpoints();
+app.MapDeepResearchEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

@@ -3,7 +3,13 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Events;
+using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Profiles;
+using Raven.Api.Features.Settings;
+using Raven.Api.Features.Profiles.Changes;
+using Raven.Api.Features.Monitoring;
+using Raven.Api.Features.DeepResearch;
+using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Data;
 
@@ -17,6 +23,13 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<CompanyProfileVersion> CompanyProfileVersions => Set<CompanyProfileVersion>();
     public DbSet<CompanyProfileCandidate> CompanyProfileCandidates => Set<CompanyProfileCandidate>();
     public DbSet<ProfileEvidence> ProfileEvidences => Set<ProfileEvidence>();
+    public DbSet<ResearchSettingsEntity> ResearchSettings => Set<ResearchSettingsEntity>();
+    public DbSet<ProfileChange> ProfileChanges => Set<ProfileChange>();
+    public DbSet<ResearchIdentityCandidate> ResearchIdentityCandidates => Set<ResearchIdentityCandidate>();
+    public DbSet<CompanyMonitoringSetting> CompanyMonitoringSettings => Set<CompanyMonitoringSetting>();
+    public DbSet<DeepResearchRun> DeepResearchRuns => Set<DeepResearchRun>();
+    public DbSet<DeepResearchActivityRecord> DeepResearchActivities => Set<DeepResearchActivityRecord>();
+    public DbSet<SavedResearchArtifact> SavedResearchArtifacts => Set<SavedResearchArtifact>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +49,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasKey(researchRun => researchRun.Id);
             entity.Property(researchRun => researchRun.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(researchRun => researchRun.Stage).HasConversion<string>().HasMaxLength(48).IsRequired();
+            entity.Property(researchRun => researchRun.GroundingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(researchRun => researchRun.RequestedSearchProvider).HasMaxLength(100).IsRequired();
             entity.Property(researchRun => researchRun.ActualSearchProvider).HasMaxLength(100);
             entity.Property(researchRun => researchRun.RequestedCrawlerProvider).HasMaxLength(100).IsRequired();
@@ -47,6 +61,105 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
                 .WithMany(company => company.ResearchRuns)
                 .HasForeignKey(researchRun => researchRun.CompanyId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ResearchIdentityCandidate>(entity =>
+        {
+            entity.HasKey(candidate => candidate.Id);
+            entity.Property(candidate => candidate.TemporaryId).HasMaxLength(200).IsRequired();
+            entity.Property(candidate => candidate.DisplayName).HasMaxLength(500).IsRequired();
+            entity.Property(candidate => candidate.LegalName).HasMaxLength(500);
+            entity.Property(candidate => candidate.Country).HasMaxLength(200);
+            entity.Property(candidate => candidate.Website).HasMaxLength(2_048);
+            entity.Property(candidate => candidate.OfficialDomain).HasMaxLength(253);
+            entity.Property(candidate => candidate.EntityType).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(candidate => candidate.Confidence).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(candidate => candidate.RelationshipHint).HasMaxLength(500);
+            entity.Property(candidate => candidate.Rationale).HasMaxLength(500);
+            entity.Property(candidate => candidate.SupportingCandidateIdsJson).HasMaxLength(4_000).IsRequired();
+            entity.HasIndex(candidate => new { candidate.ResearchRunId, candidate.TemporaryId }).IsUnique();
+            entity.HasOne<ResearchRun>()
+                .WithMany()
+                .HasForeignKey(candidate => candidate.ResearchRunId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CompanyMonitoringSetting>(entity =>
+        {
+            entity.HasKey(setting => setting.CompanyId);
+            entity.Property(setting => setting.Cadence).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(setting => setting.LastRunStatus).HasConversion<string>().HasMaxLength(32);
+            entity.HasIndex(setting => new { setting.Enabled, setting.NextRunAt });
+            entity.HasIndex(setting => setting.ClaimExpiresAt);
+            entity.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(setting => setting.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DeepResearchRun>(entity =>
+        {
+            entity.HasKey(run => run.Id);
+            entity.Property(run => run.Question).HasMaxLength(4_000).IsRequired();
+            entity.Property(run => run.Model).HasMaxLength(200).IsRequired();
+            entity.Property(run => run.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(run => run.ResultMarkdown).HasMaxLength(40_000);
+            entity.Property(run => run.Error).HasMaxLength(4_000);
+            entity.HasIndex(run => new { run.CompanyId, run.CreatedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(run => run.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DeepResearchActivityRecord>(entity =>
+        {
+            entity.HasKey(activity => activity.Id);
+            entity.Property(activity => activity.Type).HasMaxLength(32).IsRequired();
+            entity.Property(activity => activity.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(activity => activity.Label).HasMaxLength(120).IsRequired();
+            entity.Property(activity => activity.Detail).HasMaxLength(280);
+            entity.Property(activity => activity.Provider).HasMaxLength(100);
+            entity.Property(activity => activity.SourceDocumentIdsJson).HasMaxLength(1_000).IsRequired();
+            entity.HasIndex(activity => new { activity.DeepResearchRunId, activity.Sequence }).IsUnique();
+            entity.HasOne<DeepResearchRun>().WithMany().HasForeignKey(activity => activity.DeepResearchRunId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SavedResearchArtifact>(entity =>
+        {
+            entity.HasKey(artifact => artifact.Id);
+            entity.Property(artifact => artifact.Title).HasMaxLength(500).IsRequired();
+            entity.Property(artifact => artifact.Question).HasMaxLength(4_000).IsRequired();
+            entity.Property(artifact => artifact.Summary).HasMaxLength(100_000).IsRequired();
+            entity.Property(artifact => artifact.Model).HasMaxLength(200);
+            entity.Property(artifact => artifact.ResearchType).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(artifact => artifact.SourceDocumentIdsJson).HasMaxLength(20_000).IsRequired();
+            entity.Ignore(artifact => artifact.SourceDocumentIds);
+            entity.Ignore(artifact => artifact.Result);
+            entity.HasIndex(artifact => new { artifact.CompanyId, artifact.CreatedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(artifact => artifact.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ResearchSettingsEntity>(entity =>
+        {
+            entity.HasKey(settings => settings.Id);
+            entity.Property(settings => settings.Id).HasMaxLength(64);
+            entity.Property(settings => settings.GroundingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(settings => settings.ProfileModel).HasMaxLength(200).IsRequired();
+            entity.Property(settings => settings.GroundingModel).HasMaxLength(200).IsRequired();
+            entity.Property(settings => settings.DeepResearchModel).HasMaxLength(200).IsRequired();
+            entity.Property(settings => settings.ProviderPreset).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.PrimitiveCollection(settings => settings.SearchProviderPriority).HasMaxLength(100);
+            entity.PrimitiveCollection(settings => settings.CrawlerProviderPriority).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ProfileChange>(entity =>
+        {
+            entity.HasKey(change => change.Id);
+            entity.Property(change => change.FieldPath).HasMaxLength(300).IsRequired();
+            entity.Property(change => change.ItemKey).HasMaxLength(500);
+            entity.Property(change => change.ChangeType).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(change => change.OldValueJson).HasMaxLength(16_000);
+            entity.Property(change => change.NewValueJson).HasMaxLength(16_000);
+            entity.HasIndex(change => new { change.CompanyId, change.NewProfileVersionId });
+            entity.HasIndex(change => new { change.CompanyId, change.DetectedAt });
         });
 
         modelBuilder.Entity<ResearchCandidate>(entity =>
