@@ -51,7 +51,7 @@ SQLite persistence     Profile versions
 Research activity      Human review and confirmation
 ```
 
-### P1 — delivered on the Day-4 branch
+### P1 — delivered in Day 4
 
 ```text
 AI grounding           Source relevance

@@ -29,7 +29,7 @@ Remaining M1 work is quality work: real-provider failure handling, usability pol
 
 ## M2 — Research Intelligence and Company Knowledge
 
-**Day-4 implementation: complete on `feat/day4-research-intelligence`; awaiting review/merge.**
+**Day-4 implementation: integrated on `main`.**
 
 Implemented: profile refresh, change detection, AI target grounding, semantic source relevance, persisted research/provider settings, Exa/Firecrawl routing, in-process monitoring, bounded Deep Research, and saved research artifacts.
 

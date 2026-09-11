@@ -6,7 +6,7 @@ RAVEN is an AI-assisted Company Intelligence Platform. It discovers public compa
 
 ## Current milestone
 
-Day 4 work on `feat/day4-research-intelligence` extends the working M1 research slice with intelligence and tracking:
+Day 4 extends the working M1 research slice with intelligence and tracking:
 
 ```text
 Company identity → duplicate check → optional AI grounding → source review

@@ -1,12 +1,12 @@
 # RAVEN Status
 
 Last updated: 2026-09-11
-Current branch: **feat/day4-research-intelligence** (not merged into `main`)
+Current branch: **main**
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state
 
-The Day-3 Company Intelligence vertical slice remains intact. This unmerged Day-4 branch adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence.
+The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence.
 
 ## Integrated
 
