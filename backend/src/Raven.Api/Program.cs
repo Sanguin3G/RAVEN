@@ -6,6 +6,7 @@ using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
+using Raven.Api.Features.Monitoring;
 using Raven.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,11 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IResearchSettingsStore, EfResearchSettingsStore>();
 builder.Services.AddScoped<IResearchSettingsService, ResearchSettingsService>();
+builder.Services.AddSingleton<IMonitoringClock, SystemMonitoringClock>();
+builder.Services.AddScoped<ICompanyMonitoringService, CompanyMonitoringService>();
+builder.Services.AddScoped<ICompanyMonitoringStore, EfCompanyMonitoringStore>();
+builder.Services.AddScoped<ICompanyMonitoringCoordinator, CompanyMonitoringCoordinator>();
+builder.Services.AddHostedService<CompanyMonitoringWorker>();
 builder.Services.Configure<Crawl4AiLocalOptions>(
     builder.Configuration.GetSection(Crawl4AiLocalOptions.SectionName));
 builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
@@ -52,6 +58,7 @@ app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initiali
 app.MapCompanyEndpoints();
 app.MapSystemEndpoints();
 app.MapResearchSettingsEndpoints();
+app.MapMonitoringEndpoints();
 app.MapResearchEndpoints();
 app.MapProfileEndpoints();
 

@@ -16,7 +16,7 @@ const tabs: Array<{ id: DossierTab; label: string }> = [
   { id: "ask", label: "Ask RAVEN" },
 ];
 
-export function CompanyDossier({ company, profile, sources, research, tracking, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
+export function CompanyDossier({ company, profile, sources, research, tracking, monitoring, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
   const [internalTab, setInternalTab] = useState<DossierTab>(initialTab);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const idPrefix = useId();
@@ -55,7 +55,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
       <div aria-labelledby={`${idPrefix}-tab-${selectedTab}`} className={styles.tabPanel} id={tabPanelId} role="tabpanel" tabIndex={0}>
         {selectedTab === "overview" && <CompanyOverview company={company} profile={profile} />}
         {selectedTab === "sources" && <CompanySourcesTab sources={sources} />}
-        {selectedTab === "research" && <CompanyResearchTab research={research} />}
+        {selectedTab === "research" && <CompanyResearchTab companyName={company.displayName} monitoring={monitoring} research={research} />}
         {selectedTab === "changes" && <CompanyChangesTab tracking={tracking} />}
         {selectedTab === "ask" && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
       </div>

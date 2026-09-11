@@ -63,7 +63,9 @@ public enum ResearchEventCategory
     AiCompleted,
     AiFailed,
     ProfileValidated,
-    ProfileConfirmed
+    ProfileConfirmed,
+    MonitoringRunStarted,
+    MonitoringUpdateReady
 }
 
 /// <summary>

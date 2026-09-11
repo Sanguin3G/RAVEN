@@ -7,6 +7,7 @@ using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Changes;
+using Raven.Api.Features.Monitoring;
 
 namespace Raven.Api.Data;
 
@@ -23,6 +24,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ResearchSettingsEntity> ResearchSettings => Set<ResearchSettingsEntity>();
     public DbSet<ProfileChange> ProfileChanges => Set<ProfileChange>();
     public DbSet<ResearchIdentityCandidate> ResearchIdentityCandidates => Set<ResearchIdentityCandidate>();
+    public DbSet<CompanyMonitoringSetting> CompanyMonitoringSettings => Set<CompanyMonitoringSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,6 +76,19 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasOne<ResearchRun>()
                 .WithMany()
                 .HasForeignKey(candidate => candidate.ResearchRunId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CompanyMonitoringSetting>(entity =>
+        {
+            entity.HasKey(setting => setting.CompanyId);
+            entity.Property(setting => setting.Cadence).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(setting => setting.LastRunStatus).HasConversion<string>().HasMaxLength(32);
+            entity.HasIndex(setting => new { setting.Enabled, setting.NextRunAt });
+            entity.HasIndex(setting => setting.ClaimExpiresAt);
+            entity.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(setting => setting.CompanyId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

@@ -1,6 +1,7 @@
 import type { SourceKind } from "../sources/sourceUtils";
 import type { CompanyProfileVersion } from "../../types/profile";
 import type { ProfileChange } from "../../api/profileTracking";
+import type { CompanyMonitoring, UpdateCompanyMonitoring } from "../../api/monitoring";
 
 export type DossierTab = "overview" | "sources" | "research" | "changes" | "ask";
 
@@ -120,6 +121,15 @@ export interface DossierTracking {
   onRefreshResearch?: () => void | Promise<void>;
 }
 
+export interface DossierMonitoring {
+  monitoring: CompanyMonitoring;
+  isLoading?: boolean;
+  isSaving?: boolean;
+  error?: string | null;
+  onUpdate?: (update: UpdateCompanyMonitoring) => void | Promise<void>;
+  onResearchNow?: () => void | Promise<void>;
+}
+
 export interface CompanyDossierProps {
   company: DossierCompany;
   profile?: DossierProfile | null;
@@ -129,4 +139,5 @@ export interface CompanyDossierProps {
   initialTab?: DossierTab;
   onTabChange?: (tab: DossierTab) => void;
   tracking?: DossierTracking | null;
+  monitoring?: DossierMonitoring | null;
 }

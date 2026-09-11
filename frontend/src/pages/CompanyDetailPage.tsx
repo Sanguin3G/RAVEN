@@ -7,6 +7,7 @@ import { getCompany } from "../api/companies";
 import { getCompanySources, getResearchRun, type ResearchRun, type SourceDocument } from "../api/research";
 import { getCurrentCompanyProfile } from "../api/profiles";
 import { getCompanyProfileChanges, getCompanyProfileVersions, type ProfileChange } from "../api/profileTracking";
+import { getCompanyMonitoring, updateCompanyMonitoring, type CompanyMonitoring, type UpdateCompanyMonitoring } from "../api/monitoring";
 import type { Company } from "../types/company";
 import type { CompanyProfileVersion } from "../types/profile";
 
@@ -29,6 +30,10 @@ export function CompanyDetailPage() {
   const [profileChanges, setProfileChanges] = useState<ProfileChange[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState<string | null>(null);
+  const [monitoring, setMonitoring] = useState<CompanyMonitoring | null>(null);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [monitoringSaving, setMonitoringSaving] = useState(false);
+  const [monitoringError, setMonitoringError] = useState<string | null>(null);
   const researchRunId = searchParams.get("researchRun");
 
   useEffect(() => {
@@ -76,6 +81,33 @@ export function CompanyDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!id) return;
+    let active = true;
+    setMonitoringLoading(true);
+    setMonitoringError(null);
+    getCompanyMonitoring(id)
+      .then((result) => { if (active) setMonitoring(result); })
+      .catch((reason: unknown) => {
+        if (active) setMonitoringError(getApiErrorMessage(reason, "Could not load monitoring settings."));
+      })
+      .finally(() => { if (active) setMonitoringLoading(false); });
+    return () => { active = false; };
+  }, [id]);
+
+  const saveMonitoring = async (update: UpdateCompanyMonitoring) => {
+    if (!id) return;
+    setMonitoringSaving(true);
+    setMonitoringError(null);
+    try {
+      setMonitoring(await updateCompanyMonitoring(id, update));
+    } catch (reason) {
+      setMonitoringError(getApiErrorMessage(reason, "Could not save monitoring settings."));
+    } finally {
+      setMonitoringSaving(false);
+    }
+  };
+
+  useEffect(() => {
     if (!id || !researchRunId) return;
 
     let active = true;
@@ -110,6 +142,14 @@ export function CompanyDetailPage() {
         error: trackingError,
         onRefreshResearch: () => navigate(`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`),
       }}
+      monitoring={monitoring ? {
+        monitoring,
+        isLoading: monitoringLoading,
+        isSaving: monitoringSaving,
+        error: monitoringError,
+        onUpdate: saveMonitoring,
+        onResearchNow: () => navigate(`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`),
+      } : null}
     />;
   }
 

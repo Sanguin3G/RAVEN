@@ -363,6 +363,11 @@
   margin: 0;
 }
 
+.researchStack {
+  display: grid;
+  gap: 1rem;
+}
+
 .timeline {
   display: grid;
   gap: 0.9rem;
