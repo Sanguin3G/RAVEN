@@ -31,10 +31,11 @@ RAVEN currently supports:
 - TopCV, LinkedIn, business-registry, official-document, news, and external-source classification;
 - structured Gemini profile candidates, deterministic evidence-reference validation, and explicit confirmation;
 - immutable Company Profile versions, ProfileEvidence, SourceDocuments, and research events;
-- a React Company workspace with dossier, Sources, Research, profile-history/Changes views, and an Ask RAVEN handoff placeholder.
+- a React Company workspace with Overview, Sources, Investigations, Changes, and Monitoring; Ask RAVEN is a company-scoped dock, not a dossier tab.
 - AI-assisted external identity grounding and source relevance with deterministic fallback.
 - persistent research settings, manual refresh, profile history, deterministic changes, and review-only monitoring.
 - neutral Exa and Firecrawl provider adapters plus bounded Deep Research and saved investigation backend contracts.
+- coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
 
 ## Company Profile
 

@@ -1,12 +1,13 @@
 # RAVEN Status
 
-Last updated: 2026-09-11
-Current branch: **main**
+Last updated: 2026-09-12
+Day-5 branch: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, workspace health, lifecycle operations, and corrected workspace IA are integrated here but not merged into `main`.
+Current branch: **feat/day5-enrichment-workspace** (not merged into `main`)
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state
 
-The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence.
+The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence. Day 5 adds coverage-driven follow-up research, generic corporate-family planning, deliberate MaSoThue directory evidence, target-scoped profile patches, lifecycle safety, and the clarified Company workspace.
 
 ## Integrated
 
@@ -26,18 +27,27 @@ The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assi
 - Exa Search, Firecrawl Search/Crawl, and Exa Contents retrieval through neutral provider interfaces and retryable-only fallback routing.
 - Company monitoring settings and one in-process worker. Scheduled research creates a profile candidate ready for human review; it never confirms a profile automatically.
 - Bounded Microsoft Agent Framework Deep Research runs with read-only tools, persisted safe activity, and saved research artifacts that cannot mutate a Company Profile.
+- Coverage levels and ResearchTargets drive bounded follow-up research. Recommended roots remain complementary; one approved official root may yield several bounded same-domain documents.
+- Corporate-family discovery, coverage-aware source selection, target-aware official-site planning, and MaSoThue parsing as a BusinessDirectory rather than an official registry.
+- Targeted enrichment and server-owned ProfilePatch confirmation preserve every unrelated accepted profile field.
+- Company health, deterministic duplicate review, archive/restore, permanent-delete confirmation, and transactional merge preview/confirmation.
+- Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. Ask RAVEN is a responsive right dock that remains an integration-pending frontend boundary until Hung's backend contract is published.
 
 ## Verified checks
 
 Latest local integration check:
 
 ```text
-dotnet test Raven.sln --no-build      197 passed
-npm test -- --run                     33 passed
+dotnet build Raven.sln --no-restore   passed
+dotnet test Raven.sln --no-restore    252 passed
+npm run build                         passed
+Vitest focused suites                  42 passed across isolated single-worker runs
 npm run build                         passed
 ```
 
 Microsoft Edge/Playwright verified the desktop Settings provider presets and persistence, collapsed sidebar, 390×844 mobile drawer and Escape dismissal. The API smoke test applied all migrations to a temporary SQLite database, returned 200 for `/health` and OpenAPI, and correctly rejected an unknown-company Deep Research request. No paid provider call was made. Live discovery and acquisition were previously exercised with well-known Vietnamese companies; one Crawl4AI timeout surfaced as a truthful per-source failure without failing the run.
+
+Day-5 browser coverage currently covers Company List responsive behavior only. Provider-dependent FPT-family, MaSoThue, and targeted-enrichment scenarios require deterministic fixtures before they can be reported as Edge passes.
 
 ## Provider status
 
@@ -57,10 +67,10 @@ Microsoft Edge/Playwright verified the desktop Settings provider presets and per
 ## Deliberately not implemented
 
 - Source chunks, embeddings, vector retrieval, and RAG.
-- RAG, SourceChunk/embeddings, real Ask RAVEN answers, and conversation persistence/UI.
+- RAG and SourceChunk/embedding retrieval.
 - MCP, Crawl4AI Cloud, full monitoring operations, and arbitrary profile-version comparisons.
-- Deep Research cancellation and a user-facing assistant panel; Hung's UI can consume the stable backend contract.
+- Hung's Ask RAVEN backend, conversation persistence, Quick Ask orchestration, and prompt/context contract. The Day-5 dock deliberately does not fabricate messages while that handoff is unavailable.
 
 ## Next integration point
 
-Keep the Day-4 branch separate until review, then integrate the backend handoff for Hung's company-scoped assistant. Preserve Company ID, SourceDocument/SourceKind, CompanyProfileVersion/ProfileEvidence, DeepResearchRun activity, SavedResearchArtifact, and Company workspace boundaries.
+Consume Hung's actual Ask RAVEN backend contract through the frontend adapter boundary when it is published. Preserve Company ID, SourceDocument/SourceKind, CompanyProfileVersion/ProfileEvidence, DeepResearchRun activity, SavedResearchArtifact, and Company workspace boundaries.

@@ -45,6 +45,12 @@ Extend the bounded Deep Research backend with RAG-first retrieval, cancellation,
 
 **Exit condition:** RAVEN can explain whether an answer came from stored evidence or newly acquired evidence, while keeping persistence application-owned.
 
+## Day 5 — Evidence coverage and workspace quality
+
+**Status: implemented on `feat/day5-enrichment-workspace`; release verification remains branch-local until Microsoft Edge completion checks and review pass.**
+
+Delivered scope is coverage-aware source-root selection, generic corporate-family discovery, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; this branch consumes no invented conversation contract.
+
 ## Stabilization principles
 
 Prefer small feature branches, focused reviews, mockable provider tests, and working vertical slices. Do not add distributed infrastructure merely to simulate activity; recorded run state and staged HTTP operations are sufficient for the MVP.

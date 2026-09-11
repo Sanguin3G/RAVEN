@@ -43,6 +43,13 @@ Staged research endpoints:
 
 ```text
 POST /api/companies/{id}/research/discover
+POST /api/companies/{id}/research/targeted
+POST /api/companies/{id}/archive
+POST /api/companies/{id}/restore
+DELETE /api/companies/{id}                 (requires `{ "confirm": true }`)
+POST /api/companies/merge/preview
+POST /api/companies/merge/confirm
+POST /api/companies/workspace-review
 POST /api/companies/{id}/research                 (legacy discover + auto-acquire)
 GET  /api/companies/{id}/research-runs
 GET  /api/research-runs/{id}
@@ -50,6 +57,8 @@ GET  /api/research-runs/{id}/candidates
 POST /api/research-runs/{id}/acquire
 GET  /api/research-runs/{id}/sources
 GET  /api/companies/{id}/sources
+GET  /api/research-runs/{id}/coverage
+GET  /api/companies/{id}/coverage
 GET  /api/sources/{id}
 POST /api/companies/{id}/deep-research
 GET  /api/deep-research-runs/{id}
@@ -63,8 +72,12 @@ Profile endpoints:
 ```text
 POST /api/research-runs/{id}/profile/generate
 POST /api/research-runs/{id}/profile/confirm
+POST /api/research-runs/{id}/profile-patch/generate
+POST /api/research-runs/{id}/profile-patch/confirm
 GET  /api/companies/{id}/profile
 ```
+
+`ResearchMode.TargetedEnrichment` is used both for accepted-profile patches and for an optional first-profile strengthening pass. With no base profile, generation combines the original approved Company evidence with the newly acquired target evidence. With a base profile, only the server-owned patch confirmation endpoint may append a replacement version.
 
 System endpoints:
 
@@ -126,6 +139,8 @@ npm run build
 ```
 
 Provider tests must use fakes, mocks, or fixtures. Normal automated tests must not require live provider credentials, paid traffic, TopCV availability, LinkedIn access, or a running crawler.
+
+Microsoft Edge completion checks use Playwright with `--browser msedge`; Chromium is not a substitute. The repository does not currently ship live-provider fixtures, so external-provider checks must be separately marked as controlled live smoke tests.
 
 ## Monitoring and Deep Research
 

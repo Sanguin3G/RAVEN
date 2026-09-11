@@ -30,6 +30,16 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 - LLMs must not receive unrestricted database mutation or raw SQL tools.
 - External provider calls must be mockable; normal tests must not require real credentials.
 
+## Day-5 evidence and workspace guardrails
+
+- Five recommended research roots are an upper bound, not a five-document limit. Do not pad recommendations with unrelated pages.
+- Coverage drives bounded follow-up research. When the budget is exhausted, unsupported facts remain unknown.
+- A targeted profile patch may change only its authorized research targets and must preserve every unrelated accepted field exactly.
+- `BusinessDirectory` (including MaSoThue) is not `OfficialBusinessRegistry`; registered business activities are not marketed products or services.
+- AI may recommend workspace cleanup, aliases, or duplicates, but it must never archive, delete, or merge Companies without an explicit user confirmation.
+- A Saved Investigation is not accepted Company Profile truth. Ask RAVEN, Deep Research, Investigations, and Monitoring are distinct product surfaces.
+- Hung owns the Ask RAVEN backend, conversation persistence, Quick Ask orchestration, and prompt/context contracts. Frontend work must consume that contract or remain behind an adapter boundary; never fabricate chat answers.
+
 ## Scope discipline
 
 This is a two-person, approximately 20-working-day project. Prefer working, testable vertical slices. Do not add major infrastructure or abstractions without a current feature need, including microservices, Kafka, Redis, Kubernetes, multi-agent swarms, or speculative enterprise patterns.

@@ -13,5 +13,6 @@ dist/
 .idea/
 .DS_Store
 /.playwright-cli/
+/backend/.playwright-cli/
 /frontend/.playwright-cli/
 /output/playwright/

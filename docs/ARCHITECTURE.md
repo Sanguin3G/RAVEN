@@ -62,6 +62,8 @@ Supported source kinds include OfficialWebsite, OfficialDocument, BusinessRegist
 
 `SourceDocument` is the durable raw evidence record. Duplicate content increments duplicate counters instead of pretending another document was persisted. `ResearchEvent` stores safe operational metadata such as stage, provider, duration, status, and sanitized errors—not keys, headers, cookies, hidden reasoning, or unbounded document content.
 
+Day 5 evaluates qualitative `ResearchTarget` coverage (`Missing`, `Weak`, `Supported`, `Strong`) before profile generation and after acceptance. Recommended roots are selected deterministically for complementary same-entity evidence; five is a maximum, not a document limit. An approved official root may yield bounded same-domain pages. A first-profile strengthening run combines already approved company evidence with newly acquired gap evidence; it never discards the dossier the user reviewed. Targeted enrichment reuses `ResearchRun`, then creates a server-owned patch candidate that may only alter target-authorized field groups; confirmation still appends a complete immutable profile version. `BusinessDirectory` (including MaSoThue) is distinct from `OfficialBusinessRegistry`; registered activities are not marketed products.
+
 ## Profiles and provenance
 
 Company identity remains separate from research output. Gemini receives a bounded package of identity hints and acquired source evidence, returns structured JSON, and must leave unsupported values unknown. `ProfileInputBuilder` and `CompanyProfileValidator` validate source IDs, company ownership, permitted field paths, and duplicate evidence references.
@@ -72,9 +74,11 @@ Generated candidates are not accepted facts. A human confirmation creates an imm
 
 Gemini configuration establishes startup defaults. The local Settings page may switch the approved Fast and Deep model choices between `gemini-3.5-flash-lite` and `gemini-3.8-flash` through a runtime-only preference service. Fast choice applies to new profile-generation scopes; preferences reset on API restart and do not alter or reveal secrets.
 
-## Frontend composition
+## Workspace composition
 
-The React application uses a fixed, collapsible desktop sidebar and a mobile drawer, contextual top bar, System Status route, Company workspace tabs, reusable source cards/icons, Settings, and an explicit Ask RAVEN handoff surface. Source icons use safe domain favicon resolution with provider-aware and Phosphor fallbacks.
+The React application uses a fixed, collapsible desktop sidebar and a mobile drawer, contextual top bar, System Status route, reusable source cards/icons, and Settings. Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. A desktop Ask RAVEN dock reflows the dossier rather than overlaying it; on mobile it becomes a drawer. The frontend may render company context and composer modes, but Hung owns the Ask RAVEN backend/conversation contract. Source icons use safe domain favicon resolution with provider-aware and Phosphor fallbacks.
+
+`CompanyLifecycleService` is the mutation boundary for archive, restore, permanent deletion, and user-confirmed merge. Merge is transactional and retains compatible research, source, profile, provenance, monitoring, Deep Research, and saved-investigation relationships. `CompanyWorkspaceReviewService` is read-only: it evaluates deterministic health and duplicate groups, and its optional AI seam can only return recommendations.
 
 ## Future seams
 
@@ -87,6 +91,6 @@ SourceDocument → SourceChunk → embeddings → company-filtered retrieval
 
 `DeepResearchRun` is a bounded, company-scoped backend operation implemented through Microsoft Agent Framework and `IChatClient`. Its model may invoke only read-only profile/source lookup, configured provider-routed search/crawl, and stored-source text search. Tool/search/crawl/document/duration budgets prevent open-ended work. `DeepResearchActivityRecord` persists only safe activity labels and source IDs—not prompts, credentials, raw tool outputs, or hidden reasoning.
 
-`SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. This is the handoff boundary for Hung's future Ask RAVEN UI: poll `DeepResearchRun`, display safe activity, then save a completed result to company research.
+`SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. It belongs in Investigations; it can only begin a target-scoped profile-improvement flow, not update an accepted profile directly. This is the handoff boundary for Hung's Ask RAVEN backend: the frontend consumes its real conversation contract, displays safe activity, and saves a completed result only on an explicit user action.
 
 RAG, MCP, Crawl4AI Cloud, and full Ask RAVEN remain future work. They must preserve the same source provenance and deterministic Fast Research path.
