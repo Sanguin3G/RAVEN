@@ -3,7 +3,7 @@ using Raven.Api.Data;
 
 namespace Raven.Api.Features.Monitoring;
 
-/// <summary>EF store with a conditional database claim for single-instance-safe polling.</summary>
+/// <summary>EF store with a lease claim suitable for RAVEN's one in-process worker.</summary>
 public sealed class EfCompanyMonitoringStore(RavenDbContext dbContext) : ICompanyMonitoringStore
 {
     public async Task<CompanyMonitoringSetting?> GetAsync(Guid companyId, CancellationToken cancellationToken = default) =>
@@ -14,12 +14,18 @@ public sealed class EfCompanyMonitoringStore(RavenDbContext dbContext) : ICompan
         DateTimeOffset asOf,
         int limit,
         CancellationToken cancellationToken = default) =>
-        await dbContext.CompanyMonitoringSettings.AsNoTracking()
-            .Where(setting => setting.Enabled && setting.NextRunAt <= asOf &&
-                              (setting.ClaimExpiresAt == null || setting.ClaimExpiresAt <= asOf))
+        // SQLite cannot translate DateTimeOffset relational comparisons. The
+        // monitoring list is deliberately tiny (at most 100 enabled rows) in
+        // this single-instance MVP, so evaluate the lease/due comparison after
+        // the safe SQL filter instead of storing fragile string timestamps.
+        (await dbContext.CompanyMonitoringSettings.AsNoTracking()
+            .Where(setting => setting.Enabled)
+            .ToListAsync(cancellationToken))
+            .Where(setting => setting.NextRunAt <= asOf &&
+                              (setting.ClaimExpiresAt is null || setting.ClaimExpiresAt <= asOf))
             .OrderBy(setting => setting.NextRunAt)
             .Take(Math.Clamp(limit, 1, 100))
-            .ToListAsync(cancellationToken);
+            .ToArray();
 
     public async Task<CompanyMonitoringSetting?> TryClaimDueAsync(
         Guid companyId,
@@ -28,19 +34,20 @@ public sealed class EfCompanyMonitoringStore(RavenDbContext dbContext) : ICompan
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default)
     {
-        var expiresAt = claimedAt.Add(leaseDuration);
-        var claimed = await dbContext.CompanyMonitoringSettings
-            .Where(setting => setting.CompanyId == companyId && setting.Enabled && setting.NextRunAt <= claimedAt &&
-                              (setting.ClaimExpiresAt == null || setting.ClaimExpiresAt <= claimedAt))
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(setting => setting.ActiveClaimId, claimId)
-                .SetProperty(setting => setting.ClaimExpiresAt, expiresAt)
-                .SetProperty(setting => setting.LastRunStatus, MonitoringRunStatus.Running)
-                .SetProperty(setting => setting.UpdatedAt, claimedAt), cancellationToken);
+        var setting = await dbContext.CompanyMonitoringSettings
+            .SingleOrDefaultAsync(item => item.CompanyId == companyId && item.Enabled, cancellationToken);
+        if (setting is null || setting.NextRunAt > claimedAt ||
+            (setting.ClaimExpiresAt is not null && setting.ClaimExpiresAt > claimedAt))
+        {
+            return null;
+        }
 
-        return claimed == 0
-            ? null
-            : await GetAsync(companyId, cancellationToken);
+        setting.ActiveClaimId = claimId;
+        setting.ClaimExpiresAt = claimedAt.Add(leaseDuration);
+        setting.LastRunStatus = MonitoringRunStatus.Running;
+        setting.UpdatedAt = claimedAt;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return setting;
     }
 
     public async Task SaveAsync(CompanyMonitoringSetting setting, CancellationToken cancellationToken = default)

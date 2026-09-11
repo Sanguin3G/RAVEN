@@ -38,16 +38,16 @@ const groundingChoices: Array<{ value: GroundingMode; title: string; description
 ];
 
 const presetChoices: Array<{ value: ProviderPreset; title: string; description: string }> = [
-  { value: "Balanced", title: "RAVEN Balanced", description: "Brave first, then configured cloud search and crawl providers." },
+  { value: "Balanced", title: "RAVEN Balanced", description: "Brave first, with Crawl4AI Local then Exa Contents and Firecrawl available for resilient page retrieval." },
   { value: "LocalFirst", title: "RAVEN Local First", description: "Prefer the local Crawl4AI service and Brave Search." },
-  { value: "Cloud", title: "RAVEN Cloud", description: "Prefer configured cloud search and crawler providers." },
+  { value: "Cloud", title: "RAVEN Cloud", description: "Prefer Exa Search and Contents, with Firecrawl as the cloud retrieval fallback." },
   { value: "Custom", title: "Custom", description: "Keep the provider priority order returned by the API." },
 ];
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
   Balanced: {
     searchProviderPriority: ["brave", "exa", "firecrawl-search"],
-    crawlerProviderPriority: ["crawl4ai-local", "firecrawl"],
+    crawlerProviderPriority: ["crawl4ai-local", "exa", "firecrawl"],
   },
   LocalFirst: {
     searchProviderPriority: ["brave"],
@@ -55,7 +55,7 @@ const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateRes
   },
   Cloud: {
     searchProviderPriority: ["exa", "firecrawl-search"],
-    crawlerProviderPriority: ["firecrawl"],
+    crawlerProviderPriority: ["exa", "firecrawl"],
   },
 };
 
@@ -105,7 +105,7 @@ function providerStatusClass(provider: ProviderStatus | undefined) {
 function displayProvider(value: string) {
   const labels: Record<string, string> = {
     brave: "Brave Search",
-    exa: "Exa Search",
+    exa: "Exa Search & Contents",
     "firecrawl-search": "Firecrawl Search",
     firecrawl: "Firecrawl",
     "crawl4ai-local": "Crawl4AI Local",

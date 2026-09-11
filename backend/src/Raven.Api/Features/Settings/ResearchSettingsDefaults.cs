@@ -2,6 +2,7 @@ using Raven.Api.Features.Ai;
 using Raven.Api.Features.Research.Intelligence;
 using BraveProvider = Raven.Api.Features.Search.BraveSearchProvider;
 using CrawlProvider = Raven.Api.Features.Crawling.Crawl4AiLocalProvider;
+using ExaCrawlProvider = Raven.Api.Features.Crawling.Exa.ExaCrawlerProvider;
 
 namespace Raven.Api.Features.Settings;
 
@@ -17,6 +18,7 @@ public static class ResearchSettingsDefaults
 
     public const string BraveSearchProvider = BraveProvider.ProviderId;
     public const string Crawl4AiLocalProvider = CrawlProvider.ProviderId;
+    public const string ExaCrawlerProvider = ExaCrawlProvider.ProviderId;
 
     public static ResearchSettingsEntity CreateEntity(DateTimeOffset? updatedAt = null) => new()
     {

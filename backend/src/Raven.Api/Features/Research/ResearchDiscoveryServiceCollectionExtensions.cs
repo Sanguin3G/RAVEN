@@ -9,6 +9,7 @@ using Raven.Api.Features.Ai;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Firecrawl;
 using Raven.Api.Features.Search.Exa;
+using Raven.Api.Features.Crawling.Exa;
 using Raven.Api.Features.Research.Routing;
 
 namespace Raven.Api.Features.Research;
@@ -28,6 +29,11 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         {
             options.ApiKey ??= configuration[ExaSearchOptions.ApiKeyEnvironmentVariable];
         });
+        services.Configure<ExaCrawlerOptions>(configuration.GetSection(ExaCrawlerOptions.SectionName));
+        services.PostConfigure<ExaCrawlerOptions>(options =>
+        {
+            options.ApiKey ??= configuration[ExaCrawlerOptions.ApiKeyEnvironmentVariable];
+        });
         services.Configure<FirecrawlOptions>(configuration.GetSection(FirecrawlOptions.SectionName));
         services.PostConfigure<FirecrawlOptions>(options =>
         {
@@ -43,6 +49,12 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddHttpClient<ExaSearchProvider>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<ExaSearchOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 120));
+        });
+        services.AddHttpClient<ExaCrawlerProvider>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<ExaCrawlerOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 120));
         });
@@ -71,7 +83,8 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         ]));
         services.AddScoped<IProviderCatalog<ICrawlerProvider>>(serviceProvider => new ProviderCatalog<ICrawlerProvider>([
             serviceProvider.GetRequiredService<Crawl4AiLocalProvider>(),
-            serviceProvider.GetRequiredService<FirecrawlCrawlerProvider>()
+            serviceProvider.GetRequiredService<FirecrawlCrawlerProvider>(),
+            serviceProvider.GetRequiredService<ExaCrawlerProvider>()
         ]));
         services.AddScoped<ISearchProvider, RoutingSearchProvider>();
         services.AddScoped<ICrawlerProvider, RoutingCrawlerProvider>();
