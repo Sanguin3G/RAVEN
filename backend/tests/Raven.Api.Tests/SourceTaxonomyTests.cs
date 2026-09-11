@@ -61,13 +61,49 @@ public sealed class SourceTaxonomyTests
     }
 
     [Theory]
-    [InlineData("https://masothue.com/0101248141", "Công ty FPT - Mã số thuế", SourceKind.BusinessRegistry)]
-    [InlineData("https://registry.example.org/company/fpt", "Company registration record", SourceKind.BusinessRegistry)]
-    public void RegistrySignals_AreClassifiedAsBusinessRegistry(string url, string title, SourceKind expected)
+    [InlineData("https://masothue.com/0101248141", "Công ty FPT - Mã số thuế", SourceKind.BusinessDirectory)]
+    [InlineData("https://registry.example.org/company/fpt", "Company registration record", SourceKind.BusinessDirectory)]
+    public void DirectorySignals_AreClassifiedAsBusinessDirectory(string url, string title, SourceKind expected)
     {
         var result = _classifier.Classify(new(url, title, null));
 
         Assert.Equal(expected, result.SourceKind);
+    }
+
+    [Theory]
+    [InlineData("https://dangkykinhdoanh.gov.vn/vn/Pages/ThongTinDoanhNghiep.aspx", "Company registration record")]
+    [InlineData("https://dichvuthongtin.dkkd.gov.vn/company/0101248141", "Business registration")]
+    [InlineData("https://gdt.gov.vn/wps/portal/home", "Tax administration portal")]
+    public void OfficialRegistryDomains_AreClassifiedAsOfficialBusinessRegistry(string url, string title)
+    {
+        var result = _classifier.Classify(new(url, title, null));
+
+        Assert.Equal(SourceKind.OfficialBusinessRegistry, result.SourceKind);
+        Assert.Contains("government", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MaSoThue_IsExplicitlyIdentifiedAsThirdPartyDirectory()
+    {
+        var result = _classifier.Classify(new(
+            "https://masothue.com/0101248141",
+            "CÔNG TY CỔ PHẦN FPT",
+            "Mã số thuế: 0101248141"));
+
+        Assert.Equal(SourceKind.BusinessDirectory, result.SourceKind);
+        Assert.Contains("not an official", result.RecommendationReasons.Single(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void OfficialCompanyPage_MentioningTaxId_RemainsOfficialWebsite()
+    {
+        var result = _classifier.Classify(new(
+            "https://fpt.com.vn/about/company",
+            "FPT Corporation - Tax ID 0101248141",
+            "Company registration and tax information",
+            "fpt.com.vn"));
+
+        Assert.Equal(SourceKind.OfficialWebsite, result.SourceKind);
     }
 
     [Theory]
@@ -105,9 +141,10 @@ public sealed class SourceTaxonomyTests
     [Fact]
     public void AuthorityPolicy_PrefersRegistryForLegalIdentityAndAddress()
     {
-        Assert.True(_policy.IsPreferred(SourceField.LegalIdentity, SourceKind.BusinessRegistry, SourceKind.OfficialWebsite));
-        Assert.True(_policy.IsPreferred(SourceField.RegisteredAddress, SourceKind.BusinessRegistry, SourceKind.TopCv));
-        Assert.True(_policy.Compare(SourceField.LegalIdentity, SourceKind.BusinessRegistry, SourceKind.SearchResult) > 0);
+        Assert.True(_policy.IsPreferred(SourceField.LegalIdentity, SourceKind.OfficialBusinessRegistry, SourceKind.BusinessDirectory));
+        Assert.True(_policy.IsPreferred(SourceField.TaxRegistration, SourceKind.OfficialBusinessRegistry, SourceKind.BusinessDirectory));
+        Assert.True(_policy.IsPreferred(SourceField.RegisteredAddress, SourceKind.OfficialBusinessRegistry, SourceKind.BusinessDirectory));
+        Assert.True(_policy.Compare(SourceField.LegalIdentity, SourceKind.BusinessDirectory, SourceKind.SearchResult) > 0);
     }
 
     [Fact]

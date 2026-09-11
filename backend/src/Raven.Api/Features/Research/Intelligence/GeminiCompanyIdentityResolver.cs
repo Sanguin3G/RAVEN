@@ -230,12 +230,17 @@ public sealed class GeminiCompanyIdentityResolver : ICompanyIdentityResolver
         }
 
         var recommendedTemporaryId = TrimNullable(response.RecommendedTemporaryId);
+        string? warning = null;
         if (recommendedTemporaryId is not null &&
             !temporaryIds.Contains(recommendedTemporaryId))
         {
-            return Failure(
-                new AiFailure("invalid_response", "The grounding model returned an unknown recommended entity.", false),
-                "Company identity grounding returned an unknown recommendation; deterministic research can continue.");
+            // A model can still identify useful distinct organizations while
+            // making an invalid top-level recommendation reference. Dropping
+            // the entire grounded result would hide the FPT/Viettel-style
+            // family choices from the user. Preserve the bounded candidates,
+            // remove only the bad default, and require explicit review.
+            recommendedTemporaryId = null;
+            warning = "Grounding returned no usable default target; review the possible organizations before continuing.";
         }
 
         recommendedTemporaryId ??= entities.SingleOrDefault(entity => entity.Recommended)?.TemporaryId;
@@ -247,10 +252,17 @@ public sealed class GeminiCompanyIdentityResolver : ICompanyIdentityResolver
                 "Company identity grounding returned no candidate entities; deterministic research can continue.");
         }
 
+        var requiresSelection = response.Ambiguous ||
+                                entities.Select(entity => entity.OfficialDomain ?? entity.Website ?? entity.DisplayName)
+                                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                                    .Take(2)
+                                    .Count() > 1;
+
         return new IdentityResolutionResult(
-            response.Ambiguous,
+            requiresSelection,
             recommendedTemporaryId,
-            entities);
+            entities,
+            warning);
     }
 
     private static AiEvidencePayload BuildEvidence(

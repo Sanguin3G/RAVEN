@@ -10,6 +10,7 @@ using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
+using Raven.Api.Features.Research.Coverage;
 
 namespace Raven.Api.Data;
 
@@ -41,6 +42,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(company => company.RegistrationNumber).HasMaxLength(150);
             entity.Property(company => company.Website).HasMaxLength(2_048);
             entity.Property(company => company.Headquarters).HasMaxLength(1_000);
+            entity.HasIndex(company => company.ArchivedAt);
             entity.HasIndex(company => company.Name);
         });
 
@@ -50,6 +52,8 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(researchRun => researchRun.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(researchRun => researchRun.Stage).HasConversion<string>().HasMaxLength(48).IsRequired();
             entity.Property(researchRun => researchRun.GroundingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(researchRun => researchRun.Mode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(researchRun => researchRun.ResearchTargetsJson).HasMaxLength(2_000).IsRequired();
             entity.Property(researchRun => researchRun.RequestedSearchProvider).HasMaxLength(100).IsRequired();
             entity.Property(researchRun => researchRun.ActualSearchProvider).HasMaxLength(100);
             entity.Property(researchRun => researchRun.RequestedCrawlerProvider).HasMaxLength(100).IsRequired();

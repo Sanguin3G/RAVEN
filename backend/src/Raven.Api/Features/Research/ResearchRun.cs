@@ -1,4 +1,5 @@
 using Raven.Api.Features.Companies;
+using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Research.Intelligence;
 
 namespace Raven.Api.Features.Research;
@@ -11,6 +12,12 @@ public sealed class ResearchRun
     public ResearchRunStatus Status { get; set; } = ResearchRunStatus.Searching;
     public ResearchStage Stage { get; set; } = ResearchStage.Discovering;
     public GroundingMode GroundingMode { get; set; } = GroundingMode.Auto;
+    /// <summary>Why this run exists. Targeted enrichment still uses the normal candidate/evidence pipeline.</summary>
+    public ResearchMode Mode { get; set; } = ResearchMode.Initial;
+    /// <summary>The accepted profile version a targeted enrichment patch starts from, when applicable.</summary>
+    public Guid? BaseProfileVersionId { get; set; }
+    /// <summary>Serialized <see cref="ResearchTarget"/> values. Kept as JSON so the target set remains extensible.</summary>
+    public string ResearchTargetsJson { get; set; } = "[]";
     public Guid? ResolvedIdentityCandidateId { get; set; }
     public DateTimeOffset StartedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAt { get; set; }

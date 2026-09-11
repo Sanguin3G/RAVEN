@@ -29,7 +29,8 @@ public sealed record CompanyResponse(
     string? LegalName,
     string? RegistrationNumber,
     string? Headquarters,
-    DateTimeOffset? LastResearchedAt);
+    DateTimeOffset? LastResearchedAt,
+    DateTimeOffset? ArchivedAt = null);
 
 /// <summary>Describes how strongly an existing company matches a submitted identity.</summary>
 public enum CompanyMatchStrength

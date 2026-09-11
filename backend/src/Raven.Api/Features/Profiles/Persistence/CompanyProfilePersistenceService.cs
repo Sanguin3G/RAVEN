@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Raven.Api.Data;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles.Changes;
+using Raven.Api.Features.Research.Coverage;
 
 namespace Raven.Api.Features.Profiles.Persistence;
 
@@ -319,8 +320,10 @@ public sealed class CompanyProfilePersistenceService(
 
         var runBelongsToCompany = await dbContext.ResearchRuns
             .AsNoTracking()
-            .AnyAsync(run => run.Id == researchRunId && run.CompanyId == companyId, cancellationToken);
-        if (!runBelongsToCompany)
+            .Where(run => run.Id == researchRunId && run.CompanyId == companyId)
+            .Select(run => new { run.Mode })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (runBelongsToCompany is null)
         {
             return null;
         }
@@ -340,7 +343,8 @@ public sealed class CompanyProfilePersistenceService(
             companyId,
             researchRunId,
             companySourceDocumentIds,
-            researchRunSourceDocumentIds);
+            researchRunSourceDocumentIds,
+            runBelongsToCompany.Mode == ResearchMode.TargetedEnrichment);
     }
 
     private static CompanyProfileCandidate NewCandidateEntity(

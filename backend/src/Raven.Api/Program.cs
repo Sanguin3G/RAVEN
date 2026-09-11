@@ -11,6 +11,9 @@ using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
 using Microsoft.Extensions.AI;
 using Raven.Api.Middleware;
+using Raven.Api.Features.Profiles.Enrichment;
+using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Companies.Workspace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +31,11 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
     policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
 }));
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<ICompanyLifecycleService, CompanyLifecycleService>();
+builder.Services.AddSingleton<ICompanyHealthEvaluator, CompanyHealthEvaluator>();
+builder.Services.AddSingleton<ICompanyDuplicateGroupingService, CompanyDuplicateGroupingService>();
+builder.Services.AddScoped<ICompanyWorkspaceReviewService, CompanyWorkspaceReviewService>();
+builder.Services.AddScoped<ITargetedProfileUpdateService, TargetedProfileUpdateService>();
 builder.Services.AddScoped<IResearchSettingsStore, EfResearchSettingsStore>();
 builder.Services.AddScoped<IResearchSettingsService, ResearchSettingsService>();
 builder.Services.AddSingleton<IMonitoringClock, SystemMonitoringClock>();
@@ -73,11 +81,15 @@ app.UseCors("DevelopmentFrontend");
 app.MapHealthChecks("/health");
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
 app.MapCompanyEndpoints();
+app.MapCompanyLifecycleEndpoints();
+app.MapCompanyWorkspaceEndpoints();
 app.MapSystemEndpoints();
 app.MapResearchSettingsEndpoints();
 app.MapMonitoringEndpoints();
 app.MapResearchEndpoints();
+app.MapResearchCoverageEndpoints();
 app.MapProfileEndpoints();
+app.MapTargetedProfileUpdateEndpoints();
 app.MapDeepResearchEndpoints();
 
 if (app.Environment.IsDevelopment())

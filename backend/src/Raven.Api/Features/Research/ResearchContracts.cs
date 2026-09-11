@@ -2,6 +2,7 @@ namespace Raven.Api.Features.Research;
 
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Research.Coverage;
 
 public sealed record ResearchRunResponse(
     Guid Id,
@@ -30,12 +31,18 @@ public sealed record ResearchRunResponse(
     int DocumentsAdded,
     int DuplicatesSkipped,
     GroundingMode GroundingMode,
-    Guid? ResolvedIdentityCandidateId);
+    Guid? ResolvedIdentityCandidateId,
+    ResearchMode Mode = ResearchMode.Initial,
+    Guid? BaseProfileVersionId = null,
+    IReadOnlyList<ResearchTarget>? Targets = null);
 
 public sealed record DiscoverResearchRequest(
     string? ResearchHint = null,
     GroundingMode? GroundingMode = null,
-    bool UseAcceptedProfileIdentity = false);
+    bool UseAcceptedProfileIdentity = false,
+    ResearchMode Mode = ResearchMode.Initial,
+    Guid? BaseProfileVersionId = null,
+    IReadOnlyList<ResearchTarget>? Targets = null);
 
 /// <summary>Returns a persisted possible real-world research target.</summary>
 public sealed record ResearchIdentityCandidateResponse(

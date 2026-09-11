@@ -11,6 +11,8 @@ using Raven.Api.Features.Firecrawl;
 using Raven.Api.Features.Search.Exa;
 using Raven.Api.Features.Crawling.Exa;
 using Raven.Api.Features.Research.Routing;
+using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Research.Planning;
 
 namespace Raven.Api.Features.Research;
 
@@ -92,6 +94,11 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddSingleton<SourceCandidateSelector>();
         services.AddSingleton<ISourceClassifier, SourceClassifier>();
         services.AddSingleton<ISourceAuthorityPolicy, SourceAuthorityPolicy>();
+        services.AddSingleton<CoverageAwareSourceSelector>();
+        services.AddSingleton<IEvidenceCoverageEvaluator, EvidenceCoverageEvaluator>();
+        services.AddSingleton<TargetedQueryPlanner>();
+        services.AddSingleton<OfficialSiteEvidencePlanner>();
+        services.AddSingleton<CorporateFamilyDiscoveryPlanner>();
         services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
         services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(
             serviceProvider.GetRequiredService<IAiModelProvider>(),
