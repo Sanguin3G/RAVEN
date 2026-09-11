@@ -14,6 +14,7 @@ using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Search;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Persistence;
+using Raven.Api.Features.Research.Routing;
 
 namespace Raven.Api.Features.Research;
 
@@ -73,13 +74,14 @@ public sealed class ResearchCompanyService(
             return null;
         }
 
+        var persistedSettings = await ReadSettingsAsync(cancellationToken);
         var run = new ResearchRun
         {
             CompanyId = company.Id,
-            RequestedSearchProvider = searchProvider.Id,
-            RequestedCrawlerProvider = crawlerProvider.Id,
+            RequestedSearchProvider = persistedSettings?.SearchProviderPriority.FirstOrDefault() ?? searchProvider.Id,
+            RequestedCrawlerProvider = persistedSettings?.CrawlerProviderPriority.FirstOrDefault() ?? crawlerProvider.Id,
             ResearchHint = TrimOptional(request?.ResearchHint),
-            GroundingMode = request?.GroundingMode ?? (await ReadSettingsAsync(cancellationToken))?.GroundingMode ?? GroundingMode.Auto
+            GroundingMode = request?.GroundingMode ?? persistedSettings?.GroundingMode ?? GroundingMode.Auto
         };
         dbContext.ResearchRuns.Add(run);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -258,7 +260,7 @@ public sealed class ResearchCompanyService(
             .ToArray();
         run.Stage = ResearchStage.Acquiring;
         run.Status = ResearchRunStatus.Crawling;
-        run.ActualCrawlerProvider = crawlerProvider.Id;
+        run.ActualCrawlerProvider = null;
         run.SourcesSelected = selectedCandidates.Length;
         run.CrawlTotal = selectedCandidates.Length;
         run.CrawlCompleted = 0;
@@ -285,13 +287,15 @@ public sealed class ResearchCompanyService(
             candidate.AcquisitionError = null;
             await dbContext.SaveChangesAsync(cancellationToken);
             await WriteEventAsync(run, ResearchEventCategory.CrawlRequested, ResearchEventStatus.Working,
-                crawlerProvider.Id, $"Acquiring {candidate.Domain}.", cancellationToken);
+                run.RequestedCrawlerProvider, $"Acquiring {candidate.Domain}.", cancellationToken);
 
             try
             {
                 var crawl = await crawlerProvider.CrawlAsync(
                     new CrawlRequest(candidate.NormalizedUrl),
                     cancellationToken);
+                run.ActualCrawlerProvider = crawl.Provider;
+                await WriteProviderFallbackAsync(run, crawlerProvider, cancellationToken);
                 run.CrawlCompleted++;
 
                 if (!crawl.Success || string.IsNullOrWhiteSpace(crawl.Markdown))
@@ -302,7 +306,7 @@ public sealed class ResearchCompanyService(
                     errors.Add($"{candidate.NormalizedUrl}: {candidate.AcquisitionError}");
                     await dbContext.SaveChangesAsync(cancellationToken);
                     await WriteEventAsync(run, ResearchEventCategory.CrawlFailed, ResearchEventStatus.Failed,
-                        crawlerProvider.Id, $"Could not acquire {candidate.Domain}.", cancellationToken);
+                        crawl.Provider, $"Could not acquire {candidate.Domain}.", cancellationToken);
                     continue;
                 }
 
@@ -315,7 +319,7 @@ public sealed class ResearchCompanyService(
                     run.DuplicatesSkipped++;
                     await dbContext.SaveChangesAsync(cancellationToken);
                     await WriteEventAsync(run, ResearchEventCategory.DuplicateSkipped, ResearchEventStatus.Skipped,
-                        crawlerProvider.Id, $"Duplicate content skipped for {candidate.Domain}.", cancellationToken);
+                        crawl.Provider, $"Duplicate content skipped for {candidate.Domain}.", cancellationToken);
                     continue;
                 }
 
@@ -346,7 +350,7 @@ public sealed class ResearchCompanyService(
                 run.DocumentsAdded++;
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await WriteEventAsync(run, ResearchEventCategory.SourcePersisted, ResearchEventStatus.Completed,
-                    crawlerProvider.Id, $"Stored evidence from {candidate.Domain}.", cancellationToken);
+                    crawl.Provider, $"Stored evidence from {candidate.Domain}.", cancellationToken);
             }
             catch (ProviderException exception) when (exception.Kind is ProviderFailureKind.Configuration or ProviderFailureKind.Authentication)
             {
@@ -403,7 +407,7 @@ public sealed class ResearchCompanyService(
         company.LastResearchedAt = run.CompletedAt;
         await dbContext.SaveChangesAsync(cancellationToken);
         await WriteEventAsync(run, ResearchEventCategory.CrawlCompleted, ResearchEventStatus.Completed,
-            crawlerProvider.Id, $"Acquisition finished: {run.DocumentsAdded} documents added, {run.DuplicatesSkipped} duplicates skipped.", cancellationToken);
+            run.ActualCrawlerProvider ?? run.RequestedCrawlerProvider, $"Acquisition finished: {run.DocumentsAdded} documents added, {run.DuplicatesSkipped} duplicates skipped.", cancellationToken);
         return ToResponse(run);
     }
 
@@ -641,14 +645,14 @@ public sealed class ResearchCompanyService(
         ResearchIdentityInput identity,
         CancellationToken cancellationToken)
     {
-        run.ActualSearchProvider = searchProvider.Id;
+        run.ActualSearchProvider = null;
         var queries = BuildQueries(identity);
         run.QueriesTotal = queries.Count;
         run.QueriesCompleted = 0;
         run.SourcesFound = 0;
         await dbContext.SaveChangesAsync(cancellationToken);
         await WriteEventAsync(run, ResearchEventCategory.SearchRequested, ResearchEventStatus.Working,
-            searchProvider.Id, $"Planned {queries.Count} bounded public-source queries.", cancellationToken);
+            run.RequestedSearchProvider, $"Planned {queries.Count} bounded public-source queries.", cancellationToken);
 
         var searchResults = new List<SearchResult>();
         var errors = new List<string>();
@@ -659,6 +663,8 @@ public sealed class ResearchCompanyService(
                 var search = await searchProvider.SearchAsync(
                     new SearchRequest(query, SearchResultsPerQuery, identity.Country),
                     cancellationToken);
+                run.ActualSearchProvider = search.Provider;
+                await WriteProviderFallbackAsync(run, searchProvider, cancellationToken);
                 searchResults.AddRange(search.Results);
             }
             catch (ProviderException exception) when (exception.Kind is ProviderFailureKind.Configuration or ProviderFailureKind.Authentication)
@@ -1019,6 +1025,24 @@ public sealed class ResearchCompanyService(
             Provider = provider,
             OutputSummary = outputSummary
         }, cancellationToken);
+
+    private async Task WriteProviderFallbackAsync(
+        ResearchRun run,
+        object provider,
+        CancellationToken cancellationToken)
+    {
+        if (provider is not IProviderRouteDiagnostics { LastRoute: { } route } || route.Attempts.Count == 0)
+        {
+            return;
+        }
+
+        var attempted = string.Join(", ", route.Attempts.Select(attempt => attempt.ProviderId).Distinct(StringComparer.OrdinalIgnoreCase));
+        var summary = string.IsNullOrWhiteSpace(route.ActualProvider)
+            ? $"All attempted {route.Capability} providers failed: {attempted}."
+            : $"{route.Capability} fell back from {attempted} to {route.ActualProvider}.";
+        await WriteEventAsync(run, ResearchEventCategory.ProviderFallback, ResearchEventStatus.Completed,
+            route.ActualProvider, summary, cancellationToken);
+    }
 
     private static IReadOnlyList<string> BuildQueries(Company company, string? researchHint) =>
         BuildQueries(ResearchIdentityInput.FromCompany(company, researchHint));

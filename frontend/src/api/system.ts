@@ -11,6 +11,8 @@ export interface ProviderStatusResponse {
   brave: ProviderStatus;
   crawl4Ai: ProviderStatus;
   gemini: ProviderStatus;
+  exa: ProviderStatus;
+  firecrawl: ProviderStatus;
   deepResearchModel: string;
 }
 

@@ -46,15 +46,15 @@ const presetChoices: Array<{ value: ProviderPreset; title: string; description: 
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
   Balanced: {
-    searchProviderPriority: ["brave", "exa", "crawl4ai-cloud", "firecrawl"],
-    crawlerProviderPriority: ["crawl4ai-local", "crawl4ai-cloud", "firecrawl"],
+    searchProviderPriority: ["brave", "exa", "firecrawl-search"],
+    crawlerProviderPriority: ["crawl4ai-local", "firecrawl"],
   },
   LocalFirst: {
     searchProviderPriority: ["brave"],
     crawlerProviderPriority: ["crawl4ai-local"],
   },
   Cloud: {
-    searchProviderPriority: ["exa"],
+    searchProviderPriority: ["exa", "firecrawl-search"],
     crawlerProviderPriority: ["firecrawl"],
   },
 };
@@ -106,6 +106,7 @@ function displayProvider(value: string) {
   const labels: Record<string, string> = {
     brave: "Brave Search",
     exa: "Exa Search",
+    "firecrawl-search": "Firecrawl Search",
     firecrawl: "Firecrawl",
     "crawl4ai-local": "Crawl4AI Local",
     "crawl4ai-cloud": "Crawl4AI Cloud",
@@ -313,6 +314,8 @@ export function SettingsPage() {
             {[
               ["Brave Search", providers?.brave],
               ["Crawl4AI Local", providers?.crawl4Ai],
+              ["Exa Search", providers?.exa],
+              ["Firecrawl", providers?.firecrawl],
               ["Gemini", providers?.gemini],
             ].map(([name, provider]) => {
               const typedProvider = provider as ProviderStatus | undefined;

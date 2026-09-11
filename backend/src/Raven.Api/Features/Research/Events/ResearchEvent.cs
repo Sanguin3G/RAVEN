@@ -53,6 +53,7 @@ public enum ResearchEventCategory
     IdentitySelected,
     SourceSemanticRerankStarted,
     SourceSemanticRerankCompleted,
+    ProviderFallback,
     CrawlRequested,
     CrawlCompleted,
     CrawlFailed,

@@ -7,6 +7,9 @@ using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Ai;
 using Raven.Api.Features.Settings;
+using Raven.Api.Features.Firecrawl;
+using Raven.Api.Features.Search.Exa;
+using Raven.Api.Features.Research.Routing;
 
 namespace Raven.Api.Features.Research;
 
@@ -20,18 +23,58 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         {
             options.ApiKey ??= configuration["BRAVE_SEARCH_API_KEY"];
         });
-        services.AddHttpClient<ISearchProvider, BraveSearchProvider>((serviceProvider, client) =>
+        services.Configure<ExaSearchOptions>(configuration.GetSection(ExaSearchOptions.SectionName));
+        services.PostConfigure<ExaSearchOptions>(options =>
+        {
+            options.ApiKey ??= configuration[ExaSearchOptions.ApiKeyEnvironmentVariable];
+        });
+        services.Configure<FirecrawlOptions>(configuration.GetSection(FirecrawlOptions.SectionName));
+        services.PostConfigure<FirecrawlOptions>(options =>
+        {
+            options.ApiKey ??= configuration[FirecrawlOptions.ApiKeyEnvironmentVariable];
+        });
+
+        services.AddHttpClient<BraveSearchProvider>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<BraveSearchOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 120));
         });
-        services.AddHttpClient<ICrawlerProvider, Crawl4AiLocalProvider>((serviceProvider, client) =>
+        services.AddHttpClient<ExaSearchProvider>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<ExaSearchOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 120));
+        });
+        services.AddHttpClient<FirecrawlSearchProvider>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<FirecrawlOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
+        });
+        services.AddHttpClient<Crawl4AiLocalProvider>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<Crawl4AiLocalOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
         });
+        services.AddHttpClient<FirecrawlCrawlerProvider>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<FirecrawlOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
+        });
+        services.AddScoped<IProviderCatalog<ISearchProvider>>(serviceProvider => new ProviderCatalog<ISearchProvider>([
+            serviceProvider.GetRequiredService<BraveSearchProvider>(),
+            serviceProvider.GetRequiredService<ExaSearchProvider>(),
+            serviceProvider.GetRequiredService<FirecrawlSearchProvider>()
+        ]));
+        services.AddScoped<IProviderCatalog<ICrawlerProvider>>(serviceProvider => new ProviderCatalog<ICrawlerProvider>([
+            serviceProvider.GetRequiredService<Crawl4AiLocalProvider>(),
+            serviceProvider.GetRequiredService<FirecrawlCrawlerProvider>()
+        ]));
+        services.AddScoped<ISearchProvider, RoutingSearchProvider>();
+        services.AddScoped<ICrawlerProvider, RoutingCrawlerProvider>();
         services.AddSingleton<SourceUrlNormalizer>();
         services.AddSingleton<SourceCandidateSelector>();
         services.AddSingleton<ISourceClassifier, SourceClassifier>();
