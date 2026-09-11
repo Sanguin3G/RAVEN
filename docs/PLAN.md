@@ -27,11 +27,13 @@ Delivered:
 
 Remaining M1 work is quality work: real-provider failure handling, usability polish, demo data, regression coverage, and documentation accuracy.
 
-## M2 — Company Knowledge
+## M2 — Research Intelligence and Company Knowledge
 
-**Target: after M1 stabilization.**
+**Day-4 implementation: complete on `feat/day4-research-intelligence`; awaiting review/merge.**
 
-Implement profile refresh, change detection, source chunking, embeddings, company-filtered retrieval, and real Ask RAVEN answers with citations.
+Implemented: profile refresh, change detection, AI target grounding, semantic source relevance, persisted research/provider settings, Exa/Firecrawl routing, in-process monitoring, bounded Deep Research, and saved research artifacts.
+
+Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and real Ask RAVEN answers with citations.
 
 **Exit condition:** accepted knowledge survives restart, can be reopened and questioned with citations, and a refresh preserves historical evidence and profiles.
 
@@ -39,7 +41,7 @@ Implement profile refresh, change detection, source chunking, embeddings, compan
 
 **Target: after M2.**
 
-Implement Deep Research using RAG first, then controlled external research through normal provider interfaces and optional MCP. Add Exa/Firecrawl only when their value is demonstrated by the workflow.
+Extend the bounded Deep Research backend with RAG-first retrieval, cancellation, richer diagnostics, controlled external research through normal provider interfaces, and optional MCP. Add Crawl4AI Cloud only when its value is demonstrated by the workflow.
 
 **Exit condition:** RAVEN can explain whether an answer came from stored evidence or newly acquired evidence, while keeping persistence application-owned.
 

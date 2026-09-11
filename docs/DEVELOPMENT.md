@@ -51,6 +51,11 @@ POST /api/research-runs/{id}/acquire
 GET  /api/research-runs/{id}/sources
 GET  /api/companies/{id}/sources
 GET  /api/sources/{id}
+POST /api/companies/{id}/deep-research
+GET  /api/deep-research-runs/{id}
+GET  /api/companies/{id}/deep-research-runs
+POST /api/companies/{id}/saved-research
+GET  /api/companies/{id}/saved-research
 ```
 
 Profile endpoints:
@@ -78,11 +83,15 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 | Capability | Environment variables |
 | --- | --- |
 | Brave | `BRAVE_SEARCH_API_KEY` |
+| Exa Search and Contents | `EXA_API_KEY` |
+| Firecrawl Search and Crawl | `FIRECRAWL_API_KEY` |
 | Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
 | Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
 | SQLite | `ConnectionStrings__Raven` |
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
+
+Research Settings persist safe model roles, grounding/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Balanced and Cloud presets can route retrieval through Exa Contents and Firecrawl after retryable failures. Authentication, configuration, and invalid-request errors never silently fall back.
 
 ## Docker
 
@@ -117,6 +126,12 @@ npm run build
 ```
 
 Provider tests must use fakes, mocks, or fixtures. Normal automated tests must not require live provider credentials, paid traffic, TopCV availability, LinkedIn access, or a running crawler.
+
+## Monitoring and Deep Research
+
+Monitoring and Deep Research use in-process `BackgroundService` workers. They execute only while the API process is running; this project deliberately does not add an external scheduler or job broker. Monitoring produces a review-ready profile candidate and never accepts a profile automatically.
+
+Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
 
 ## Git workflow
 

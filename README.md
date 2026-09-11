@@ -6,24 +6,25 @@ RAVEN is an AI-assisted Company Intelligence Platform. It discovers public compa
 
 ## Current milestone
 
-M1 — Core Research is implemented as a working vertical slice:
+Day 4 work on `feat/day4-research-intelligence` extends the working M1 research slice with intelligence and tracking:
 
 ```text
-Company identity → duplicate check → Brave discovery → source review
-→ Crawl4AI Local acquisition → evidence → Gemini profile candidate
-→ human confirmation → versioned Company Profile
+Company identity → duplicate check → optional AI grounding → source review
+→ provider-routed acquisition → evidence → Gemini profile candidate
+→ human confirmation → versioned profile/history/changes
 ```
 
-The application does not yet implement RAG, real Ask RAVEN answers, Deep Research, MCP, Exa, Firecrawl, scheduled monitoring, or change detection.
+It also adds persistent settings, Exa/Firecrawl provider routing, manual refresh, monitoring that produces review-ready updates, and a bounded Deep Research backend with saved investigations. RAG and the real Ask RAVEN UI remain separate work.
 
 ## Stack
 
 - React + TypeScript + Vite + Phosphor icons
 - ASP.NET Core + Entity Framework Core
 - SQLite
-- Brave Search
-- Docker-hosted Crawl4AI Local
+- Brave and Exa Search
+- Crawl4AI Local, Firecrawl, and Exa Contents retrieval
 - Gemini structured output
+- Microsoft Agent Framework for bounded Deep Research
 
 ## Quick start
 
