@@ -8,6 +8,8 @@ using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Monitoring;
+using Raven.Api.Features.DeepResearch;
+using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Data;
 
@@ -25,6 +27,9 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ProfileChange> ProfileChanges => Set<ProfileChange>();
     public DbSet<ResearchIdentityCandidate> ResearchIdentityCandidates => Set<ResearchIdentityCandidate>();
     public DbSet<CompanyMonitoringSetting> CompanyMonitoringSettings => Set<CompanyMonitoringSetting>();
+    public DbSet<DeepResearchRun> DeepResearchRuns => Set<DeepResearchRun>();
+    public DbSet<DeepResearchActivityRecord> DeepResearchActivities => Set<DeepResearchActivityRecord>();
+    public DbSet<SavedResearchArtifact> SavedResearchArtifacts => Set<SavedResearchArtifact>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -90,6 +95,46 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
                 .WithMany()
                 .HasForeignKey(setting => setting.CompanyId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DeepResearchRun>(entity =>
+        {
+            entity.HasKey(run => run.Id);
+            entity.Property(run => run.Question).HasMaxLength(4_000).IsRequired();
+            entity.Property(run => run.Model).HasMaxLength(200).IsRequired();
+            entity.Property(run => run.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(run => run.ResultMarkdown).HasMaxLength(40_000);
+            entity.Property(run => run.Error).HasMaxLength(4_000);
+            entity.HasIndex(run => new { run.CompanyId, run.CreatedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(run => run.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DeepResearchActivityRecord>(entity =>
+        {
+            entity.HasKey(activity => activity.Id);
+            entity.Property(activity => activity.Type).HasMaxLength(32).IsRequired();
+            entity.Property(activity => activity.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(activity => activity.Label).HasMaxLength(120).IsRequired();
+            entity.Property(activity => activity.Detail).HasMaxLength(280);
+            entity.Property(activity => activity.Provider).HasMaxLength(100);
+            entity.Property(activity => activity.SourceDocumentIdsJson).HasMaxLength(1_000).IsRequired();
+            entity.HasIndex(activity => new { activity.DeepResearchRunId, activity.Sequence }).IsUnique();
+            entity.HasOne<DeepResearchRun>().WithMany().HasForeignKey(activity => activity.DeepResearchRunId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SavedResearchArtifact>(entity =>
+        {
+            entity.HasKey(artifact => artifact.Id);
+            entity.Property(artifact => artifact.Title).HasMaxLength(500).IsRequired();
+            entity.Property(artifact => artifact.Question).HasMaxLength(4_000).IsRequired();
+            entity.Property(artifact => artifact.Summary).HasMaxLength(100_000).IsRequired();
+            entity.Property(artifact => artifact.Model).HasMaxLength(200);
+            entity.Property(artifact => artifact.ResearchType).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(artifact => artifact.SourceDocumentIdsJson).HasMaxLength(20_000).IsRequired();
+            entity.Ignore(artifact => artifact.SourceDocumentIds);
+            entity.Ignore(artifact => artifact.Result);
+            entity.HasIndex(artifact => new { artifact.CompanyId, artifact.CreatedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(artifact => artifact.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ResearchSettingsEntity>(entity =>
