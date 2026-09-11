@@ -4,22 +4,41 @@ import type {
   GroundingMode,
   ResearchCandidate,
   ResearchIdentityCandidate,
+  ResearchMode,
+  ResearchTarget,
   ResearchRun,
   SourceDocument,
 } from "../types/research";
 
 export type { ResearchRun, SourceDocument } from "../types/research";
 
+export interface DiscoverResearchOptions {
+  mode?: ResearchMode;
+  targets?: ResearchTarget[];
+  baseProfileVersionId?: string;
+}
+
 export function discoverResearch(
   companyId: string,
   researchHint?: string,
   groundingMode?: GroundingMode,
   useAcceptedProfileIdentity = false,
+  options?: DiscoverResearchOptions,
 ) {
-  const body: { researchHint?: string; groundingMode?: GroundingMode; useAcceptedProfileIdentity?: boolean } = {};
+  const body: {
+    researchHint?: string;
+    groundingMode?: GroundingMode;
+    useAcceptedProfileIdentity?: boolean;
+    mode?: ResearchMode;
+    targets?: ResearchTarget[];
+    baseProfileVersionId?: string;
+  } = {};
   if (researchHint?.trim()) body.researchHint = researchHint.trim();
   if (groundingMode) body.groundingMode = groundingMode;
   if (useAcceptedProfileIdentity) body.useAcceptedProfileIdentity = true;
+  if (options?.mode) body.mode = options.mode;
+  if (options?.targets?.length) body.targets = options.targets;
+  if (options?.baseProfileVersionId) body.baseProfileVersionId = options.baseProfileVersionId;
 
   return request<ResearchRun>(`/api/companies/${encodeURIComponent(companyId)}/research/discover`, {
     method: "POST",

@@ -31,6 +31,13 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(response.status);
   }
 
+  // DELETE lifecycle endpoints intentionally return 204 with no JSON body.
+  // Treat that as a successful request instead of turning it into a client
+  // error while keeping the generic response type ergonomic for callers.
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   try {
     return await response.json() as T;
   } catch {

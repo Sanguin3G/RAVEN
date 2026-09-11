@@ -2,8 +2,11 @@ import type { SourceKind } from "../sources/sourceUtils";
 import type { CompanyProfileVersion } from "../../types/profile";
 import type { ProfileChange } from "../../api/profileTracking";
 import type { CompanyMonitoring, UpdateCompanyMonitoring } from "../../api/monitoring";
+import type { EvidenceCoverageResponse } from "../../api/coverage";
+import type { ResearchTarget } from "../../api/coverage";
+import type { SavedResearchArtifact } from "../../api/investigations";
 
-export type DossierTab = "overview" | "sources" | "research" | "changes" | "ask";
+export type DossierTab = "overview" | "sources" | "investigations" | "changes" | "monitoring";
 
 export interface DossierCompany {
   id: string;
@@ -45,6 +48,7 @@ export interface DossierLocation {
  * the dossier can render a generated preview and an accepted version equally.
  */
 export interface DossierProfile {
+  id?: string;
   legalName?: string | null;
   website?: string | null;
   country?: string | null;
@@ -130,6 +134,19 @@ export interface DossierMonitoring {
   onResearchNow?: () => void | Promise<void>;
 }
 
+export interface DossierCoverage {
+  response?: EvidenceCoverageResponse | null;
+  isLoading?: boolean;
+  error?: string | null;
+}
+
+export interface DossierInvestigations {
+  artifacts?: SavedResearchArtifact[] | null;
+  isLoading?: boolean;
+  error?: string | null;
+  onRefresh?: () => void | Promise<void>;
+}
+
 export interface CompanyDossierProps {
   company: DossierCompany;
   profile?: DossierProfile | null;
@@ -140,4 +157,9 @@ export interface CompanyDossierProps {
   onTabChange?: (tab: DossierTab) => void;
   tracking?: DossierTracking | null;
   monitoring?: DossierMonitoring | null;
+  coverage?: DossierCoverage | null;
+  investigations?: DossierInvestigations | null;
+  initialEnrichmentTargets?: ResearchTarget[];
+  openEnrichment?: boolean;
+  onProfileConfirmed?: (profile: CompanyProfileVersion) => void;
 }

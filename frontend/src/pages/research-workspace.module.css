@@ -64,6 +64,12 @@
 .profileNextStep h3 { margin-bottom: 0.2rem; }
 .profileNextStep p { font-size: 0.8rem; margin-bottom: 0; }
 .profileNextStep .eyebrow { color: var(--ai); font-size: 0.65rem; margin-bottom: 0.3rem; }
+.coverageSummary, .coverageTargets { border: 1px solid var(--border); border-radius: 4px; margin: 1rem 0; padding: 0.8rem; }
+.coverageSummary h3, .coverageTargets legend { font-size: 0.85rem; font-weight: 900; margin: 0 0 0.55rem; }
+.coverageSummary ul { display: grid; gap: 0.35rem; list-style: none; margin: 0; padding: 0; }
+.coverageSummary li { display: flex; font-size: 0.78rem; justify-content: space-between; }
+.coverageTargets { display: flex; flex-wrap: wrap; gap: 0.55rem 1rem; }
+.coverageTargets label { font-size: 0.78rem; }
 .workflowList { display: grid; gap: 0.8rem; list-style: decimal; margin: 0; padding-left: 1.2rem; }
 .workflowList li { color: var(--text); padding-left: 0.2rem; }
 .workflowList strong, .workflowList span { display: block; }

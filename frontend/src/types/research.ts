@@ -18,12 +18,28 @@ export type ResearchStage =
 export type SourceKind =
   | "OfficialWebsite"
   | "OfficialDocument"
+  | "OfficialBusinessRegistry"
+  | "BusinessDirectory"
+  /** @deprecated Retained for documents created before Day 5 taxonomy. */
   | "BusinessRegistry"
   | "TopCv"
   | "LinkedIn"
   | "News"
   | "ExternalWebsite"
   | "SearchResult";
+
+export type ResearchMode = "Initial" | "Refresh" | "Monitoring" | "TargetedEnrichment";
+
+export type ResearchTarget =
+  | "LegalIdentity"
+  | "TaxRegistration"
+  | "FoundedHistory"
+  | "Industry"
+  | "EmployeeScale"
+  | "ProductsServices"
+  | "Markets"
+  | "Leadership"
+  | "Locations";
 
 export interface ResearchRun {
   id: string;
@@ -53,6 +69,9 @@ export interface ResearchRun {
   crawlFailed: number;
   documentsAdded: number;
   duplicatesSkipped: number;
+  mode?: ResearchMode;
+  baseProfileVersionId?: string | null;
+  targets?: ResearchTarget[] | null;
 }
 
 export type GroundedEntityType = "ParentGroup" | "Company" | "Subsidiary" | "Affiliate" | "Brand" | "Unknown";

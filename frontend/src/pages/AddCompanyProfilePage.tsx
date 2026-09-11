@@ -23,6 +23,7 @@ import {
   getResearchSources,
   selectResearchIdentityCandidate,
 } from "../api/research";
+import { getResearchRunCoverage, type EvidenceCoverageResponse, type ResearchTarget } from "../api/coverage";
 import type { Company, CompanyMatchResponse, CreateCompanyRequest } from "../types/company";
 import type { GroundingMode, ResearchCandidate, ResearchIdentityCandidate, ResearchRun, SourceDocument } from "../types/research";
 import type { CompanyProfileCandidate } from "../types/profile";
@@ -112,6 +113,10 @@ function entityTypeLabel(entityType: ResearchIdentityCandidate["entityType"]) {
 
 function confidenceLabel(confidence: ResearchIdentityCandidate["confidence"]) {
   return `${confidence.toLowerCase()} confidence`;
+}
+
+function targetLabel(target: ResearchTarget) {
+  return target.replace(/([a-z])([A-Z])/g, "$1 $2").replace("Products Services", "Products / services");
 }
 
 function relationshipLabel(relationship?: ResearchCandidate["entityRelationship"]) {
@@ -229,6 +234,8 @@ export function AddCompanyProfilePage() {
   const [selectedIdentityCandidateId, setSelectedIdentityCandidateId] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<ResearchCandidate[]>([]);
   const [sources, setSources] = useState<SourceDocument[]>([]);
+  const [coverage, setCoverage] = useState<EvidenceCoverageResponse | null>(null);
+  const [strengtheningTargets, setStrengtheningTargets] = useState<ResearchTarget[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
@@ -238,6 +245,9 @@ export function AddCompanyProfilePage() {
   const refreshStartedRef = useRef(false);
 
   const selectedCount = useMemo(() => candidates.filter((candidate) => candidate.selected).length, [candidates]);
+  const coverageGaps = useMemo(() => (coverage?.items ?? [])
+    .filter((item) => item.level === "Missing" || item.level === "Weak")
+    .map((item) => item.target) ?? [], [coverage]);
   const activityCounters = run
     ? {
         queriesTotal: run.queriesTotal,
@@ -484,9 +494,39 @@ export function AddCompanyProfilePage() {
       ]);
       setCandidates(nextCandidates);
       setSources(nextSources);
+      const nextCoverage = await getResearchRunCoverage(nextRun.id).catch(() => null);
+      const usableCoverage = nextCoverage && Array.isArray(nextCoverage.items) ? nextCoverage : null;
+      setCoverage(usableCoverage);
+      setStrengtheningTargets((usableCoverage?.items ?? [])
+        .filter((item) => item.level === "Missing" || item.level === "Weak")
+        .map((item) => item.target) ?? []);
       setView("reviewingEvidence");
     } catch (reason: unknown) {
       setError(getApiErrorMessage(reason, "RAVEN could not acquire the selected sources."));
+      setView("failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStrengthenDossier() {
+    if (!company || strengtheningTargets.length === 0) return;
+    setLoading(true);
+    setError(null);
+    setView("discovering");
+    try {
+      const nextRun = await discoverResearch(company.id, undefined, undefined, true, {
+        mode: "TargetedEnrichment",
+        targets: strengtheningTargets,
+      });
+      setRun(nextRun);
+      const nextCandidates = await getResearchCandidates(nextRun.id);
+      setCandidates(nextCandidates.map((candidate) => ({ ...candidate, selected: candidate.selected || candidate.recommended })));
+      setSources([]);
+      setCoverage(null);
+      setView("reviewingSources");
+    } catch (reason: unknown) {
+      setError(getApiErrorMessage(reason, "RAVEN could not start dossier strengthening."));
       setView("failed");
     } finally {
       setLoading(false);
@@ -681,6 +721,7 @@ export function AddCompanyProfilePage() {
         <div><strong>{sources.length} acquired source{sources.length === 1 ? "" : "s"}</strong><p>Review the public pages RAVEN preserved before generating a Company Profile.</p></div>
         <span className={styles.successPill}>{run?.documentsAdded ?? sources.length} documents added</span>
       </div>
+      {coverage ? <section className={styles.coverageSummary} aria-label="Research coverage"><h3>Research coverage</h3><ul>{coverage.items.map((item) => <li key={item.target}><span>{targetLabel(item.target)}</span><strong>{item.level}</strong></li>)}</ul>{coverage.budgetExhausted ? <p>Research budget reached. Remaining gaps stay unknown.</p> : null}</section> : null}
       {sources.length > 0 ? <div className={styles.evidenceGrid}>{sources.map((source) => <EvidenceCard key={source.id} evidence={toEvidenceRecord(source)} />)}</div> : <p className="empty-state">No source documents were acquired. The selected sources may have been unavailable.</p>}
       {candidates.some((candidate) => candidate.acquisitionStatus === "Failed" || candidate.acquisitionStatus === "Unavailable" || candidate.acquisitionStatus === "DuplicateSkipped") ? (
         <div className={styles.acquisitionIssues} role="status">
@@ -692,9 +733,10 @@ export function AddCompanyProfilePage() {
           </ul>
         </div>
       ) : null}
+      {coverageGaps.length > 0 ? <fieldset className={styles.coverageTargets}><legend>Areas to strengthen</legend>{coverageGaps.map((target) => <label key={target}><input type="checkbox" checked={strengtheningTargets.includes(target)} onChange={() => setStrengtheningTargets((current) => current.includes(target) ? current.filter((item) => item !== target) : [...current, target])} /> {targetLabel(target)}</label>)}</fieldset> : null}
       <div className={styles.profileNextStep}>
         <div><p className="eyebrow">NEXT · AI PROFILE</p><h3>Generate a grounded Company Profile</h3><p>Gemini profile generation will use these preserved documents and attach evidence references.</p></div>
-        <Button type="button" onClick={() => void handleGenerateProfile()} loading={loading} tone="secondary">Generate Company Profile</Button>
+        <div className="form-actions"><Button type="button" onClick={() => void handleStrengthenDossier()} loading={loading} disabled={strengtheningTargets.length === 0}>Strengthen dossier</Button><Button type="button" onClick={() => void handleGenerateProfile()} loading={loading} tone="secondary">Generate profile now</Button></div>
       </div>
     </Panel>
   ) : null;

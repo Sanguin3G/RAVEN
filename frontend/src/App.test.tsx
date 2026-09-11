@@ -110,8 +110,9 @@ it("filters the company list by name", async () => {
   renderWithRouter(<App />, "/companies");
 
   await screen.findByRole("link", { name: "FPT Software" });
-  expect(screen.getByRole("columnheader", { name: "Logo" })).toBeInTheDocument();
-  expect(screen.getByRole("columnheader", { name: "Last update" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Profile health" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Monitoring" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Last researched" })).toBeInTheDocument();
   await user.type(screen.getByPlaceholderText("Search by company name"), "Masan");
 
   expect(screen.getByRole("link", { name: "Masan Group" })).toBeInTheDocument();
