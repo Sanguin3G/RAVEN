@@ -13,6 +13,7 @@ using Raven.Api.Features.Crawling.Exa;
 using Raven.Api.Features.Research.Routing;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Research.Planning;
+using Raven.Api.Features.Research.Identity;
 
 namespace Raven.Api.Features.Research;
 
@@ -110,6 +111,9 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddSingleton<CorporateFamilyDiscoveryPlanner>();
         services.AddSingleton<DeterministicIdentityFamilyBuilder>();
         services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
+        services.AddSingleton<IdentityResolutionPolicy>();
+        services.AddScoped<IIdentityKnowledgeResolver, GeminiKnowledgeIdentityResolver>();
+        services.AddScoped<IIdentityResolutionService, IdentityResolutionService>();
         services.AddScoped<IResearchRunConfigurationSnapshot, ResearchRunConfigurationSnapshot>();
         services.AddScoped<IResearchExecutionService, ResearchExecutionService>();
         services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(

@@ -15,6 +15,7 @@ import {
   IdentityStage,
   MatchStage,
   ProfileReviewStage,
+  PreflightIdentityStage,
 } from "./research-workflow/ResearchWorkflowStages";
 import { useCompanyResearchWorkflow } from "./research-workflow/useCompanyResearchWorkflow";
 import type { WorkspaceView } from "./research-workflow/types";
@@ -25,6 +26,9 @@ function activityStage(view: WorkspaceView): ActivityStage {
       return "discovering";
     case "resolvingIdentity":
       return "resolvingIdentity";
+    case "checkingIdentity":
+    case "preflightIdentity":
+      return "identifying";
     case "reviewingSources":
       return "awaitingSourceSelection";
     case "acquiring":
@@ -64,6 +68,7 @@ export function AddCompanyProfilePage() {
       <div className={styles.workspace}>
         <main className={styles.primaryColumn}>
           <IdentityStage workflow={workflow} />
+          <PreflightIdentityStage workflow={workflow} />
           <MatchStage workflow={workflow} />
           <IdentityResolutionStage workflow={workflow} />
           <CandidateReviewStage workflow={workflow} />

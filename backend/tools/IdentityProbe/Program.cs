@@ -1,370 +1,97 @@
-using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Raven.Api.Features.Ai;
 
-const string userSecretsId = "989e5215-e80e-4c9f-b9a3-bdb809aa90fb";
-const string defaultModel = "gemini-3.5-flash-lite";
-const string promptTemplateVersion = "identity-resolution-v2";
+const string secretsId = "989e5215-e80e-4c9f-b9a3-bdb809aa90fb";
+const string model = "gemini-3.5-flash-lite";
+const string template = "identity-topology-v2";
 const string SystemInstruction = """
-You are RAVEN's bounded pre-search company identity assistant.
-Use only existing model knowledge and the identity hints supplied by the user.
-Do not browse, search, crawl, call tools, or invent unsupported entities.
-When uncertain, ask for a useful hint or return Unknown. Do not expose hidden reasoning.
+You are RAVEN's bounded company-identity topology assistant. Model knowledge may describe candidates and relationships, but deterministic RAVEN policy decides workflow state. Never decide which organization the user intends.
 """;
-var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
-{
-    PropertyNameCaseInsensitive = true
-};
-var responseSchema = CreateResponseSchema();
 
 var configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
     .AddEnvironmentVariables()
-    .AddJsonFile(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "UserSecrets", userSecretsId, "secrets.json"), optional: true)
+    .AddJsonFile(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "UserSecrets", secretsId, "secrets.json"), optional: true)
     .Build();
-
-var options = ReadOptions(configuration);
+var options = new GeminiOptions
+{
+    ApiKey = configuration["GEMINI_API_KEY"] ?? configuration["Providers:Gemini:ApiKey"],
+    BaseUrl = configuration["GEMINI_BASE_URL"] ?? "https://generativelanguage.googleapis.com",
+    ApiVersion = configuration["GEMINI_API_VERSION"] ?? "v1beta",
+    TimeoutSeconds = 60
+};
 if (string.IsNullOrWhiteSpace(options.ApiKey))
 {
-    Console.Error.WriteLine("Gemini is not configured. Set the API key through Raven.Api user secrets or GEMINI_API_KEY.");
+    Console.Error.WriteLine("Gemini is not configured.");
     return 2;
 }
 
-var selectedModel = FirstNonEmpty(
-    configuration["GEMINI_IDENTITY_MODEL"],
-    configuration["GEMINI_FAST_MODEL"],
-    configuration["Providers:Gemini:FastModel"],
-    defaultModel);
-
-var scenarios = new[]
+var scenarios = new (string Name, string? Country)[]
 {
-    new ProbeScenario("FPT", null, "family shorthand"),
-    new ProbeScenario("FPT Software", null, "specific known company"),
-    new ProbeScenario("Viettel", null, "family shorthand"),
-    new ProbeScenario("Viettel Telecom", null, "specific known company"),
-    new ProbeScenario("Vingroup", null, "specific known company"),
-    new ProbeScenario("Vin", null, "short name"),
-    new ProbeScenario("Masan", null, "specific known company"),
-    new ProbeScenario("Sun", null, "short name"),
-    new ProbeScenario("Sun Property", null, "name collision without geography"),
-    new ProbeScenario("Sun Property", "Vietnam", "name collision with geography"),
-    new ProbeScenario("Quang Minh Precision Components", null, "deliberately obscure"),
-    new ProbeScenario("Viettel Technologies", null, "similar-name soundalike")
+    ("FPT", null), ("FPT Software", null), ("Viettel", null), ("Viettel Telecom", null),
+    ("Vingroup", null), ("Vin", null), ("Masan", null), ("Sun Property", null),
+    ("Sun Property", "Vietnam"), ("Quang Minh Precision Components", null), ("Viettel Technologies", null)
 };
+using var client = new HttpClient { BaseAddress = new Uri(options.BaseUrl), Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds) };
+IAiModelProvider provider = new GeminiProvider(client, Options.Create(options));
+var schema = CreateSchema();
+var json = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
-using var httpClient = new HttpClient
-{
-    BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute),
-    Timeout = TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds))
-};
-
-IAiModelProvider provider = new GeminiProvider(httpClient, Options.Create(options));
-var results = new List<ProbeResult>(scenarios.Length);
-
-Console.WriteLine($"Identity probe: model={selectedModel}; promptTemplate={promptTemplateVersion}; scenarios={scenarios.Length}");
-Console.WriteLine("No Search, Crawl, or source evidence is used. Output is sanitized; raw model JSON is never printed.");
-Console.WriteLine();
-
+Console.WriteLine($"Identity topology probe: model={model}; template={template}; scenarios={scenarios.Length}");
+Console.WriteLine("No Search, Crawl, evidence, Company, or ResearchRun is used. Raw prompts and responses are not printed.");
 foreach (var scenario in scenarios)
 {
-    var result = await ProbeAsync(provider, selectedModel, scenario);
-    results.Add(result);
-    Print(result);
+    var request = new AiModelRequest(model, SystemInstruction, Prompt(scenario.Name, scenario.Country), template,
+        new AiEvidencePayload(new Dictionary<string, string?> { ["name"] = scenario.Name, ["country"] = scenario.Country }, []), schema);
+    var result = await provider.GenerateStructuredAsync(request);
+    var topology = result.StructuredJson is { } payload ? JsonSerializer.Deserialize<Topology>(payload.GetRawText(), json) : null;
+    var valid = topology is not null && IsInterpretation(topology.Interpretation);
+    var entities = topology?.Candidates?.Where(x => !string.IsNullOrWhiteSpace(x.DisplayName)).Take(7).ToArray() ?? [];
+    var hints = topology?.RequestedHints?.Where(IsHint).Take(3).ToArray() ?? [];
+    Console.WriteLine($"{scenario.Name} [{scenario.Country ?? "no-country"}] | interpretation={(valid ? topology!.Interpretation : "invalid")}; candidates={entities.Length}; hints={string.Join(',', hints)}; durationMs={result.Duration.TotalMilliseconds:F0}; tokens=in:{result.Usage?.PromptTokens?.ToString() ?? "n/a"},out:{result.Usage?.OutputTokens?.ToString() ?? "n/a"}; parse={valid}; failure={result.Failure?.Code ?? "none"}");
+    foreach (var entity in entities)
+        Console.WriteLine($"  - {Bound(entity.DisplayName)}; type={Bound(entity.EntityType)}; relation={Bound(entity.RelationshipToQuery)}; parent={Bound(entity.ParentTemporaryId)}; confidence={Bound(entity.Confidence)}; country={Bound(entity.Country)}; domain={Bound(entity.OfficialDomain)}");
 }
-
-Console.WriteLine();
-Console.WriteLine("Summary");
-Console.WriteLine($"calls={results.Count}; providerSuccesses={results.Count(result => result.ProviderSucceeded)}; semanticParses={results.Count(result => result.StructuredParseSucceeded)}; failures={results.Count(result => result.FailureCode is not null)}");
 return 0;
 
-static GeminiOptions ReadOptions(IConfiguration configuration) => new()
-{
-    ApiKey = FirstNonEmpty(configuration["GEMINI_API_KEY"], configuration["Providers:Gemini:ApiKey"]),
-    BaseUrl = FirstNonEmpty(configuration["GEMINI_BASE_URL"], configuration["Providers:Gemini:BaseUrl"], "https://generativelanguage.googleapis.com"),
-    ApiVersion = FirstNonEmpty(configuration["GEMINI_API_VERSION"], configuration["Providers:Gemini:ApiVersion"], "v1beta"),
-    FastModel = FirstNonEmpty(configuration["GEMINI_FAST_MODEL"], configuration["Providers:Gemini:FastModel"], defaultModel),
-    TimeoutSeconds = ReadInt(configuration["GEMINI_TIMEOUT_SECONDS"], configuration["Providers:Gemini:TimeoutSeconds"], 60),
-    MaxEvidenceCharacters = ReadInt(configuration["GEMINI_MAX_EVIDENCE_CHARACTERS"], configuration["Providers:Gemini:MaxEvidenceCharacters"], 120_000)
-};
-
-async Task<ProbeResult> ProbeAsync(
-    IAiModelProvider provider,
-    string model,
-    ProbeScenario scenario)
-{
-    var hints = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["name"] = scenario.Name,
-        ["country"] = scenario.Country
-    };
-
-    var request = new AiModelRequest(
-        model,
-        SystemInstruction,
-        BuildPrompt(scenario),
-        promptTemplateVersion,
-        new AiEvidencePayload(hints, []),
-        responseSchema);
-
-    AiModelResult providerResult;
-    try
-    {
-        providerResult = await provider.GenerateStructuredAsync(request);
-    }
-    catch (Exception exception)
-    {
-        return new ProbeResult(
-            scenario,
-            provider.Id,
-            model,
-            TimeSpan.Zero,
-            null,
-            null,
-            false,
-            false,
-            "unhandled_exception",
-            exception.GetType().Name);
-    }
-
-    if (!providerResult.StructuredJson.HasValue)
-    {
-        return new ProbeResult(
-            scenario,
-            providerResult.Provider,
-            providerResult.Model,
-            providerResult.Duration,
-            providerResult.Usage,
-            null,
-            false,
-            false,
-            providerResult.Failure?.Code ?? "no_structured_result",
-            providerResult.Failure?.Message);
-    }
-
-    try
-    {
-        var parsed = JsonSerializer.Deserialize<IdentityResponse>(
-            providerResult.StructuredJson.Value.GetRawText(),
-            jsonOptions);
-        if (parsed is null || !TryNormalizeStatus(parsed.Status, out var status))
-        {
-            return new ProbeResult(
-                scenario,
-                providerResult.Provider,
-                providerResult.Model,
-                providerResult.Duration,
-                providerResult.Usage,
-                null,
-                providerResult.Succeeded,
-                false,
-                "invalid_identity_schema",
-                "Structured JSON did not contain a recognized identity status.");
-        }
-
-        var ambiguityType = NormalizeAmbiguityType(parsed.AmbiguityType);
-        var entities = parsed.Entities?.Where(entity => !string.IsNullOrWhiteSpace(entity.DisplayName)).Take(8).ToArray() ?? [];
-        var summary = new SemanticSummary(
-            status,
-            ambiguityType,
-            parsed.RecommendedEntityId,
-            entities.Select(entity => new EntitySummary(
-                entity.DisplayName!,
-                NormalizeNullable(entity.EntityType),
-                NormalizeNullable(entity.Country),
-                NormalizeNullable(entity.OfficialDomain),
-                NormalizeNullable(entity.RelationshipToQuery),
-                NormalizeNullable(entity.Confidence))).ToArray(),
-            parsed.RequestedHints?.Select(NormalizeNullable).Where(value => value is not null).Cast<string>().Take(5).ToArray() ?? [],
-            NormalizeNullable(parsed.Message));
-
-        return new ProbeResult(
-            scenario,
-            providerResult.Provider,
-            providerResult.Model,
-            providerResult.Duration,
-            providerResult.Usage,
-            summary,
-            providerResult.Succeeded,
-            true,
-            providerResult.Failure?.Code,
-            providerResult.Failure?.Message);
-    }
-    catch (JsonException)
-    {
-        return new ProbeResult(
-            scenario,
-            providerResult.Provider,
-            providerResult.Model,
-            providerResult.Duration,
-            providerResult.Usage,
-            null,
-            providerResult.Succeeded,
-            false,
-            "invalid_identity_schema",
-            "Structured JSON could not be mapped to the identity probe schema.");
-    }
-}
-
-static string BuildPrompt(ProbeScenario scenario) => $"""
-Resolve which real-world organization the user means from identity hints only.
-
-Use existing model knowledge only. Do not browse, search, crawl, request tools, or use source evidence.
-Do not invent entities or relationships to fill the schema. If the identity is not safely known, return NeedsMoreInfo or Unknown.
-Distinguish a corporate-family shorthand from unrelated same-name or similar-name organizations.
-For a family shorthand, return the known parent first and at most six high-confidence relevant children; do not dump a holdings list.
-For a specific company, resolve that target without forcing a family chooser merely because it has a parent.
-For a name collision, return at most four plausible matches, or request a useful hint such as Country or Website.
-Official domains, legal names, and parent relationships are optional identity/search hints, not verified profile facts.
-Keep descriptions short and do not provide broad company-profile facts or hidden reasoning.
-Return only the required structured JSON.
-
-Name: {scenario.Name}
-Country: {scenario.Country ?? "null"}
+static string Prompt(string name, string? country) => $"""
+Describe the company identity topology from the supplied hints. You identify possible organizations; you never choose the user's intent and you never return a workflow status.
+Use existing model knowledge only. Do not browse, search, crawl, request tools, or use sources. Do not invent entities or relationships.
+Return CorporateFamilyShorthand when the input itself commonly acts as an umbrella/group name that plausibly denotes multiple meaningful family organizations, even if the parent is canonical or famous. Return parent first and at most six relevant high-confidence children. A parent is not automatically the intended target.
+Return SpecificEntity only when the input sufficiently names one particular organization. Owning subsidiaries alone does not make a company a family shorthand. FPT Software and Viettel Telecom are specific examples; FPT and Viettel are family-shorthand examples.
+Return NameCollision for unrelated plausible matches, and Unknown when you do not safely recognize the organization. Requested hints must be enum values, not prose. Domains and legal names are optional navigation hints, never profile evidence. Keep descriptions short; no hidden reasoning.
+Do not infer geography solely from a generic name. When a country or region could materially disambiguate a generic name, return NameCollision or Unknown and request Country rather than choosing a country. Do not manufacture a SpecificEntity by merely repeating the user's query: if you lack independently recognized identifying context such as a reliable country, domain, legal name, or established relationship, return Unknown and request a useful hint.
+Return only the structured schema.
+Name: {name}
+Country: {country ?? "null"}
 """;
 
-static void Print(ProbeResult result)
+static JsonElement CreateSchema()
 {
-    var summary = result.Semantic is null
-        ? "semantic=n/a"
-        : $"status={result.Semantic.Status}; ambiguity={result.Semantic.AmbiguityType}; entities={result.Semantic.Entities.Count}; requestedHints={string.Join(',', result.Semantic.RequestedHints)}";
-    var usage = result.Usage is null
-        ? "tokens=n/a"
-        : $"tokens=in:{Format(result.Usage.PromptTokens)},out:{Format(result.Usage.OutputTokens)},cached:{Format(result.Usage.CachedInputTokens)},thinking:{Format(result.Usage.ThinkingTokens)},total:{Format(result.Usage.TotalTokens)}";
-    var failure = result.FailureCode is null ? "failure=none" : $"failure={result.FailureCode}";
-    Console.WriteLine($"{result.Scenario.Name} [{result.Scenario.Country ?? "no-country"}] | {summary} | model={result.Model} | durationMs={result.Duration.TotalMilliseconds:F0} | {usage} | providerSucceeded={result.ProviderSucceeded} | structuredParse={result.StructuredParseSucceeded} | {failure}");
-
-    if (result.Semantic is not null)
-    {
-        foreach (var entity in result.Semantic.Entities)
-        {
-            var location = string.IsNullOrWhiteSpace(entity.Country) ? string.Empty : $" ({entity.Country})";
-            var kind = string.IsNullOrWhiteSpace(entity.EntityType) ? "unknown" : entity.EntityType;
-            Console.WriteLine($"  - {entity.DisplayName}{location}; type={kind}; relationship={entity.RelationshipToQuery ?? "n/a"}; confidence={entity.Confidence ?? "n/a"}; domain={entity.OfficialDomain ?? "n/a"}");
-        }
-    }
+    using var doc = JsonDocument.Parse("""
+    {"type":"object","properties":{"interpretation":{"type":"string","enum":["SpecificEntity","CorporateFamilyShorthand","NameCollision","Unknown"]},"candidates":{"type":"array","maxItems":7,"items":{"type":"object","properties":{"temporaryId":{"type":"string"},"displayName":{"type":"string"},"country":{"type":"string","nullable":true},"officialDomain":{"type":"string","nullable":true},"entityType":{"type":"string","enum":["ParentGroup","Company","Subsidiary","Affiliate","Brand","Unknown"]},"parentTemporaryId":{"type":"string","nullable":true},"relationshipToQuery":{"type":"string","enum":["Exact","Alias","Parent","Subsidiary","SimilarName","Possible"]},"confidence":{"type":"string","enum":["High","Medium","Low"]}}}},"requestedHints":{"type":"array","maxItems":3,"items":{"type":"string","enum":["Country","Website","LegalName","RegistrationNumber","Headquarters"]}},"message":{"type":"string","nullable":true}},"required":["interpretation","candidates","requestedHints"]}
+    """);
+    return doc.RootElement.Clone();
 }
 
-static bool TryNormalizeStatus(string? raw, out string status)
+static bool IsInterpretation(string? value) => value is "SpecificEntity" or "CorporateFamilyShorthand" or "NameCollision" or "Unknown";
+static bool IsHint(string? value) => value is "Country" or "Website" or "LegalName" or "RegistrationNumber" or "Headquarters";
+static string Bound(string? value) => string.IsNullOrWhiteSpace(value) ? "n/a" : value.Trim()[..Math.Min(value.Trim().Length, 160)];
+
+sealed class Topology
 {
-    status = NormalizeToken(raw);
-    if (status is "RESOLVED" or "AMBIGUOUS" or "NEEDSMOREINFO" or "UNKNOWN")
-    {
-        status = status switch
-        {
-            "NEEDSMOREINFO" => "NeedsMoreInfo",
-            _ => char.ToUpperInvariant(status[0]) + status[1..].ToLowerInvariant()
-        };
-        return true;
-    }
-
-    status = string.Empty;
-    return false;
-}
-
-static string NormalizeAmbiguityType(string? raw) => NormalizeToken(raw) switch
-{
-    "CORPORATEFAMILY" => "CorporateFamily",
-    "NAMECOLLISION" => "NameCollision",
-    "UNCLEAR" => "Unclear",
-    _ => "None"
-};
-
-static string NormalizeToken(string? value) => string.Concat((value ?? string.Empty).Where(char.IsLetterOrDigit)).ToUpperInvariant();
-
-static string? NormalizeNullable(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, 160)];
-
-static int ReadInt(string? first, string? second, int fallback) => int.TryParse(FirstNonEmpty(first, second), out var value) && value > 0 ? value : fallback;
-
-static string FirstNonEmpty(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? string.Empty;
-
-static string Format(int? value) => value?.ToString() ?? "n/a";
-
-static JsonElement CreateResponseSchema()
-{
-using var schemaDocument = JsonDocument.Parse("""
-{
-  "type": "object",
-  "properties": {
-    "status": { "type": "string", "enum": ["Resolved", "Ambiguous", "NeedsMoreInfo", "Unknown"] },
-    "ambiguityType": { "type": "string", "enum": ["None", "CorporateFamily", "NameCollision", "Unclear"] },
-    "recommendedEntityId": { "type": "string", "nullable": true },
-    "entities": {
-      "type": "array",
-      "maxItems": 8,
-      "items": {
-        "type": "object",
-        "properties": {
-          "temporaryId": { "type": "string" },
-          "displayName": { "type": "string" },
-          "legalName": { "type": "string", "nullable": true },
-          "country": { "type": "string", "nullable": true },
-          "region": { "type": "string", "nullable": true },
-          "officialDomain": { "type": "string", "nullable": true },
-          "entityType": { "type": "string" },
-          "parentTemporaryId": { "type": "string", "nullable": true },
-          "relationshipToQuery": { "type": "string" },
-          "confidence": { "type": "string", "enum": ["High", "Medium", "Low"] },
-          "shortDescription": { "type": "string", "nullable": true }
-        }
-      }
-    },
-    "requestedHints": { "type": "array", "maxItems": 3, "items": { "type": "string" } },
-    "message": { "type": "string", "nullable": true }
-  },
-  "required": ["status", "ambiguityType", "entities", "requestedHints"]
-}
-""");
-return schemaDocument.RootElement.Clone();
-}
-
-sealed record ProbeScenario(string Name, string? Country, string Kind);
-
-sealed record ProbeResult(
-    ProbeScenario Scenario,
-    string Provider,
-    string Model,
-    TimeSpan Duration,
-    AiUsage? Usage,
-    SemanticSummary? Semantic,
-    bool ProviderSucceeded,
-    bool StructuredParseSucceeded,
-    string? FailureCode,
-    string? FailureMessage);
-
-sealed record SemanticSummary(
-    string Status,
-    string AmbiguityType,
-    string? RecommendedEntityId,
-    IReadOnlyList<EntitySummary> Entities,
-    IReadOnlyList<string> RequestedHints,
-    string? Message);
-
-sealed record EntitySummary(
-    string DisplayName,
-    string? EntityType,
-    string? Country,
-    string? OfficialDomain,
-    string? RelationshipToQuery,
-    string? Confidence);
-
-sealed class IdentityResponse
-{
-    public string? Status { get; set; }
-    public string? AmbiguityType { get; set; }
-    public string? RecommendedEntityId { get; set; }
-    public List<IdentityEntity>? Entities { get; set; }
+    public string? Interpretation { get; set; }
+    public List<TopologyCandidate>? Candidates { get; set; }
     public List<string>? RequestedHints { get; set; }
-    public string? Message { get; set; }
 }
-
-sealed class IdentityEntity
+sealed class TopologyCandidate
 {
     public string? DisplayName { get; set; }
     public string? Country { get; set; }
     public string? OfficialDomain { get; set; }
     public string? EntityType { get; set; }
+    public string? ParentTemporaryId { get; set; }
     public string? RelationshipToQuery { get; set; }
     public string? Confidence { get; set; }
 }

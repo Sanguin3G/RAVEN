@@ -11,6 +11,7 @@ import type {
 } from "../../types/research";
 import type { EvidenceCoverageResponse } from "../../api/coverage";
 import type { CompanyProfileCandidate } from "../../types/profile";
+import type { IdentityResolutionResponse } from "../../types/identity";
 
 export type IdentityForm = {
   name: string;
@@ -25,6 +26,8 @@ export type IdentityForm = {
 export type WorkspaceView =
   | "identify"
   | "matching"
+  | "checkingIdentity"
+  | "preflightIdentity"
   | "discovering"
   | "resolvingIdentity"
   | "reviewingSources"
@@ -48,6 +51,9 @@ export type CompanyResearchWorkflow = {
   company: Company | null;
   run: ResearchRun | null;
   matches: CompanyMatchResponse[];
+  preflightResponse: IdentityResolutionResponse | null;
+  selectedPreflightEntityId: string | null;
+  setSelectedPreflightEntityId: (value: string | null) => void;
   identityCandidates: ResearchIdentityCandidate[];
   selectedIdentityCandidateId: string | null;
   setSelectedIdentityCandidateId: (value: string | null) => void;
@@ -72,6 +78,9 @@ export type CompanyResearchWorkflow = {
   researchStatusDetail: string | null;
   updateField: (field: keyof IdentityForm, value: string) => void;
   handleIdentitySubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  handlePreflightSelection: () => Promise<void>;
+  retryPreflightIdentity: () => Promise<void>;
+  researchExactName: () => Promise<void>;
   handleResearchExisting: (company: Company) => Promise<void>;
   createAndDiscover: () => Promise<void>;
   handleSelectIdentityCandidate: () => Promise<void>;

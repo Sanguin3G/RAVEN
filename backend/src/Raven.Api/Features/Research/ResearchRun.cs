@@ -19,6 +19,11 @@ public sealed class ResearchRun
     /// <summary>Serialized <see cref="ResearchTarget"/> values. Kept as JSON so the target set remains extensible.</summary>
     public string ResearchTargetsJson { get; set; } = "[]";
     public Guid? ResolvedIdentityCandidateId { get; set; }
+    /// <summary>
+    /// Bounded identity/search hints captured when this run's target was
+    /// resolved. Null is the compatibility value for pre-Day-6 runs.
+    /// </summary>
+    public string? ResolvedIdentitySnapshotJson { get; set; }
     public DateTimeOffset StartedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAt { get; set; }
     public required string RequestedSearchProvider { get; init; }

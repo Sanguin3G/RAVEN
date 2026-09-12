@@ -11,6 +11,7 @@ import type {
   ResearchExecution,
   SourceDocument,
 } from "../types/research";
+import type { ResolvedIdentitySnapshot } from "../types/identity";
 
 export type { ResearchRun, SourceDocument } from "../types/research";
 
@@ -20,6 +21,7 @@ export interface DiscoverResearchOptions {
   mode?: ResearchMode;
   targets?: ResearchTarget[];
   baseProfileVersionId?: string;
+  resolvedIdentity?: ResolvedIdentitySnapshot;
 }
 
 export function discoverResearch(
@@ -36,6 +38,7 @@ export function discoverResearch(
     mode?: ResearchMode;
     targets?: ResearchTarget[];
     baseProfileVersionId?: string;
+    resolvedIdentity?: ResolvedIdentitySnapshot;
   } = {};
   if (researchHint?.trim()) body.researchHint = researchHint.trim();
   if (groundingMode) body.groundingMode = groundingMode;
@@ -43,6 +46,7 @@ export function discoverResearch(
   if (options?.mode) body.mode = options.mode;
   if (options?.targets?.length) body.targets = options.targets;
   if (options?.baseProfileVersionId) body.baseProfileVersionId = options.baseProfileVersionId;
+  if (options?.resolvedIdentity) body.resolvedIdentity = options.resolvedIdentity;
 
   return request<ResearchRun>(`/api/companies/${encodeURIComponent(companyId)}/research/discover`, {
     method: "POST",
@@ -65,6 +69,7 @@ export function startBackgroundResearch(
   if (options?.mode) body.mode = options.mode;
   if (options?.targets?.length) body.targets = options.targets;
   if (options?.baseProfileVersionId) body.baseProfileVersionId = options.baseProfileVersionId;
+  if (options?.resolvedIdentity) body.resolvedIdentity = options.resolvedIdentity;
   return request<ResearchRun>(`/api/companies/${encodeURIComponent(companyId)}/research/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

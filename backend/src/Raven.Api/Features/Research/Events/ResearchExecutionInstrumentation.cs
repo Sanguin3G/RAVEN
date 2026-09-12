@@ -379,8 +379,20 @@ public sealed class InstrumentedAiModelProvider(
         return ResearchExecutionTelemetry.DefaultAiOperation;
     }
 
-    private static string AiInputSummary(AiModelRequest request) =>
-        ResearchExecutionTelemetry.BoundedSummary(
+    private static string AiInputSummary(AiModelRequest request)
+    {
+        if (request.PromptTemplateVersion.Contains("identity", StringComparison.OrdinalIgnoreCase))
+        {
+            var hints = request.Evidence.IdentityHints;
+            var name = hints is not null && hints.TryGetValue("name", out var value) ? value : null;
+            var supplied = hints?.Where(pair => !string.Equals(pair.Key, "name", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(pair.Value))
+                .Select(pair => string.Equals(pair.Key, "registrationNumber", StringComparison.OrdinalIgnoreCase) ? "registrationNumber" : pair.Key)
+                .Distinct(StringComparer.OrdinalIgnoreCase) ?? [];
+            return ResearchExecutionTelemetry.BoundedSummary($"name={name}; hints={string.Join(',', supplied)}", 500)!;
+        }
+
+        return ResearchExecutionTelemetry.BoundedSummary(
             $"template={request.PromptTemplateVersion}; evidence={request.Evidence.Sources.Count} sources",
             500)!;
+    }
 }

@@ -11,6 +11,8 @@ using Raven.Api.Features.Research.Planning;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
+using Day6IdentitySnapshot = Raven.Api.Features.Research.Identity.ResolvedIdentitySnapshot;
+using Day6IdentitySnapshotSerializer = Raven.Api.Features.Research.Identity.ResolvedIdentitySnapshotSerializer;
 using Raven.Api.Features.Search;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Persistence;
@@ -71,6 +73,7 @@ public sealed class ResearchCompanyService(
             Mode = request?.Mode ?? ResearchMode.Initial,
             BaseProfileVersionId = request?.BaseProfileVersionId,
             ResearchTargetsJson = SerializeTargets(request?.Targets),
+            ResolvedIdentitySnapshotJson = Day6IdentitySnapshotSerializer.Serialize(request?.ResolvedIdentity),
             Stage = ResearchStage.Identifying,
             Status = ResearchRunStatus.Searching
         };
@@ -159,7 +162,8 @@ public sealed class ResearchCompanyService(
                 GroundingMode = request?.GroundingMode ?? persistedSettings?.GroundingMode ?? GroundingMode.Auto,
                 Mode = request?.Mode ?? ResearchMode.Initial,
                 BaseProfileVersionId = request?.BaseProfileVersionId,
-                ResearchTargetsJson = SerializeTargets(request?.Targets)
+                ResearchTargetsJson = SerializeTargets(request?.Targets),
+                ResolvedIdentitySnapshotJson = Day6IdentitySnapshotSerializer.Serialize(request?.ResolvedIdentity)
             };
             dbContext.ResearchRuns.Add(run);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -177,6 +181,7 @@ public sealed class ResearchCompanyService(
                 company,
                 run.ResearchHint,
                 request?.UseAcceptedProfileIdentity == true,
+                Day6IdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson),
                 cancellationToken);
             var (searchResults, errors) = await SearchAsync(run, initialIdentity, cancellationToken);
 
@@ -221,6 +226,7 @@ public sealed class ResearchCompanyService(
             var settings = await ReadSettingsAsync(cancellationToken);
             var groundingCandidates = drafts.Select(ToGroundingCandidate).ToArray();
             var shouldGround = identityResolver is not null &&
+                               string.IsNullOrWhiteSpace(run.ResolvedIdentitySnapshotJson) &&
                                ambiguityAnalyzer.RequiresGrounding(
                                    new IdentityResolutionRequest(initialIdentity, groundingCandidates),
                                    run.GroundingMode);
@@ -1092,8 +1098,20 @@ public sealed class ResearchCompanyService(
         Company company,
         string? researchHint,
         bool useAcceptedProfileIdentity,
+        Day6IdentitySnapshot? resolvedIdentity,
         CancellationToken cancellationToken)
     {
+        if (resolvedIdentity is not null)
+        {
+            return new ResearchIdentityInput(
+                resolvedIdentity.DisplayName,
+                resolvedIdentity.LegalNameHint,
+                string.IsNullOrWhiteSpace(resolvedIdentity.OfficialDomainHint) ? company.Website : $"https://{resolvedIdentity.OfficialDomainHint}",
+                resolvedIdentity.Country ?? company.Country,
+                company.RegistrationNumber,
+                resolvedIdentity.Region ?? company.Headquarters,
+                researchHint);
+        }
         if (!useAcceptedProfileIdentity || profilePersistence is null)
         {
             return ApplyExplicitIdentityHints(ResearchIdentityInput.FromCompany(company, researchHint));

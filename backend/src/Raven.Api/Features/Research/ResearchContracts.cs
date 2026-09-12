@@ -2,6 +2,7 @@ namespace Raven.Api.Features.Research;
 
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Research.Identity;
 using Raven.Api.Features.Research.Coverage;
 
 public sealed record ResearchRunResponse(
@@ -34,7 +35,8 @@ public sealed record ResearchRunResponse(
     Guid? ResolvedIdentityCandidateId,
     ResearchMode Mode = ResearchMode.Initial,
     Guid? BaseProfileVersionId = null,
-    IReadOnlyList<ResearchTarget>? Targets = null);
+    IReadOnlyList<ResearchTarget>? Targets = null,
+    ResolvedIdentitySnapshot? ResolvedIdentity = null);
 
 public sealed record DiscoverResearchRequest(
     string? ResearchHint = null,
@@ -43,7 +45,8 @@ public sealed record DiscoverResearchRequest(
     ResearchMode Mode = ResearchMode.Initial,
     Guid? BaseProfileVersionId = null,
     IReadOnlyList<ResearchTarget>? Targets = null,
-    Guid? ResearchRunId = null);
+    Guid? ResearchRunId = null,
+    ResolvedIdentitySnapshot? ResolvedIdentity = null);
 
 public sealed record ActiveResearchRunResponse(
     ResearchRunResponse Run,

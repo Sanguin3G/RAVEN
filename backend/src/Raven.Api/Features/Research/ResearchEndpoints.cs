@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Raven.Api.Features.Research.Events;
+using Raven.Api.Features.Research.Identity;
 
 namespace Raven.Api.Features.Research;
 
@@ -7,6 +8,14 @@ public static class ResearchEndpoints
 {
     public static IEndpointRouteBuilder MapResearchEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapPost("/api/research/identity/resolve", ResolveIdentityAsync)
+            .WithTags("Research Identity")
+            .WithName("ResolveCompanyIdentity")
+            .WithSummary("Resolve a company identity before public-source research")
+            .WithDescription("Uses explicit identity hints or one bounded knowledge call. It never searches or crawls.")
+            .Produces<IdentityResolutionResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
         app.MapPost("/api/companies/{companyId:guid}/research/discover", DiscoverResearchAsync)
             .WithTags("Research")
             .WithName("DiscoverCompanyResearch")
@@ -110,6 +119,17 @@ public static class ResearchEndpoints
             .Produces(StatusCodes.Status404NotFound);
 
         return app;
+    }
+
+    private static async Task<Results<Ok<IdentityResolutionResponse>, ValidationProblem>> ResolveIdentityAsync(
+        IdentityResolutionRequest? request,
+        IIdentityResolutionService identity,
+        CancellationToken cancellationToken)
+    {
+        var result = await identity.ResolveAsync(request, cancellationToken);
+        return result.IsValid
+            ? TypedResults.Ok(result.Response!)
+            : TypedResults.ValidationProblem(result.ValidationErrors);
     }
 
     private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> DiscoverResearchAsync(

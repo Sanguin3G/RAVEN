@@ -4,6 +4,7 @@ using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Research.Identity;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Changes;
@@ -59,6 +60,8 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(researchRun => researchRun.RequestedCrawlerProvider).HasMaxLength(100).IsRequired();
             entity.Property(researchRun => researchRun.ActualCrawlerProvider).HasMaxLength(100);
             entity.Property(researchRun => researchRun.ResearchHint).HasMaxLength(2_000);
+            entity.Property(researchRun => researchRun.ResolvedIdentitySnapshotJson)
+                .HasMaxLength(ResolvedIdentitySnapshot.MaximumSerializedLength);
             entity.Property(researchRun => researchRun.Error).HasMaxLength(4_000);
             entity.HasIndex(researchRun => new { researchRun.CompanyId, researchRun.StartedAt });
             entity.HasOne(researchRun => researchRun.Company)

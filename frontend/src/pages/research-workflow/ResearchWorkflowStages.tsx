@@ -12,6 +12,8 @@ import {
 import type { CompanyResearchWorkflow } from "./types";
 import { confidenceLabel, entityTypeLabel, formatDate, matchStrengthLabel, toCandidateSource, toEvidenceRecord, targetLabel } from "./formatters";
 import styles from "../research-workspace.module.css";
+import { IdentityChoiceList } from "./identity/IdentityChoiceList";
+import { IdentityClarificationForm } from "./identity/IdentityClarificationForm";
 
 export function IdentityStage({ workflow }: { workflow: CompanyResearchWorkflow }) {
   const { form, view, loading, error, groundingOverride, defaultGroundingMode } = workflow;
@@ -102,6 +104,33 @@ export function MatchStage({ workflow }: { workflow: CompanyResearchWorkflow }) 
       </div>
     </Panel>
   );
+}
+
+/** Pre-search identity gate. No Company or ResearchRun exists at this stage. */
+export function PreflightIdentityStage({ workflow }: { workflow: CompanyResearchWorkflow }) {
+  const { view, preflightResponse, selectedPreflightEntityId, loading, error } = workflow;
+  if (view !== "preflightIdentity" || !preflightResponse) return null;
+
+  const input = {
+    name: workflow.form.name,
+    legalName: workflow.form.legalName || undefined,
+    website: workflow.form.website || undefined,
+    country: workflow.form.country || undefined,
+    registrationNumber: workflow.form.registrationNumber || undefined,
+    headquarters: workflow.form.headquarters || undefined,
+    researchHint: workflow.form.researchHint || undefined,
+  };
+  if (preflightResponse.status === "Ambiguous") {
+    return <Panel title="Which organization do you mean?" eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
+      <p className={styles.panelIntro}>{preflightResponse.message || "Several organizations could match."}</p>
+      <IdentityChoiceList entities={preflightResponse.entities} ambiguityType={preflightResponse.ambiguityType} selectedEntityId={selectedPreflightEntityId} onSelect={workflow.setSelectedPreflightEntityId} disabled={loading} />
+      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      <div className="form-actions"><Button type="button" onClick={() => void workflow.handlePreflightSelection()} loading={loading} disabled={!selectedPreflightEntityId}>Continue with selected organization</Button><Button type="button" tone="secondary" onClick={() => workflow.setView("identify")} disabled={loading}>Back to edit</Button></div>
+    </Panel>;
+  }
+  return <Panel title="A little more information will help" eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
+    <IdentityClarificationForm input={input} requestedHints={preflightResponse.requestedHints} loading={loading} error={error} message={preflightResponse.message} onChange={(field, value) => workflow.updateField(field as keyof typeof workflow.form, value)} onSubmit={(event) => { event.preventDefault(); void workflow.retryPreflightIdentity(); }} onManualExactName={() => void workflow.researchExactName()} />
+  </Panel>;
 }
 
 export function IdentityResolutionStage({ workflow }: { workflow: CompanyResearchWorkflow }) {
