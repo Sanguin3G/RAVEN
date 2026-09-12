@@ -1,9 +1,10 @@
 # RAVEN Status
 
 Last updated: 2026-09-12
+Day 6 identity preflight: **NO-GO / PARTIAL** on `feat/day6-identity-resolution`. A controlled, identity-only live Gemini API spike completed through RAVEN's real `IAiModelProvider`/`GeminiProvider` path using `gemini-3.5-flash-lite`; it parsed all 12 structured responses and handled an obscure input as `Unknown`. However, generic `FPT` and `Viettel` were auto-resolved to parent groups rather than returned as family choices, and `Vingroup` returned the contradictory combination `Resolved` plus `CorporateFamily`. That is insufficiently humble for the required pre-search gate, so no Day-6 production identity-resolution path, schema migration, or frontend workflow has been installed. The bounded probe remains available for prompt/model reevaluation; Day-5.5 behavior is intentionally unchanged.
 Day 5.5 closure: **PASS** on `feat/day5-enrichment-workspace`. Execution telemetry, Resilient preset compatibility, run-scoped settings snapshots, workflow extraction, and Microsoft Edge smoke checks are complete. CSS ownership splitting remains intentionally deferred to avoid expanding the Day-6 preparation scope.
 Day-5 branch: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are integrated here but not merged into `main`.
-Current branch: **feat/day5-enrichment-workspace** (not merged into `main`)
+Current branch: **feat/day6-identity-resolution** (NO-GO experiment; not merged into `main`)
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state

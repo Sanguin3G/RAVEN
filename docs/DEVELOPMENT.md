@@ -146,6 +146,18 @@ Provider tests must use fakes, mocks, or fixtures. Normal automated tests must n
 
 Microsoft Edge completion checks use Playwright with `--browser msedge`; Chromium is not a substitute. The repository does not currently ship live-provider fixtures, so external-provider checks must be separately marked as controlled live smoke tests.
 
+## Controlled identity-model probe
+
+`backend/tools/IdentityProbe` is a non-production Day-6 preparation tool. It exercises the configured `IAiModelProvider`/Gemini path with identity hints only: it creates no Company or ResearchRun and makes no Search, Crawl, or evidence calls. It is a controlled live smoke, not an automated test.
+
+```powershell
+# from repository root; avoid rebuilding Raven.Api if a local API process holds its executable
+dotnet build backend/tools/IdentityProbe/IdentityProbe.csproj --no-restore -p:BuildProjectReferences=false
+dotnet run --project backend/tools/IdentityProbe/IdentityProbe.csproj --no-build
+```
+
+It uses the existing Raven API user secret or `GEMINI_API_KEY`, defaults to `gemini-3.5-flash-lite`, and emits only sanitized semantic summaries, timing, token usage, parse state, and safe failure codes. Never commit credentials or raw model responses.
+
 ## Monitoring and Deep Research
 
 Monitoring and Deep Research use in-process `BackgroundService` workers. They execute only while the API process is running; this project deliberately does not add an external scheduler or job broker. Monitoring produces a review-ready profile candidate and never accepts a profile automatically.
