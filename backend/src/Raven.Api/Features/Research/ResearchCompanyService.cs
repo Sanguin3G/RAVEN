@@ -34,7 +34,8 @@ public sealed class ResearchCompanyService(
     CoverageAwareSourceSelector? coverageAwareSourceSelector = null,
     TargetedQueryPlanner? targetedQueryPlanner = null,
     OfficialSiteEvidencePlanner? officialSiteEvidencePlanner = null,
-    DeterministicIdentityFamilyBuilder? deterministicIdentityFamilyBuilder = null) : IResearchCompanyService
+    DeterministicIdentityFamilyBuilder? deterministicIdentityFamilyBuilder = null,
+    IResearchRunConfigurationSnapshot? configurationSnapshot = null) : IResearchCompanyService
 {
     private const int MaximumRecommendedCandidates = 5;
     private const int SearchResultsPerQuery = 5;
@@ -50,6 +51,7 @@ public sealed class ResearchCompanyService(
     private readonly TargetedQueryPlanner targetedPlanner = targetedQueryPlanner ?? new();
     private readonly OfficialSiteEvidencePlanner officialEvidencePlanner = officialSiteEvidencePlanner ?? new(urlNormalizer);
     private readonly DeterministicIdentityFamilyBuilder deterministicIdentityFamilyBuilder = deterministicIdentityFamilyBuilder ?? new();
+    private readonly IResearchRunConfigurationSnapshot? configurationSnapshot = configurationSnapshot;
 
     public async Task<ResearchRunResponse?> CreateQueuedRunAsync(
         Guid companyId,
@@ -1447,7 +1449,9 @@ public sealed class ResearchCompanyService(
 
         try
         {
-            return await researchSettings.GetAsync(cancellationToken);
+            var settings = await researchSettings.GetAsync(cancellationToken);
+            configurationSnapshot?.Set(settings);
+            return settings;
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {

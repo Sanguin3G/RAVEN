@@ -110,6 +110,7 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddSingleton<CorporateFamilyDiscoveryPlanner>();
         services.AddSingleton<DeterministicIdentityFamilyBuilder>();
         services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
+        services.AddScoped<IResearchRunConfigurationSnapshot, ResearchRunConfigurationSnapshot>();
         services.AddScoped<IResearchExecutionService, ResearchExecutionService>();
         services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(
             serviceProvider.GetRequiredService<IAiModelProvider>(),
