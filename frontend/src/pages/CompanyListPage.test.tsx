@@ -122,6 +122,7 @@ it("reviews workspace duplicates and confirms a human-readable merge", async () 
 
   await user.click(await screen.findByRole("button", { name: /Review workspace/i }));
   expect(await screen.findByText("Possible duplicates")).toBeInTheDocument();
+  expect(screen.getByText("2", { selector: "strong" })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Review merge" }));
   expect(await screen.findByRole("dialog")).toHaveTextContent("RAVEN will preserve");
   expect(screen.getByRole("dialog")).toHaveTextContent("3 research runs");

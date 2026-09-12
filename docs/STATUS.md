@@ -1,10 +1,10 @@
 # RAVEN Status
 
 Last updated: 2026-09-12
-Day 6 identity preflight: **PARTIAL — implementation complete; final browser-fixture closure deferred** on `feat/day6-identity-resolution` (not merged into `main`). The controlled live Gemini Prep v2 asks the model only for identity topology (`SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`); deterministic RAVEN policy derives workflow state. The probe classified FPT, Viettel, and Vingroup as family shorthand, specific company inputs as specific entities, and the deliberately obscure input as unknown. The initial workflow resolves identity before duplicate matching, Company creation, and discovery; resolved identity snapshots persist with the run. Explicit identifiers and accepted targeted-enrichment identity bypass identity AI. The legacy candidate-driven Day-5 grounding path remains only for stored-run compatibility and is deferred to Day 7 cleanup. Backend tests, frontend build, and focused workflow tests pass; the complete deterministic Microsoft Edge fixture suite still needs to be added and run before this can be called PASS.
+Day 6 identity preflight: **PASS** on `feat/day6-identity-resolution`, ready for integration into `main`. The controlled live Gemini Prep v2 asks the model only for identity topology (`SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`); deterministic RAVEN policy derives workflow state. The probe classified FPT, Viettel, and Vingroup as family shorthand, specific company inputs as specific entities, and the deliberately obscure input as unknown. The initial workflow resolves identity before duplicate matching, Company creation, and discovery; resolved identity snapshots persist with the run. Explicit identifiers and accepted targeted-enrichment identity bypass identity AI. Ambiguous and collision results use a parent-first/choice workflow, while guided refinement is a dismissible modal that requests useful additional hints without creating a second search form. The legacy candidate-driven Day-5 grounding path remains only for stored-run compatibility and is intentionally deferred to Day 7 cleanup.
 Day 5.5 closure: **PASS** on `feat/day5-enrichment-workspace`. Execution telemetry, Resilient preset compatibility, run-scoped settings snapshots, workflow extraction, and Microsoft Edge smoke checks are complete. CSS ownership splitting remains intentionally deferred to avoid expanding the Day-6 preparation scope.
-Day-5 branch: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are integrated here but not merged into `main`.
-Current branch: **feat/day6-identity-resolution** (Day 6 PARTIAL; not merged into `main`)
+Day-5 scope is preserved in the branch history: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are included in the Day-6 release.
+Current branch: **feat/day6-identity-resolution** (Day 6 PASS; merge to `main` is the release step)
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state
@@ -43,15 +43,14 @@ Latest local integration check:
 
 ```text
 dotnet build Raven.sln --no-restore   passed
-dotnet test Raven.sln --no-restore    257 passed
-npm run build                         passed
-Vitest focused suites                  42 passed across isolated single-worker runs
+dotnet test Raven.sln --no-restore    276 passed
+npm test -- --run                    46 passed across 11 files
 npm run build                         passed
 ```
 
-Microsoft Edge/Playwright verified the desktop Settings provider presets and persistence, collapsed sidebar, 390×844 mobile drawer and Escape dismissal. The API smoke test applied all migrations to a temporary SQLite database, returned 200 for `/health` and OpenAPI, and correctly rejected an unknown-company Deep Research request. No paid provider call was made. Live discovery and acquisition were previously exercised with well-known Vietnamese companies; one Crawl4AI timeout surfaced as a truthful per-source failure without failing the run.
+Microsoft Edge/Playwright verified the Day-6 identity flow with deterministic fixtures and the live Viettel ambiguity response: parent-first family choices, specific-company continuation, clarification/manual exact-name paths, duplicate review, and the responsive guided-help dialog. At 390×844 the choice card and dialog remain within the viewport; the dialog can be minimized and reopened without losing the original choices. The API smoke test applied all migrations to a temporary SQLite database, returned 200 for `/health` and OpenAPI, and correctly rejected an unknown-company Deep Research request. No paid provider call was made by automated tests. Live discovery and acquisition were previously exercised with well-known Vietnamese companies; one Crawl4AI timeout surfaced as a truthful per-source failure without failing the run.
 
-Day-5 browser coverage currently covers Company List responsive behavior only. Provider-dependent FPT-family, MaSoThue, and targeted-enrichment scenarios require deterministic fixtures before they can be reported as Edge passes.
+The legacy Day-5 candidate-driven family path remains available for stored-run compatibility and is not used by the new initial identity preflight. Day 7 owns its deletion and downstream search simplification.
 
 ## Provider status
 

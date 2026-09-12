@@ -74,7 +74,7 @@ public sealed class CompanyDuplicateGroupingService : ICompanyDuplicateGroupingS
         var keys = new Dictionary<string, List<(int Index, DuplicateMatchType Type)>>(StringComparer.Ordinal);
         for (var index = 0; index < records.Count; index++)
         {
-            foreach (var (key, type) in IdentityKeys(records[index].Company))
+            foreach (var (key, type) in IdentityKeys(records[index]))
             {
                 if (!keys.TryGetValue(key, out var members))
                 {
@@ -89,6 +89,48 @@ public sealed class CompanyDuplicateGroupingService : ICompanyDuplicateGroupingS
         return keys
             .Where(pair => pair.Value.Count > 1)
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<(string Key, DuplicateMatchType Type)> IdentityKeys(
+        CompanyWorkspaceSnapshot snapshot)
+    {
+        // Workspace fields are the first source of identity signals. Accepted
+        // profile values are an evidence-backed fallback for legacy/sparse
+        // Company rows; model-only identity hints never enter this path.
+        foreach (var key in IdentityKeys(snapshot.Company))
+        {
+            yield return key;
+        }
+
+        if (snapshot.AcceptedProfile is not { } profile)
+        {
+            yield break;
+        }
+
+        var profileRegistration = CompanyIdentityNormalizer.NormalizeRegistration(profile.RegistrationNumberOrTaxId);
+        if (profileRegistration is not null)
+        {
+            yield return ($"registration:{profileRegistration}", DuplicateMatchType.RegistrationNumber);
+        }
+
+        var profileWebsiteHost = CompanyIdentityNormalizer.NormalizeWebsiteHost(profile.Website);
+        if (profileWebsiteHost is not null)
+        {
+            yield return ($"website:{profileWebsiteHost}", DuplicateMatchType.WebsiteHost);
+        }
+
+        var profileCountry = CompanyIdentityNormalizer.NormalizeName(profile.Country ?? snapshot.Company.Country);
+        var profileLegalName = CompanyIdentityNormalizer.NormalizeName(profile.LegalName);
+        if (profileCountry is not null && profileLegalName is not null)
+        {
+            yield return ($"legal:{profileLegalName}|country:{profileCountry}", DuplicateMatchType.LegalNameAndCountry);
+        }
+
+        var profileDisplayName = CompanyIdentityNormalizer.NormalizeName(profile.DisplayName);
+        if (profileCountry is not null && profileDisplayName is not null)
+        {
+            yield return ($"name:{profileDisplayName}|country:{profileCountry}", DuplicateMatchType.NameAndCountry);
+        }
     }
 
     private static IEnumerable<(string Key, DuplicateMatchType Type)> IdentityKeys(Company company)

@@ -238,7 +238,12 @@ export function CompanyListPage() {
     } finally { setMergeBusy(false); }
   }
 
-  const displayedReviewCount = (review?.recommendations?.length ?? 0) + (review?.duplicateGroups?.length ?? 0);
+  // PossibleDuplicate recommendations are represented by their duplicate
+  // group card above, so count only recommendations that render their own
+  // visible card. This keeps the attention total aligned with what the user
+  // can actually review rather than counting the same duplicate twice.
+  const displayedReviewCount = (review?.duplicateGroups?.length ?? 0)
+    + (review?.recommendations?.filter((item) => item.kind !== "PossibleDuplicate").length ?? 0);
   function reviewGroup(group: CompanyDuplicateGroup) { if (group.members.length >= 2) beginMerge(group.members[0].companyId, group.members[1].companyId); }
   function reviewRecommendation(recommendation: WorkspaceReviewRecommendation) {
     if (recommendation.relatedCompanyIds.length > 0) beginMerge(recommendation.companyId, recommendation.relatedCompanyIds[0]);

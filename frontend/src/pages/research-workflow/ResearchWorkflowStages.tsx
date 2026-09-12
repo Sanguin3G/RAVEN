@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Sparkle } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
@@ -13,14 +14,107 @@ import type { CompanyResearchWorkflow } from "./types";
 import { confidenceLabel, entityTypeLabel, formatDate, matchStrengthLabel, toCandidateSource, toEvidenceRecord, targetLabel } from "./formatters";
 import styles from "../research-workspace.module.css";
 import { IdentityChoiceList } from "./identity/IdentityChoiceList";
-import { IdentityClarificationForm } from "./identity/IdentityClarificationForm";
+import identityStyles from "./identity/identity.module.css";
+import type { IdentityResolutionResponse } from "../../types/identity";
+
+const identityHintLabels: Record<string, string> = {
+  Country: "Country or region",
+  Website: "Official website",
+  LegalName: "Full legal name",
+  RegistrationNumber: "Registration or tax ID",
+  Headquarters: "Headquarters",
+  Region: "Region",
+  ResearchHint: "What the company does",
+};
+
+function requestedHintLabels(hints: string[]) {
+  return hints.map((hint) => identityHintLabels[hint]).filter(Boolean);
+}
+
+function IdentityGuidanceDialog({
+  guidance,
+  open,
+  loading,
+  onClose,
+  onEdit,
+  onBack,
+}: {
+  guidance: IdentityResolutionResponse;
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onBack: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      if (typeof dialog.showModal === "function") dialog.showModal();
+      else dialog.setAttribute("open", "");
+    } else if (!open && dialog.open) {
+      if (typeof dialog.close === "function") dialog.close();
+      else dialog.removeAttribute("open");
+    }
+  }, [open]);
+
+  const suggestedHints = requestedHintLabels(guidance.requestedHints);
+  return (
+    <dialog
+      ref={dialogRef}
+      className={`workspace-dialog ${identityStyles.guidanceDialog}`}
+      aria-labelledby="identity-guidance-title"
+      onCancel={onClose}
+    >
+      {open ? <div className="workspace-dialog__content">
+        <header className={identityStyles.guidanceDialogHeader}>
+          <div className={identityStyles.guidanceDialogTitle}>
+            <span className={identityStyles.guidanceDialogIcon} aria-hidden="true"><Sparkle size={22} weight="duotone" /></span>
+            <div>
+              <p className={identityStyles.guidanceLabel}>GUIDED SEARCH ADVICE</p>
+              <h2 id="identity-guidance-title">Refine this identity search</h2>
+            </div>
+          </div>
+          <button className={identityStyles.guidanceDialogClose} type="button" onClick={onClose} aria-label="Minimize guidance">×</button>
+        </header>
+        <p className={identityStyles.guidanceDialogIntro}>RAVEN looked at the details you entered and the organizations currently shown. Add one of these signals to make the next lookup more precise.</p>
+        <div className={identityStyles.guidanceCard} aria-live="polite">
+          <p className={identityStyles.guidanceLabel}>WHY THIS SEARCH NEEDS MORE SIGNAL</p>
+          <p className={identityStyles.guidanceMessage}>{guidance.message || "The current name does not distinguish one organization from the choices already shown."}</p>
+          {suggestedHints.length > 0 ? <div className={identityStyles.guidanceSuggestions}><strong>The most useful details to add are:</strong><ul>{suggestedHints.map((hint) => <li key={hint}>{hint}</li>)}</ul></div> : null}
+          <p className={identityStyles.guidanceNote}>These are search hints only. Public sources will still verify company facts after you choose an identity.</p>
+        </div>
+        <div className={identityStyles.guidedActions}>
+          <Button type="button" onClick={onEdit} loading={loading}>Edit search details</Button>
+          <Button type="button" tone="quiet" onClick={onBack} disabled={loading}>Back to original choices</Button>
+        </div>
+      </div> : null}
+    </dialog>
+  );
+}
 
 export function IdentityStage({ workflow }: { workflow: CompanyResearchWorkflow }) {
-  const { form, view, loading, error, groundingOverride, defaultGroundingMode } = workflow;
+  const { form, view, loading, error, identityGuidance, groundingOverride, defaultGroundingMode } = workflow;
   if (view !== "identify" && view !== "matching") return null;
 
   return (
     <Panel title="Company identity" eyebrow="STEP 01 · IDENTIFY" className={styles.identityPanel}>
+      {view === "identify" && identityGuidance ? (
+        <section className={identityStyles.inlineIdentityGuidance} aria-label="Identity search guidance" aria-live="polite">
+          <div className={identityStyles.inlineGuidanceHeader}>
+            <Sparkle size={20} weight="duotone" aria-hidden="true" />
+            <div>
+              <p className={identityStyles.guidanceLabel}>GUIDED SEARCH ADVICE</p>
+              <p className={identityStyles.inlineGuidanceTitle}>Use these details to sharpen the next lookup</p>
+            </div>
+          </div>
+          <p className={identityStyles.inlineGuidanceMessage}>{identityGuidance.message || "Add a detail that distinguishes the organization from the choices already shown."}</p>
+          {identityGuidance.requestedHints.length > 0 ? <ul className={identityStyles.inlineGuidanceHints}>{requestedHintLabels(identityGuidance.requestedHints).map((hint) => <li key={hint}>{hint}</li>)}</ul> : null}
+          <p className={identityStyles.inlineGuidanceNote}>Update the fields below, then submit this same form. Your existing values are preserved.</p>
+        </section>
+      ) : null}
       <form onSubmit={workflow.handleIdentitySubmit}>
         <fieldset className={styles.fieldset} disabled={loading && view === "matching"}>
           <legend className={styles.visuallyHidden}>Company identity details</legend>
@@ -66,6 +160,7 @@ export function IdentityStage({ workflow }: { workflow: CompanyResearchWorkflow 
         {error && view === "matching" ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="form-actions">
           <Button type="submit" loading={loading}>{view === "matching" ? "Checking for existing companies" : "Research public sources"}</Button>
+          <Button type="button" tone="quiet" onClick={workflow.resetResearchForm} disabled={loading}>Reset form</Button>
           <Link className="button button--quiet" to="/companies">Cancel</Link>
         </div>
       </form>
@@ -108,40 +203,39 @@ export function MatchStage({ workflow }: { workflow: CompanyResearchWorkflow }) 
 
 /** Pre-search identity gate. No Company or ResearchRun exists at this stage. */
 export function PreflightIdentityStage({ workflow }: { workflow: CompanyResearchWorkflow }) {
-  const { view, preflightResponse, identityGuidance, selectedPreflightEntityId, loading, error } = workflow;
-  if ((view !== "preflightIdentity" && view !== "guidedIdentity") || !preflightResponse) return null;
-
-  const input = {
-    name: workflow.form.name,
-    legalName: workflow.form.legalName || undefined,
-    website: workflow.form.website || undefined,
-    country: workflow.form.country || undefined,
-    registrationNumber: workflow.form.registrationNumber || undefined,
-    headquarters: workflow.form.headquarters || undefined,
-    researchHint: workflow.form.researchHint || undefined,
-  };
-  if (view === "guidedIdentity") {
-    const guidance = identityGuidance ?? preflightResponse;
-    return <Panel title="Refine your company search" eyebrow="GUIDED IDENTITY SEARCH" className={`${styles.identityResolutionPanel} ${styles.guidedIdentityPanel}`}>
-      <p className={styles.panelIntro}>Tell RAVEN what distinguishes the organization you have in mind. This does not start public research; it updates the choices you already saw.</p>
-      <IdentityClarificationForm input={input} requestedHints={guidance.requestedHints} guided loading={loading} error={error} message={guidance.message || "Add the details that best describe the missing company."} onChange={(field, value) => workflow.updateField(field as keyof typeof workflow.form, value)} onSubmit={(event) => { event.preventDefault(); void workflow.retryGuidedIdentity(); }} />
-      <div className={styles.guidedIdentityBack}><Button type="button" tone="quiet" onClick={workflow.returnToIdentityChoices} disabled={loading}>Back to original choices</Button></div>
-    </Panel>;
-  }
+  const { view, preflightResponse, identityGuidance, identityGuidanceOpen, selectedPreflightEntityId, loading, error } = workflow;
+  if (view !== "preflightIdentity" || !preflightResponse) return null;
   if (preflightResponse.status === "Ambiguous") {
     return <Panel title="Which organization do you mean?" eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
       <p className={styles.panelIntro}>{preflightResponse.message || "Several organizations could match."}</p>
       <IdentityChoiceList entities={preflightResponse.entities} ambiguityType={preflightResponse.ambiguityType} selectedEntityId={selectedPreflightEntityId} onSelect={workflow.setSelectedPreflightEntityId} disabled={loading} />
-      <button className={styles.refinementChoice} type="button" aria-labelledby="identity-refinement-choice" onClick={() => void workflow.requestPreflightClarification()} disabled={loading}>
-        <Sparkle size={22} weight="duotone" aria-hidden="true" />
-        <span><strong id="identity-refinement-choice">Still can’t find it? Help me refine this search</strong><small>Get guided suggestions about the name, website, location, legal identity, or what the company does.</small></span>
-      </button>
+      <div className={identityStyles.refinementChoice}>
+        <button className={identityStyles.refinementTrigger} type="button" aria-label="Still can’t find the right organization?" onClick={() => void workflow.requestPreflightClarification()} disabled={loading}>
+          <Sparkle size={22} weight="duotone" aria-hidden="true" />
+          <span className={identityStyles.refinementCopy}><strong>Still can’t find the right organization?</strong><small>Ask RAVEN which extra detail would make this lookup more precise.</small></span>
+        </button>
+        {identityGuidance ? <Button type="button" tone="quiet" className={identityStyles.refinementSecondary} onClick={workflow.openIdentityGuidance} disabled={loading}>View guidance</Button> : null}
+      </div>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <div className="form-actions"><Button type="button" onClick={() => void workflow.handlePreflightSelection()} loading={loading} disabled={!selectedPreflightEntityId}>Continue with selected organization</Button><Button type="button" tone="quiet" onClick={() => workflow.setView("identify")} disabled={loading}>Back to edit</Button></div>
+      {identityGuidance ? <IdentityGuidanceDialog guidance={identityGuidance} open={identityGuidanceOpen} loading={loading} onClose={workflow.closeIdentityGuidance} onEdit={workflow.editIdentityDetails} onBack={workflow.returnToIdentityChoices} /> : null}
     </Panel>;
   }
-  return <Panel title="A little more information will help" eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
-    <IdentityClarificationForm input={input} requestedHints={preflightResponse.requestedHints} loading={loading} error={error} message={preflightResponse.message} onChange={(field, value) => workflow.updateField(field as keyof typeof workflow.form, value)} onSubmit={(event) => { event.preventDefault(); void workflow.retryPreflightIdentity(); }} onManualExactName={() => void workflow.researchExactName()} />
+  const suggestedHints = requestedHintLabels(preflightResponse.requestedHints);
+  return <Panel title={preflightResponse.status === "Unknown" ? "RAVEN needs a clearer target" : "A little more information will help"} eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
+    <p className={styles.panelIntro}>{preflightResponse.message || "RAVEN could not confidently distinguish the organization from the information supplied."}</p>
+    <div className={identityStyles.guidanceCard} aria-live="polite">
+      <p className={identityStyles.guidanceLabel}>WHAT WOULD HELP NEXT</p>
+      <p className={identityStyles.guidanceMessage}>Return to the original search form and add one detail that narrows the target. Your existing values will stay in place.</p>
+      {suggestedHints.length > 0 ? <div className={identityStyles.guidanceSuggestions}><strong>Most useful details for this attempt:</strong><ul>{suggestedHints.map((hint) => <li key={hint}>{hint}</li>)}</ul></div> : null}
+    </div>
+    {error ? <p className="form-error" role="alert">{error}</p> : null}
+    <div className={identityStyles.guidedActions}>
+      <Button type="button" onClick={workflow.editIdentityDetails}>Edit search details</Button>
+      {identityGuidance ? <Button type="button" tone="quiet" onClick={workflow.openIdentityGuidance} disabled={loading}>View guidance</Button> : null}
+      <Button type="button" tone="secondary" onClick={() => void workflow.researchExactName()} loading={loading}>Research this exact name anyway</Button>
+    </div>
+    {identityGuidance ? <IdentityGuidanceDialog guidance={identityGuidance} open={identityGuidanceOpen} loading={loading} onClose={workflow.closeIdentityGuidance} onEdit={workflow.editIdentityDetails} onBack={workflow.returnToIdentityChoices} /> : null}
   </Panel>;
 }
 

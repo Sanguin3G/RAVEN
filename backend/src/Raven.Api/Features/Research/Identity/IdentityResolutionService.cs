@@ -39,6 +39,7 @@ public sealed class IdentityResolutionService(
     private const int MaxNameLength = 240;
     private const int MaxOptionalHintLength = 240;
     private const int MaxResearchHintLength = 1_000;
+    private const int MaxGuidanceContextLength = 1_200;
 
     public async Task<IdentityResolutionServiceResult> ResolveAsync(
         IdentityResolutionRequest? request,
@@ -101,7 +102,23 @@ public sealed class IdentityResolutionService(
                     Retryable: true));
         }
 
-        return IdentityResolutionServiceResult.Valid(policy.Derive(topology, normalized));
+        var derived = policy.Derive(topology, normalized);
+        if (!normalized.GuidedRefinement)
+        {
+            return IdentityResolutionServiceResult.Valid(derived);
+        }
+
+        // Guided help is advice only. Even if the model happened to describe a
+        // specific entity, this user-initiated call can never resolve or select
+        // it; the user must edit the original form and submit a new attempt.
+        return IdentityResolutionServiceResult.Valid(derived with
+        {
+            Status = IdentityResolutionStatus.NeedsMoreInfo,
+            AmbiguityType = IdentityAmbiguityType.Unclear,
+            RecommendedEntityId = null,
+            Entities = [],
+            Message = derived.Message ?? "Add a detail that distinguishes the organization from the choices already shown."
+        });
     }
 
     private static IdentityResolutionResponse CreateExactNameResponse(
@@ -175,7 +192,8 @@ public sealed class IdentityResolutionService(
             ResearchHint = NormalizeOptional(request.ResearchHint),
             ConfirmExactName = request.ConfirmExactName,
             AllowModelKnowledge = request.AllowModelKnowledge,
-            GuidedRefinement = request.GuidedRefinement
+            GuidedRefinement = request.GuidedRefinement,
+            GuidanceContext = NormalizeOptional(request.GuidanceContext)
         };
 
     private static Dictionary<string, string[]> Validate(IdentityResolutionRequest? request)
@@ -202,6 +220,7 @@ public sealed class IdentityResolutionService(
         ValidateOptionalLength(errors, nameof(request.RegistrationNumber), request.RegistrationNumber, MaxOptionalHintLength);
         ValidateOptionalLength(errors, nameof(request.Headquarters), request.Headquarters, MaxOptionalHintLength);
         ValidateOptionalLength(errors, nameof(request.ResearchHint), request.ResearchHint, MaxResearchHintLength);
+        ValidateOptionalLength(errors, nameof(request.GuidanceContext), request.GuidanceContext, MaxGuidanceContextLength);
 
         if (!string.IsNullOrWhiteSpace(request.Website) && NormalizeDomain(request.Website) is null)
         {

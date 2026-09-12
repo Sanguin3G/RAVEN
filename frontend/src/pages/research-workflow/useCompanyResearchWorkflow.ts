@@ -61,6 +61,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   const [matches, setMatches] = useState<CompanyMatchResponse[]>([]);
   const [preflightResponse, setPreflightResponse] = useState<IdentityResolutionResponse | null>(null);
   const [identityGuidance, setIdentityGuidance] = useState<IdentityResolutionResponse | null>(null);
+  const [identityGuidanceOpen, setIdentityGuidanceOpen] = useState(false);
   const [selectedPreflightEntityId, setSelectedPreflightEntityId] = useState<string | null>(null);
   const [pendingResolvedIdentity, setPendingResolvedIdentity] = useState<ResolvedIdentitySnapshot | null>(null);
   const [identityCandidates, setIdentityCandidates] = useState<ResearchIdentityCandidate[]>([]);
@@ -318,6 +319,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setError(null);
     setSelectionError(null);
     setIdentityGuidance(null);
+    setIdentityGuidanceOpen(false);
     setLoading(true);
     setView("checkingIdentity");
 
@@ -361,9 +363,23 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setSelectedPreflightEntityId(null);
     setError(null);
     try {
-      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off", guidedRefinement: true });
+      const shownOrganizations = (preflightResponse?.entities ?? []).map((entity) => [
+        entity.displayName,
+        entity.country,
+        entity.entityType,
+        entity.relationshipToQuery,
+        entity.shortDescription,
+      ].filter(Boolean).join(" · ")).join(" | ");
+      const guidanceContext = [
+        `Current status: ${preflightResponse?.status ?? "unknown"}`,
+        `Ambiguity: ${preflightResponse?.ambiguityType ?? "unknown"}`,
+        `Current resolver message: ${preflightResponse?.message ?? "none"}`,
+        `Shown organizations: ${shownOrganizations || "none"}`,
+      ].join("; ").slice(0, 1_200);
+      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off", guidedRefinement: true, guidanceContext });
       setIdentityGuidance(response);
-      setView("guidedIdentity");
+      setIdentityGuidanceOpen(true);
+      setView("preflightIdentity");
     } catch (reason: unknown) {
       setError(getApiErrorMessage(reason, "RAVEN couldn't prepare search guidance right now."));
       setView("preflightIdentity");
@@ -373,51 +389,58 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   }
 
   function returnToIdentityChoices() {
-    setIdentityGuidance(null);
+    setIdentityGuidanceOpen(false);
     setError(null);
     setView("preflightIdentity");
   }
 
-  function mergeIdentityOptions(original: IdentityResolutionResponse, addition: IdentityResolutionResponse) {
-    const identities = new Set<string>();
-    const entities = [...original.entities, ...addition.entities].filter((entity) => {
-      const key = `${entity.displayName.trim().toLocaleLowerCase()}|${entity.country?.trim().toLocaleLowerCase() ?? ""}`;
-      if (identities.has(key)) return false;
-      identities.add(key);
-      return true;
-    });
-    return { ...original, entities, requestedHints: addition.requestedHints.length ? addition.requestedHints : original.requestedHints };
+  function editIdentityDetails() {
+    setIdentityGuidanceOpen(false);
+    setError(null);
+    setView("identify");
   }
 
-  async function retryGuidedIdentity() {
-    if (!preflightResponse) return;
-    setLoading(true);
+  function openIdentityGuidance() {
+    if (identityGuidance) setIdentityGuidanceOpen(true);
+  }
+
+  function closeIdentityGuidance() {
+    setIdentityGuidanceOpen(false);
+  }
+
+  function resetResearchForm() {
+    clearCurrentResearch(run?.id);
+    setForm(initialForm);
+    setGroundingOverride("default");
+    setView("identify");
+    setCompany(null);
+    setRun(null);
+    setMatches([]);
+    setPreflightResponse(null);
+    setIdentityGuidance(null);
+    setIdentityGuidanceOpen(false);
+    setSelectedPreflightEntityId(null);
+    setPendingResolvedIdentity(null);
+    setIdentityCandidates([]);
+    setSelectedIdentityCandidateId(null);
+    setAlternateIdentityHint("");
+    setCandidates([]);
+    setSources([]);
+    setCoverage(null);
+    setStrengtheningTargets([]);
+    setProfileCandidate(null);
+    setProfileWarnings([]);
+    setSelectionError(null);
     setError(null);
-    try {
-      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off" });
-      const merged = mergeIdentityOptions(preflightResponse, response);
-      const addedEntityId = response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null);
-      setPreflightResponse({
-        ...merged,
-        message: addedEntityId
-          ? `${response.entities.find((entity) => entity.temporaryId === addedEntityId)?.displayName ?? "The organization"} was added to the choices below.`
-          : response.message || "The original choices are still available. Add another detail if the intended organization is missing.",
-      });
-      setSelectedPreflightEntityId(addedEntityId);
-      setIdentityGuidance(null);
-      setView("preflightIdentity");
-    } catch (reason: unknown) {
-      setError(getApiErrorMessage(reason, "RAVEN couldn't update the company choices right now."));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
+    setIsPaused(false);
   }
 
   async function retryPreflightIdentity() {
     setLoading(true); setError(null); setView("checkingIdentity");
     try {
       const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off" });
-      setIdentityGuidance(null); setPreflightResponse(response); setSelectedPreflightEntityId(response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null));
+      setIdentityGuidance(null); setIdentityGuidanceOpen(false); setPreflightResponse(response); setSelectedPreflightEntityId(response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null));
       if (response.status === "Resolved" && (response.recommendedEntityId || response.entities.length === 1)) await continueResolvedIdentity(response, response.recommendedEntityId || response.entities[0].temporaryId);
       else { setView("preflightIdentity"); setLoading(false); }
     } catch (reason: unknown) { setError(getApiErrorMessage(reason, "RAVEN couldn't confidently resolve this organization right now.")); setView("preflightIdentity"); setLoading(false); }
@@ -579,6 +602,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setSelectionError(null);
     setMatches([]);
     setIdentityGuidance(null);
+    setIdentityGuidanceOpen(false);
     setCompany(null);
     setRun(null);
     setIdentityCandidates([]);
@@ -719,6 +743,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setCompany(null);
     setRun(null);
     setIdentityGuidance(null);
+    setIdentityGuidanceOpen(false);
     setCandidates([]);
     setSources([]);
     setProfileCandidate(null);
@@ -736,6 +761,9 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     matches,
     preflightResponse,
     identityGuidance,
+    identityGuidanceOpen,
+    openIdentityGuidance,
+    closeIdentityGuidance,
     selectedPreflightEntityId,
     setSelectedPreflightEntityId,
     identityCandidates,
@@ -765,7 +793,8 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     handlePreflightSelection,
     requestPreflightClarification,
     returnToIdentityChoices,
-    retryGuidedIdentity,
+    editIdentityDetails,
+    resetResearchForm,
     retryPreflightIdentity,
     researchExactName,
     handleResearchExisting,

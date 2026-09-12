@@ -65,7 +65,8 @@ public sealed record IdentityResolutionRequest(
     string? ResearchHint = null,
     bool ConfirmExactName = false,
     bool AllowModelKnowledge = true,
-    bool GuidedRefinement = false);
+    bool GuidedRefinement = false,
+    string? GuidanceContext = null);
 
 /// <summary>
 /// An identity/search hint from model knowledge. It is never an accepted

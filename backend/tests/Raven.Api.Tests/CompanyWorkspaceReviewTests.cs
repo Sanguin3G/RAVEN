@@ -130,6 +130,31 @@ public sealed class CompanyWorkspaceReviewTests
     }
 
     [Fact]
+    public void Duplicate_grouping_uses_accepted_profile_identity_when_company_metadata_is_sparse()
+    {
+        var first = ProfileSnapshot("Workspace alias one", profile =>
+        {
+            profile.DisplayName = "FPT Software";
+            profile.Website = "https://fptsoftware.com/about";
+            profile.RegistrationNumberOrTaxId = "010-123 456";
+        });
+        var second = ProfileSnapshot("Workspace alias two", profile =>
+        {
+            profile.DisplayName = "FPT Software";
+            profile.Website = "fptsoftware.com/contact";
+            profile.RegistrationNumberOrTaxId = "010123456";
+        });
+
+        var groups = new CompanyDuplicateGroupingService().Group([first, second]);
+
+        var group = Assert.Single(groups);
+        Assert.Equal(DuplicateMatchType.RegistrationNumber, group.StrongestMatch);
+        Assert.Contains(DuplicateMatchType.WebsiteHost, group.MatchTypes);
+        Assert.Contains(group.Members, member => member.CompanyId == first.Company.Id);
+        Assert.Contains(group.Members, member => member.CompanyId == second.Company.Id);
+    }
+
+    [Fact]
     public async Task Workspace_review_keeps_deterministic_findings_when_ai_is_unavailable()
     {
         var duplicateOne = Snapshot("FPT Software", website: "https://fptsoftware.com", country: "Vietnam");

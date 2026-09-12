@@ -55,7 +55,9 @@ public sealed class IdentityResolutionServiceTests
             Website: "https://fpt.com.vn",
             GuidedRefinement: true));
 
-        Assert.Equal(IdentityResolutionStatus.Unknown, result.Response!.Status);
+        Assert.Equal(IdentityResolutionStatus.NeedsMoreInfo, result.Response!.Status);
+        Assert.Empty(result.Response.Entities);
+        Assert.Null(result.Response.RecommendedEntityId);
         Assert.True(received?.GuidedRefinement);
         Assert.Equal(1, knowledge.CallCount);
     }

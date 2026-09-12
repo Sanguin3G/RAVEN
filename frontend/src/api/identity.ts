@@ -22,6 +22,7 @@ export function toIdentityResolutionRequest(input: IdentityResolutionRequest): I
     confirmExactName: input.confirmExactName || undefined,
     allowModelKnowledge: input.allowModelKnowledge,
     guidedRefinement: input.guidedRefinement || undefined,
+    guidanceContext: optional(input.guidanceContext),
   };
 }
 

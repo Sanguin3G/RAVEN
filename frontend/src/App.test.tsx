@@ -69,18 +69,47 @@ const researchSources = [{
   contentPreview: "FPT Software company information.",
 }];
 
+const resolvedIdentity = {
+  status: "Resolved",
+  ambiguityType: "None",
+  recommendedEntityId: "fpt-software",
+  entities: [{
+    temporaryId: "fpt-software",
+    displayName: "FPT Software",
+    legalName: "FPT Software Company Limited",
+    country: "Vietnam",
+    region: null,
+    officialDomain: "fptsoftware.com",
+    entityType: "Subsidiary",
+    parentTemporaryId: null,
+    relationshipToQuery: "Exact",
+    confidence: "High",
+    shortDescription: "Technology services subsidiary of FPT Corporation",
+  }],
+  requestedHints: [],
+  message: null,
+  resolutionMethod: "ModelKnowledge",
+};
+
+const execution = {
+  summary: { totalWallClockDurationMs: 0, searchCalls: 0, crawlCalls: 0, aiCalls: 0, providerAttempts: 0, fallbacks: 0, inputTokens: null, outputTokens: null },
+  operations: [],
+};
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   let createdCompany: typeof apiCompanies[number] | null = null;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
     if (url.endsWith("/matches") && init?.method === "POST") return jsonResponse([]);
     if (url.endsWith("/profile")) return jsonResponse({ message: "No accepted profile" }, 404);
     if (url.endsWith("/research/start") && init?.method === "POST") return jsonResponse(researchRun);
     if (url.endsWith("/candidates")) return jsonResponse(researchCandidates);
     if (url.endsWith("/acquire") && init?.method === "POST") return jsonResponse(acquiredResearchRun);
     if (url.endsWith("/sources")) return jsonResponse(researchSources);
+    if (url.includes("/execution")) return jsonResponse(execution);
     if (url.includes("/api/research-runs/")) return jsonResponse(researchRun);
     if (url.endsWith("/api/companies") && init?.method === "POST") {
       const body = JSON.parse(String(init.body)) as { name: string; website?: string; country?: string };

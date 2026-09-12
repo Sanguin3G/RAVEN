@@ -22,7 +22,8 @@ public sealed class GeminiKnowledgeIdentityResolver(IAiModelProvider aiProvider)
                 ["registrationNumber"] = Text(request.RegistrationNumber),
                 ["headquarters"] = Text(request.Headquarters),
                 ["researchHint"] = Text(request.ResearchHint, 1_000),
-                ["guidedRefinement"] = request.GuidedRefinement ? "requested" : null
+                ["guidedRefinement"] = request.GuidedRefinement ? "requested" : null,
+                ["guidanceContext"] = Text(request.GuidanceContext, 1_200)
             }, []), Schema), cancellationToken);
         if (!modelResult.Succeeded || !modelResult.StructuredJson.HasValue)
             return Failure(modelResult.Failure?.Code ?? "invalid_response", "RAVEN couldn't confidently resolve this organization right now.", modelResult);
@@ -54,7 +55,7 @@ Every populated user hint below is relevant to topology. Use it to distinguish t
 
 When returning CorporateFamilyShorthand or NameCollision, requestedHints must name up to three details that would most efficiently distinguish an omitted intended organization. Prefer country, official website, legal name, registration/tax ID, or headquarters only when each is genuinely useful.
 
-{(x.GuidedRefinement ? "The user explicitly says none of the shown choices was right. Act as a guided-search assistant: do not invent an omitted organization or choose one for them. Explain, in one short user-facing message, which one to three fields would most efficiently make the next lookup useful. Include ResearchHint only when a concise business description, industry, product, or role could distinguish the company." : "")}
+{(x.GuidedRefinement ? "The user explicitly says none of the shown choices was right. Act as a guided-search assistant: analyze the supplied search details and current resolution context, explain in one short user-facing message why the current attempt is under-specified or collides with the shown choices, and recommend the one to three fields that would most efficiently make the next lookup useful. Do not invent an omitted organization or choose one for them. Include ResearchHint only when a concise business description, industry, product, or role could distinguish the company." : "")}
 
 Only use SpecificEntity when the user's wording plus supplied hints sufficiently names one organization. NameCollision is for unrelated plausible matches; Unknown when unsafe. Do not repeat the query as an entity without recognized context. Domains/legal names are optional navigation hints, not evidence. Return JSON only.
 
@@ -65,6 +66,7 @@ Country: {Text(x.Country) ?? "null"}
 Registration/tax ID: {Text(x.RegistrationNumber) ?? "null"}
 Headquarters/region: {Text(x.Headquarters) ?? "null"}
 Research hint: {Text(x.ResearchHint, 1_000) ?? "null"}
+Current resolution context: {Text(x.GuidanceContext, 1_200) ?? "null"}
 """;
     private static string? Text(string? x, int max = 160) => string.IsNullOrWhiteSpace(x) ? null : Bound(x, max);
     private static string Bound(string x, int max) { var t = x.Replace('\0', ' ').Trim(); return t.Length <= max ? t : t[..max]; }

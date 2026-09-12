@@ -54,6 +54,9 @@ export type CompanyResearchWorkflow = {
   matches: CompanyMatchResponse[];
   preflightResponse: IdentityResolutionResponse | null;
   identityGuidance: IdentityResolutionResponse | null;
+  identityGuidanceOpen: boolean;
+  openIdentityGuidance: () => void;
+  closeIdentityGuidance: () => void;
   selectedPreflightEntityId: string | null;
   setSelectedPreflightEntityId: (value: string | null) => void;
   identityCandidates: ResearchIdentityCandidate[];
@@ -83,7 +86,8 @@ export type CompanyResearchWorkflow = {
   handlePreflightSelection: () => Promise<void>;
   requestPreflightClarification: () => Promise<void>;
   returnToIdentityChoices: () => void;
-  retryGuidedIdentity: () => Promise<void>;
+  editIdentityDetails: () => void;
+  resetResearchForm: () => void;
   retryPreflightIdentity: () => Promise<void>;
   researchExactName: () => Promise<void>;
   handleResearchExisting: (company: Company) => Promise<void>;

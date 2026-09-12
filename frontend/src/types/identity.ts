@@ -65,6 +65,7 @@ export interface IdentityResolutionRequest {
   confirmExactName?: boolean;
   allowModelKnowledge?: boolean;
   guidedRefinement?: boolean;
+  guidanceContext?: string | null;
 }
 
 export interface IdentityOption {
