@@ -53,7 +53,7 @@ Delivered scope is coverage-aware source-root selection, generic corporate-famil
 
 ## Day 6 — Pre-search identity resolution
 
-**Status: PASS** on `feat/day6-identity-resolution`; merge into `main` is the release step.
+**Status: PASS**; integrated into `main` from `feat/day6-identity-resolution`.
 
 Delivered scope is a Company-independent identity preflight endpoint, explicit website/registration fast paths, one bounded Gemini topology call for weak inputs, deterministic derivation of `Resolved`, `Ambiguous`, `NeedsMoreInfo`, or `Unknown`, distinct family/name-collision handling, parent-first identity choices, and a deliberate exact-name override for obscure companies. The frontend keeps the original research form as the single edit surface and presents guided clarification in a compact, dismissible modal. Identity options and model-provided domains/legal names remain navigation hints, not accepted profile evidence. Duplicate matching runs only after resolution, and a bounded resolved-identity snapshot is carried into each new ResearchRun.
 
