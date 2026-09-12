@@ -14,6 +14,8 @@ public sealed class Company
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastResearchedAt { get; set; }
+    /// <summary>Reversible workspace cleanup state. Archived companies retain every related record.</summary>
+    public DateTimeOffset? ArchivedAt { get; set; }
     public ICollection<ResearchRun> ResearchRuns { get; } = new List<ResearchRun>();
     public ICollection<SourceDocument> SourceDocuments { get; } = new List<SourceDocument>();
 }

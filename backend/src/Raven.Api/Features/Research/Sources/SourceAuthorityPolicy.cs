@@ -8,10 +8,12 @@ namespace Raven.Api.Features.Research.Sources;
 public enum SourceField
 {
     LegalIdentity,
+    TaxRegistration,
     ProductsServices,
     EmployeeScale,
     Leadership,
     RegisteredAddress,
+    RegisteredBusinessActivities,
     OperatingLocations
 }
 
@@ -35,11 +37,24 @@ public sealed class SourceAuthorityPolicy : ISourceAuthorityPolicy
         new Dictionary<SourceField, IReadOnlyDictionary<SourceKind, int>>
         {
             [SourceField.LegalIdentity] = RanksFor(
-                (SourceKind.BusinessRegistry, 100),
-                (SourceKind.OfficialDocument, 90),
+                (SourceKind.OfficialBusinessRegistry, 120),
+                (SourceKind.OfficialDocument, 105),
+                (SourceKind.BusinessDirectory, 90),
                 (SourceKind.OfficialWebsite, 80),
+                (SourceKind.BusinessRegistry, 100),
                 (SourceKind.TopCv, 50),
                 (SourceKind.LinkedIn, 40),
+                (SourceKind.News, 30),
+                (SourceKind.ExternalWebsite, 20),
+                (SourceKind.SearchResult, 10)),
+            [SourceField.TaxRegistration] = RanksFor(
+                (SourceKind.OfficialBusinessRegistry, 120),
+                (SourceKind.OfficialDocument, 105),
+                (SourceKind.BusinessDirectory, 90),
+                (SourceKind.OfficialWebsite, 75),
+                (SourceKind.BusinessRegistry, 100),
+                (SourceKind.TopCv, 45),
+                (SourceKind.LinkedIn, 35),
                 (SourceKind.News, 30),
                 (SourceKind.ExternalWebsite, 20),
                 (SourceKind.SearchResult, 10)),
@@ -50,7 +65,9 @@ public sealed class SourceAuthorityPolicy : ISourceAuthorityPolicy
                 (SourceKind.TopCv, 60),
                 (SourceKind.LinkedIn, 55),
                 (SourceKind.ExternalWebsite, 50),
-                (SourceKind.BusinessRegistry, 30),
+                (SourceKind.OfficialBusinessRegistry, 25),
+                (SourceKind.BusinessDirectory, 30),
+                (SourceKind.BusinessRegistry, 25),
                 (SourceKind.SearchResult, 10)),
             [SourceField.EmployeeScale] = RanksFor(
                 (SourceKind.OfficialDocument, 100),
@@ -59,7 +76,9 @@ public sealed class SourceAuthorityPolicy : ISourceAuthorityPolicy
                 (SourceKind.LinkedIn, 70),
                 (SourceKind.News, 60),
                 (SourceKind.ExternalWebsite, 50),
-                (SourceKind.BusinessRegistry, 30),
+                (SourceKind.OfficialBusinessRegistry, 25),
+                (SourceKind.BusinessDirectory, 30),
+                (SourceKind.BusinessRegistry, 25),
                 (SourceKind.SearchResult, 10)),
             [SourceField.Leadership] = RanksFor(
                 (SourceKind.OfficialWebsite, 100),
@@ -68,16 +87,31 @@ public sealed class SourceAuthorityPolicy : ISourceAuthorityPolicy
                 (SourceKind.LinkedIn, 70),
                 (SourceKind.ExternalWebsite, 50),
                 (SourceKind.TopCv, 40),
-                (SourceKind.BusinessRegistry, 30),
+                (SourceKind.OfficialBusinessRegistry, 25),
+                (SourceKind.BusinessDirectory, 30),
+                (SourceKind.BusinessRegistry, 25),
                 (SourceKind.SearchResult, 10)),
             [SourceField.RegisteredAddress] = RanksFor(
-                (SourceKind.BusinessRegistry, 100),
+                (SourceKind.OfficialBusinessRegistry, 120),
+                (SourceKind.BusinessDirectory, 95),
                 (SourceKind.OfficialDocument, 90),
                 (SourceKind.OfficialWebsite, 80),
+                (SourceKind.BusinessRegistry, 100),
                 (SourceKind.TopCv, 70),
                 (SourceKind.LinkedIn, 50),
                 (SourceKind.News, 40),
                 (SourceKind.ExternalWebsite, 30),
+                (SourceKind.SearchResult, 10)),
+            [SourceField.RegisteredBusinessActivities] = RanksFor(
+                (SourceKind.OfficialBusinessRegistry, 120),
+                (SourceKind.OfficialDocument, 100),
+                (SourceKind.BusinessDirectory, 95),
+                (SourceKind.OfficialWebsite, 55),
+                (SourceKind.BusinessRegistry, 50),
+                (SourceKind.TopCv, 35),
+                (SourceKind.LinkedIn, 30),
+                (SourceKind.News, 25),
+                (SourceKind.ExternalWebsite, 20),
                 (SourceKind.SearchResult, 10)),
             [SourceField.OperatingLocations] = RanksFor(
                 (SourceKind.OfficialWebsite, 100),
@@ -86,7 +120,9 @@ public sealed class SourceAuthorityPolicy : ISourceAuthorityPolicy
                 (SourceKind.LinkedIn, 60),
                 (SourceKind.News, 50),
                 (SourceKind.ExternalWebsite, 40),
-                (SourceKind.BusinessRegistry, 30),
+                (SourceKind.OfficialBusinessRegistry, 35),
+                (SourceKind.BusinessDirectory, 30),
+                (SourceKind.BusinessRegistry, 25),
                 (SourceKind.SearchResult, 10))
         };
 

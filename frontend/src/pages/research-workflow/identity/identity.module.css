@@ -1,0 +1,606 @@
+.step {
+  min-width: 0;
+}
+
+.intro {
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 70ch;
+}
+
+.statusMessage {
+  align-items: center;
+  background: color-mix(in srgb, var(--info) 10%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--info) 40%, var(--border));
+  border-left: 4px solid var(--info);
+  border-radius: 5px;
+  display: flex;
+  gap: 0.55rem;
+  margin-block: 1rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.statusMessage strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.statusMessage p {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0.15rem 0 0;
+}
+
+.loadingMark {
+  color: var(--info);
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+}
+
+.choiceGroup {
+  margin-top: 1rem;
+}
+
+.choiceHint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0 0 0.7rem;
+}
+
+.refinementChoice {
+  align-items: center;
+  background: color-mix(in oklab, var(--ai) 10%, var(--surface-raised));
+  border: 1px dashed color-mix(in oklab, var(--ai) 58%, var(--border));
+  border-inline-start: 4px solid var(--ai);
+  border-radius: 6px;
+  display: grid;
+  font: inherit;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 1.35rem;
+  min-block-size: 4.5rem;
+  padding: 0.95rem 1rem;
+  width: 100%;
+}
+
+.refinementTrigger {
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 0.7rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  padding: 0.2rem;
+  text-align: start;
+  width: 100%;
+}
+
+.refinementTrigger:hover,
+.refinementTrigger:focus-visible {
+  background: color-mix(in oklab, var(--ai) 8%, transparent);
+  outline: 2px solid color-mix(in oklab, var(--ai) 48%, var(--border));
+  outline-offset: 2px;
+}
+
+.refinementTrigger:disabled { cursor: wait; opacity: 0.7; }
+
+.refinementTrigger > svg {
+  background: color-mix(in oklab, var(--ai) 16%, transparent);
+  border-radius: 50%;
+  color: var(--ai);
+  flex: 0 0 auto;
+  padding: 0.22rem;
+}
+
+.refinementCopy { display: grid; gap: 0.18rem; min-width: 0; }
+
+.refinementCopy strong {
+  color: var(--text);
+  display: block;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.refinementCopy small {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.77rem;
+  line-height: 1.45;
+  margin-top: 0.22rem;
+}
+
+.refinementSecondary {
+  justify-self: end;
+  margin-inline: 0.15rem;
+  padding-inline: 0.45rem;
+  white-space: nowrap;
+}
+
+.guidanceDialog {
+  border-color: color-mix(in oklab, var(--ai) 55%, var(--border-strong));
+  max-width: 620px;
+}
+
+.guidanceDialog::backdrop {
+  background: color-mix(in srgb, var(--ai) 12%, rgb(10 20 35 / 62%));
+}
+
+.guidanceDialogHeader {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.8rem;
+}
+
+.guidanceDialogTitle {
+  align-items: center;
+  display: flex;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.guidanceDialogTitle h2 {
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  margin: 0.15rem 0 0;
+}
+
+.guidanceDialogIcon {
+  align-items: center;
+  background: color-mix(in oklab, var(--ai) 14%, var(--surface-muted));
+  border: 1px solid color-mix(in oklab, var(--ai) 42%, var(--border));
+  border-radius: 50%;
+  color: var(--ai);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 2.25rem;
+  justify-content: center;
+  width: 2.25rem;
+}
+
+.guidanceDialogClose {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  min-height: 2rem;
+  min-width: 2rem;
+  padding: 0.25rem;
+}
+
+.guidanceDialogClose:hover,
+.guidanceDialogClose:focus-visible {
+  background: color-mix(in srgb, var(--ai) 10%, transparent);
+  border-color: color-mix(in srgb, var(--ai) 40%, var(--border));
+  color: var(--ai);
+}
+
+.guidanceDialogIntro {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 68ch;
+}
+
+.guidedIdentityPanel { border-inline-start: 4px solid var(--ai); }
+
+.guidedIdentityBack { margin-top: 0.85rem; }
+
+.inlineIdentityGuidance {
+  background: color-mix(in oklab, var(--ai) 8%, var(--surface-muted));
+  border: 1px solid color-mix(in oklab, var(--ai) 42%, var(--border));
+  border-inline-start: 4px solid var(--ai);
+  border-radius: 6px;
+  margin-block-end: 1.1rem;
+  padding: 0.9rem 1rem;
+}
+
+.inlineGuidanceHeader {
+  align-items: flex-start;
+  color: var(--ai);
+  display: flex;
+  gap: 0.6rem;
+}
+
+.inlineGuidanceHeader > svg { flex: 0 0 auto; margin-top: 0.1rem; }
+
+.inlineGuidanceHeader .guidanceLabel { margin-bottom: 0.2rem; }
+
+.inlineGuidanceTitle {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.inlineGuidanceMessage {
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0.7rem 0 0;
+  max-width: 70ch;
+}
+
+.inlineGuidanceHints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.inlineGuidanceHints li {
+  background: color-mix(in oklab, var(--ai) 13%, var(--surface-raised));
+  border: 1px solid color-mix(in oklab, var(--ai) 34%, var(--border));
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  padding: 0.35rem 0.6rem;
+}
+
+.inlineGuidanceNote {
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  line-height: 1.4;
+  margin: 0.7rem 0 0;
+}
+
+.guidanceCard {
+  background: color-mix(in oklab, var(--ai) 8%, var(--surface-raised));
+  border: 1px solid color-mix(in oklab, var(--ai) 38%, var(--border));
+  border-radius: 6px;
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.guidanceLabel {
+  color: var(--ai);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.guidanceMessage {
+  color: var(--text);
+  font-size: 0.94rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 70ch;
+}
+
+.guidanceSuggestions {
+  border-top: 1px solid color-mix(in oklab, var(--ai) 28%, var(--border));
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding-top: 0.7rem;
+}
+
+.guidanceSuggestions strong { font-size: 0.8rem; }
+
+.guidanceSuggestions ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  margin: 0.45rem 0 0;
+  padding-inline-start: 1.1rem;
+}
+
+.guidanceNote {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.guidedActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.choiceList {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.choiceItem {
+  min-width: 0;
+}
+
+.choiceItemNested {
+  margin-inline-start: 1.35rem;
+  position: relative;
+}
+
+.choiceItemNested::before {
+  border-left: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  content: "";
+  height: 1.2rem;
+  left: -0.75rem;
+  position: absolute;
+  top: -0.35rem;
+  width: 0.55rem;
+}
+
+.choiceCard {
+  align-items: flex-start;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 3.2rem;
+  padding: 0.8rem 0.85rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.choiceCard:hover {
+  border-color: var(--primary);
+}
+
+.choiceCard:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.choiceCardSelected {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-raised));
+  border-color: var(--primary);
+  border-left-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.choiceCard input {
+  accent-color: var(--primary);
+  height: 1.05rem;
+  margin: 0.25rem 0 0;
+  width: 1.05rem;
+}
+
+.choiceCopy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.choiceTitleRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.choiceTitleRow strong {
+  color: var(--text);
+  font-size: 0.96rem;
+  overflow-wrap: anywhere;
+}
+
+.choiceBadge {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+  border-radius: 999px;
+  color: var(--primary);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.4rem;
+  text-transform: uppercase;
+}
+
+.choiceMeta,
+.choiceDetails {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.choiceMeta {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.choiceDescription {
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.resolvedCard {
+  background: color-mix(in srgb, var(--success) 9%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--success) 38%, var(--border));
+  border-left: 4px solid var(--success);
+  border-radius: 6px;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.resolvedCard h3 {
+  color: var(--text);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.resolvedCard p {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 0.3rem 0 0;
+}
+
+.identitySummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.15rem;
+  margin: 0.8rem 0 0;
+}
+
+.identitySummary div {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 8rem;
+}
+
+.identitySummary dt {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.identitySummary dd {
+  color: var(--text);
+  font-size: 0.77rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.clarification {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+  padding: 0.9rem;
+}
+
+.clarificationHeading {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.clarificationHeading strong {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.clarificationHeading p {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.hintFields {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.manualCopy {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  margin: 0;
+  padding-top: 0.75rem;
+}
+
+.error {
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--danger) 42%, var(--border));
+  border-left: 4px solid var(--danger);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.8rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.actions button {
+  min-height: 2.7rem;
+}
+
+.warning {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  margin: 0.7rem 0 0;
+}
+
+@media (max-width: 560px) {
+  .hintFields {
+    grid-template-columns: 1fr;
+  }
+
+  .refinementChoice {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+  }
+
+  .refinementTrigger {
+    padding: 0.2rem;
+  }
+
+  .refinementSecondary {
+    justify-self: start;
+    min-height: 2.5rem;
+    margin-inline-start: 2.65rem;
+  }
+
+  .guidanceDialogTitle h2 {
+    font-size: 1.2rem;
+  }
+
+  .choiceItemNested {
+    margin-inline-start: 0.7rem;
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actions :global(.button) {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .choiceCard {
+    transition: none;
+  }
+}

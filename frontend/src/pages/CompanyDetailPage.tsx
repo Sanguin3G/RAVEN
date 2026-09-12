@@ -5,11 +5,20 @@ import { CompanyDossier } from "../components/dossier/CompanyDossier";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
 import { getCompanySources, getResearchRun, type ResearchRun, type SourceDocument } from "../api/research";
+import { getCompanyCoverage, type EvidenceCoverageResponse } from "../api/coverage";
 import { getCurrentCompanyProfile } from "../api/profiles";
 import { getCompanyProfileChanges, getCompanyProfileVersions, type ProfileChange } from "../api/profileTracking";
 import { getCompanyMonitoring, updateCompanyMonitoring, type CompanyMonitoring, type UpdateCompanyMonitoring } from "../api/monitoring";
 import type { Company } from "../types/company";
 import type { CompanyProfileVersion } from "../types/profile";
+import type { ResearchTarget } from "../api/coverage";
+
+const validResearchTargets: ResearchTarget[] = ["LegalIdentity", "TaxRegistration", "FoundedHistory", "Industry", "EmployeeScale", "ProductsServices", "Markets", "Leadership", "Locations"];
+
+function parseResearchTargets(value: string | null): ResearchTarget[] {
+  if (!value) return [];
+  return value.split(",").map((item) => item.trim()).filter((item): item is ResearchTarget => validResearchTargets.includes(item as ResearchTarget));
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(value));
@@ -34,7 +43,12 @@ export function CompanyDetailPage() {
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [monitoringSaving, setMonitoringSaving] = useState(false);
   const [monitoringError, setMonitoringError] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<EvidenceCoverageResponse | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(false);
+  const [coverageError, setCoverageError] = useState<string | null>(null);
   const researchRunId = searchParams.get("researchRun");
+  const improveRequested = searchParams.get("improve") === "true";
+  const improveTargets = parseResearchTargets(searchParams.get("targets"));
 
   useEffect(() => {
     if (!id) {
@@ -83,6 +97,18 @@ export function CompanyDetailPage() {
   useEffect(() => {
     if (!id) return;
     let active = true;
+    setCoverageLoading(true);
+    setCoverageError(null);
+    getCompanyCoverage(id)
+      .then((result) => { if (active) setCoverage(result); })
+      .catch((reason: unknown) => { if (active) setCoverageError(getApiErrorMessage(reason, "Could not load evidence coverage.")); })
+      .finally(() => { if (active) setCoverageLoading(false); });
+    return () => { active = false; };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
     setMonitoringLoading(true);
     setMonitoringError(null);
     getCompanyMonitoring(id)
@@ -106,6 +132,21 @@ export function CompanyDetailPage() {
       setMonitoringSaving(false);
     }
   };
+
+  async function handleProfileConfirmed(nextProfile: CompanyProfileVersion) {
+    if (!id) return;
+    setProfile(nextProfile);
+    setSources(await getCompanySources(id).catch(() => sources));
+    const [versions, changes, nextCoverage] = await Promise.all([
+      getCompanyProfileVersions(id).catch(() => profileVersions),
+      getCompanyProfileChanges(id).catch(() => profileChanges),
+      getCompanyCoverage(id).catch(() => coverage),
+    ]);
+    setProfileVersions(versions);
+    setProfileChanges(changes);
+    setCoverage(nextCoverage);
+    navigate(`/companies/${encodeURIComponent(id)}`, { replace: true });
+  }
 
   useEffect(() => {
     if (!id || !researchRunId) return;
@@ -150,6 +191,10 @@ export function CompanyDetailPage() {
         onUpdate: saveMonitoring,
         onResearchNow: () => navigate(`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`),
       } : null}
+      coverage={{ response: coverage, isLoading: coverageLoading, error: coverageError }}
+      openEnrichment={improveRequested}
+      initialEnrichmentTargets={improveTargets}
+      onProfileConfirmed={(nextProfile) => { void handleProfileConfirmed(nextProfile); }}
     />;
   }
 

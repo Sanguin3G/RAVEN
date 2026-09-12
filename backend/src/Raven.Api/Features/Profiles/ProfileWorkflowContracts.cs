@@ -20,6 +20,7 @@ public sealed record ConfirmCompanyProfileRequest(Guid CandidateId);
 public interface ICompanyProfileWorkflowService
 {
     Task<ProfileGenerationResponse?> GenerateAsync(Guid researchRunId, CancellationToken cancellationToken);
+    Task<CompanyProfileCandidate?> GetCandidateAsync(Guid researchRunId, CancellationToken cancellationToken);
     Task<CompanyProfileVersion?> ConfirmAsync(Guid researchRunId, Guid candidateId, CancellationToken cancellationToken);
     Task<CompanyProfileVersion?> GetCurrentAsync(Guid companyId, CancellationToken cancellationToken);
     Task<IReadOnlyList<CompanyProfileVersion>> ListVersionsAsync(Guid companyId, CancellationToken cancellationToken);

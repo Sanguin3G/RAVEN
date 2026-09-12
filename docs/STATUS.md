@@ -1,12 +1,15 @@
 # RAVEN Status
 
-Last updated: 2026-09-11
-Current branch: **main**
+Last updated: 2026-09-12
+Day 6 identity preflight: **PASS** on `feat/day6-identity-resolution`, ready for integration into `main`. The controlled live Gemini Prep v2 asks the model only for identity topology (`SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`); deterministic RAVEN policy derives workflow state. The probe classified FPT, Viettel, and Vingroup as family shorthand, specific company inputs as specific entities, and the deliberately obscure input as unknown. The initial workflow resolves identity before duplicate matching, Company creation, and discovery; resolved identity snapshots persist with the run. Explicit identifiers and accepted targeted-enrichment identity bypass identity AI. Ambiguous and collision results use a parent-first/choice workflow, while guided refinement is a dismissible modal that requests useful additional hints without creating a second search form. The legacy candidate-driven Day-5 grounding path remains only for stored-run compatibility and is intentionally deferred to Day 7 cleanup.
+Day 5.5 closure: **PASS** on `feat/day5-enrichment-workspace`. Execution telemetry, Resilient preset compatibility, run-scoped settings snapshots, workflow extraction, and Microsoft Edge smoke checks are complete. CSS ownership splitting remains intentionally deferred to avoid expanding the Day-6 preparation scope.
+Day-5 scope is preserved in the branch history: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are included in the Day-6 release.
+Current branch: **feat/day6-identity-resolution** (Day 6 PASS; merge to `main` is the release step)
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state
 
-The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence.
+The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence. Day 5 adds coverage-driven follow-up research, generic corporate-family planning with a cautious deterministic fallback, deliberate MaSoThue directory evidence, target-scoped profile patches, cancellable in-process background discovery, lifecycle safety, and the clarified Company workspace.
 
 ## Integrated
 
@@ -19,25 +22,35 @@ The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assi
 - Gemini structured-output provider behind `IAiModelProvider`; bounded profile input; deterministic profile/evidence validation; human confirmation; CompanyProfileVersion and ProfileEvidence persistence.
 - Safe ResearchEvent logging for search, crawl, parsing, profile, and confirmation activity.
 - React staged research workspace, Company dossier, source/evidence cards, fixed responsive sidebar, custom RAVEN logo/favicon, Phosphor core icons, status route, and Settings model controls.
-- AI identity grounding with Auto/Always/Off modes, persisted grounded identity candidates, user target selection, and deterministic fallback.
+- Pre-search identity resolution with explicit-identifier fast paths, topology-only model assistance, deterministic status policy, clarification/manual exact-name paths, and bounded resolved-identity run snapshots.
 - AI semantic source reranking with short user-facing relevance reasons; deterministic classification remains the fallback.
 - Persistent research settings for grounding, profile/deep model roles, reranking, and provider priorities/presets.
 - Manual research refresh, immutable profile history, deterministic ProfileChange records, and the Changes workspace.
 - Exa Search, Firecrawl Search/Crawl, and Exa Contents retrieval through neutral provider interfaces and retryable-only fallback routing.
 - Company monitoring settings and one in-process worker. Scheduled research creates a profile candidate ready for human review; it never confirms a profile automatically.
 - Bounded Microsoft Agent Framework Deep Research runs with read-only tools, persisted safe activity, and saved research artifacts that cannot mutate a Company Profile.
+- Coverage levels and ResearchTargets drive bounded follow-up research. Recommended roots remain complementary; one approved official root may yield several bounded same-domain documents.
+- Corporate-family discovery, coverage-aware source selection, target-aware official-site planning, and MaSoThue parsing as a BusinessDirectory rather than an official registry.
+- Targeted enrichment and server-owned ProfilePatch confirmation preserve every unrelated accepted profile field.
+- Background research start, cancellation, and active-run listing are available through an in-process queue; queued work is deliberately not durable across an API restart.
+- The latest server-owned profile candidate is available by research run for review without treating it as accepted profile truth.
+- Company health, deterministic duplicate review, archive/restore, permanent-delete confirmation, and transactional merge preview/confirmation.
+- Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. Ask RAVEN is a responsive right dock that remains an integration-pending frontend boundary until Hung's backend contract is published.
 
 ## Verified checks
 
 Latest local integration check:
 
 ```text
-dotnet test Raven.sln --no-build      197 passed
-npm test -- --run                     33 passed
+dotnet build Raven.sln --no-restore   passed
+dotnet test Raven.sln --no-restore    276 passed
+npm test -- --run                    46 passed across 11 files
 npm run build                         passed
 ```
 
-Microsoft Edge/Playwright verified the desktop Settings provider presets and persistence, collapsed sidebar, 390×844 mobile drawer and Escape dismissal. The API smoke test applied all migrations to a temporary SQLite database, returned 200 for `/health` and OpenAPI, and correctly rejected an unknown-company Deep Research request. No paid provider call was made. Live discovery and acquisition were previously exercised with well-known Vietnamese companies; one Crawl4AI timeout surfaced as a truthful per-source failure without failing the run.
+Microsoft Edge/Playwright verified the Day-6 identity flow with deterministic fixtures and the live Viettel ambiguity response: parent-first family choices, specific-company continuation, clarification/manual exact-name paths, duplicate review, and the responsive guided-help dialog. At 390×844 the choice card and dialog remain within the viewport; the dialog can be minimized and reopened without losing the original choices. The API smoke test applied all migrations to a temporary SQLite database, returned 200 for `/health` and OpenAPI, and correctly rejected an unknown-company Deep Research request. No paid provider call was made by automated tests. Live discovery and acquisition were previously exercised with well-known Vietnamese companies; one Crawl4AI timeout surfaced as a truthful per-source failure without failing the run.
+
+The legacy Day-5 candidate-driven family path remains available for stored-run compatibility and is not used by the new initial identity preflight. Day 7 owns its deletion and downstream search simplification.
 
 ## Provider status
 
@@ -57,10 +70,9 @@ Microsoft Edge/Playwright verified the desktop Settings provider presets and per
 ## Deliberately not implemented
 
 - Source chunks, embeddings, vector retrieval, and RAG.
-- RAG, SourceChunk/embeddings, real Ask RAVEN answers, and conversation persistence/UI.
 - MCP, Crawl4AI Cloud, full monitoring operations, and arbitrary profile-version comparisons.
-- Deep Research cancellation and a user-facing assistant panel; Hung's UI can consume the stable backend contract.
+- Hung's Ask RAVEN backend, conversation persistence, Quick Ask orchestration, and prompt/context contract. The Day-5 dock deliberately does not fabricate messages while that handoff is unavailable.
 
 ## Next integration point
 
-Keep the Day-4 branch separate until review, then integrate the backend handoff for Hung's company-scoped assistant. Preserve Company ID, SourceDocument/SourceKind, CompanyProfileVersion/ProfileEvidence, DeepResearchRun activity, SavedResearchArtifact, and Company workspace boundaries.
+Consume Hung's actual Ask RAVEN backend contract through the frontend adapter boundary when it is published. Preserve Company ID, SourceDocument/SourceKind, CompanyProfileVersion/ProfileEvidence, DeepResearchRun activity, SavedResearchArtifact, and Company workspace boundaries.

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Raven.Api.Features.Research.Events;
+using Raven.Api.Features.Research.Identity;
 
 namespace Raven.Api.Features.Research;
 
@@ -6,12 +8,27 @@ public static class ResearchEndpoints
 {
     public static IEndpointRouteBuilder MapResearchEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapPost("/api/research/identity/resolve", ResolveIdentityAsync)
+            .WithTags("Research Identity")
+            .WithName("ResolveCompanyIdentity")
+            .WithSummary("Resolve a company identity before public-source research")
+            .WithDescription("Uses explicit identity hints or one bounded knowledge call. It never searches or crawls.")
+            .Produces<IdentityResolutionResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
         app.MapPost("/api/companies/{companyId:guid}/research/discover", DiscoverResearchAsync)
             .WithTags("Research")
             .WithName("DiscoverCompanyResearch")
             .WithSummary("Discover and classify public source candidates for a company")
             .WithDescription("Runs bounded deterministic discovery and leaves the run waiting for human source selection.")
             .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/companies/{companyId:guid}/research/start", StartBackgroundResearchAsync)
+            .WithTags("Research")
+            .WithName("StartBackgroundCompanyResearch")
+            .WithSummary("Start bounded research in the background")
+            .Produces<ResearchRunResponse>(StatusCodes.Status202Accepted)
             .Produces(StatusCodes.Status404NotFound);
 
         app.MapPost("/api/companies/{companyId:guid}/research", ResearchCompanyAsync)
@@ -27,6 +44,24 @@ public static class ResearchEndpoints
             .WithName("GetResearchRun")
             .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/research-runs/{researchRunId:guid}/execution", GetResearchExecutionAsync)
+            .WithTags("Research")
+            .WithName("GetResearchExecution")
+            .WithSummary("Get developer-facing execution telemetry and run summary")
+            .Produces<ResearchExecutionResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/research-runs/{researchRunId:guid}/cancel", CancelResearchAsync)
+            .WithTags("Research")
+            .WithName("CancelResearchRun")
+            .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/research-runs/active", ListActiveResearchAsync)
+            .WithTags("Research")
+            .WithName("ListActiveResearchRuns")
+            .Produces<ActiveResearchRunResponse[]>(StatusCodes.Status200OK);
 
         app.MapGet("/api/companies/{companyId:guid}/research-runs", ListResearchRunsAsync)
             .WithTags("Research")
@@ -86,6 +121,17 @@ public static class ResearchEndpoints
         return app;
     }
 
+    private static async Task<Results<Ok<IdentityResolutionResponse>, ValidationProblem>> ResolveIdentityAsync(
+        IdentityResolutionRequest? request,
+        IIdentityResolutionService identity,
+        CancellationToken cancellationToken)
+    {
+        var result = await identity.ResolveAsync(request, cancellationToken);
+        return result.IsValid
+            ? TypedResults.Ok(result.Response!)
+            : TypedResults.ValidationProblem(result.ValidationErrors);
+    }
+
     private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> DiscoverResearchAsync(
         Guid companyId,
         DiscoverResearchRequest? request,
@@ -95,6 +141,35 @@ public static class ResearchEndpoints
         var run = await research.DiscoverAsync(companyId, request, cancellationToken);
         return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
     }
+
+    private static async Task<Results<Accepted<ResearchRunResponse>, NotFound>> StartBackgroundResearchAsync(
+        Guid companyId,
+        DiscoverResearchRequest? request,
+        IResearchCompanyService research,
+        IResearchRunBackgroundQueue queue,
+        CancellationToken cancellationToken)
+    {
+        var run = await research.CreateQueuedRunAsync(companyId, request, cancellationToken);
+        if (run is null) return TypedResults.NotFound();
+        await queue.EnqueueAsync(run.Id, companyId, request ?? new DiscoverResearchRequest(), cancellationToken);
+        return TypedResults.Accepted($"/api/research-runs/{run.Id}", run);
+    }
+
+    private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> CancelResearchAsync(
+        Guid researchRunId,
+        IResearchCompanyService research,
+        IResearchRunBackgroundQueue queue,
+        CancellationToken cancellationToken)
+    {
+        queue.Cancel(researchRunId);
+        var run = await research.CancelAsync(researchRunId, cancellationToken);
+        return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+    }
+
+    private static async Task<Ok<ActiveResearchRunResponse[]>> ListActiveResearchAsync(
+        IResearchCompanyService research,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok((await research.ListActiveRunsAsync(cancellationToken)).ToArray());
 
     private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> ResearchCompanyAsync(
         Guid companyId,
@@ -122,6 +197,15 @@ public static class ResearchEndpoints
     {
         var run = await research.GetRunAsync(researchRunId, cancellationToken);
         return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+    }
+
+    private static async Task<Results<Ok<ResearchExecutionResponse>, NotFound>> GetResearchExecutionAsync(
+        Guid researchRunId,
+        IResearchExecutionService execution,
+        CancellationToken cancellationToken)
+    {
+        var result = await execution.GetAsync(researchRunId, cancellationToken);
+        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
     }
 
     private static async Task<Ok<ResearchRunResponse[]>> ListResearchRunsAsync(

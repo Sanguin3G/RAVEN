@@ -10,7 +10,8 @@ namespace Raven.Api.Features.Research.Routing;
 /// </summary>
 public sealed class RoutingCrawlerProvider(
     IProviderCatalog<ICrawlerProvider> catalog,
-    IResearchSettingsService settings) : ICrawlerProvider, IProviderRouteDiagnostics
+    IResearchSettingsService settings,
+    IResearchRunConfigurationSnapshot? configuration = null) : ICrawlerProvider, IProviderRouteDiagnostics
 {
     public const string ProviderId = "routing-crawler";
 
@@ -38,7 +39,7 @@ public sealed class RoutingCrawlerProvider(
                 DateTimeOffset.UtcNow);
         }
 
-        var priorities = (await settings.GetAsync(cancellationToken)).CrawlerProviderPriority;
+        var priorities = (await (configuration ?? new ResearchRunConfigurationSnapshot()).GetOrLoadAsync(settings, cancellationToken)).CrawlerProviderPriority;
         var providers = ResolveProviders(priorities);
         if (providers.Count == 0)
         {

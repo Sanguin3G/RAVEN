@@ -138,7 +138,8 @@ public sealed class CompanyService(RavenDbContext dbContext) : ICompanyService
             company.LegalName,
             company.RegistrationNumber,
             company.Headquarters,
-            company.LastResearchedAt);
+            company.LastResearchedAt,
+            company.ArchivedAt);
 
     private static string? NormalizeOptionalValue(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

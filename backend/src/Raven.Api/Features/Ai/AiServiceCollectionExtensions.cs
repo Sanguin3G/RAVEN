@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Raven.Api.Features.Research.Events;
 
 namespace Raven.Api.Features.Ai;
 
@@ -39,8 +40,10 @@ public static class AiServiceCollectionExtensions
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds));
         });
-        services.AddScoped<IAiModelProvider>(serviceProvider =>
-            serviceProvider.GetRequiredService<GeminiProvider>());
+        services.AddScoped<IAiModelProvider>(serviceProvider => new InstrumentedAiModelProvider(
+            serviceProvider.GetRequiredService<GeminiProvider>(),
+            serviceProvider.GetRequiredService<IResearchEventWriter>(),
+            serviceProvider.GetRequiredService<IResearchExecutionContext>()));
         services.AddSingleton<IRuntimeModelPreferences, RuntimeModelPreferences>();
 
         return services;

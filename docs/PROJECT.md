@@ -7,7 +7,8 @@ Organizations research prospective companies across scattered public sources, th
 ## Core user flow
 
 ```text
-Company identity and research hints
+Identity preflight and research hints
+→ resolve or clarify the intended organization
 → find likely duplicate or create separately
 → discover public sources
 → researcher selects sources
@@ -31,10 +32,12 @@ RAVEN currently supports:
 - TopCV, LinkedIn, business-registry, official-document, news, and external-source classification;
 - structured Gemini profile candidates, deterministic evidence-reference validation, and explicit confirmation;
 - immutable Company Profile versions, ProfileEvidence, SourceDocuments, and research events;
-- a React Company workspace with dossier, Sources, Research, profile-history/Changes views, and an Ask RAVEN handoff placeholder.
-- AI-assisted external identity grounding and source relevance with deterministic fallback.
+- a React Company workspace with Overview, Sources, Investigations, Changes, and Monitoring; Ask RAVEN is a company-scoped dock, not a dossier tab.
+- topology-only Gemini identity assistance with deterministic workflow policy, explicit-identifier fast paths, clarification, and source relevance with deterministic fallback.
 - persistent research settings, manual refresh, profile history, deterministic changes, and review-only monitoring.
 - neutral Exa and Firecrawl provider adapters plus bounded Deep Research and saved investigation backend contracts.
+- coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
+- cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, parent-first corporate-family choices, and a guided clarification path for weak or unknown identities.
 
 ## Company Profile
 
@@ -51,10 +54,10 @@ SQLite persistence     Profile versions
 Research activity      Human review and confirmation
 ```
 
-### P1 — delivered in Day 4
+### P1 — delivered in Days 4–6
 
 ```text
-AI grounding           Source relevance
+Identity preflight     Source relevance
 Profile refresh        Change detection
 Provider routing       Monitoring
 Bounded Deep Research  Saved investigations

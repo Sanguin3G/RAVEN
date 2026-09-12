@@ -50,16 +50,27 @@ public sealed class SourceClassifier : ISourceClassifier
         "nytimes.com"
     };
 
-    private static readonly string[] RegistryHostSignals =
+    // Keep official registry hosts explicit. A .gov.vn host by itself is not
+    // enough to establish that the page is a business registry (government
+    // sites also publish news, guidance, and unrelated services).
+    private static readonly string[] OfficialBusinessRegistryHosts =
+    [
+        "gdt.gov.vn",
+        "dkkd.gov.vn",
+        "dangkykinhdoanh.gov.vn",
+        "businessregistration.gov.vn"
+    ];
+
+    private static readonly string[] BusinessDirectoryHostSignals =
     [
         "masothue",
-        "dangkykinhdoanh",
         "businessregistration",
         "business-registry",
         "companyregistry",
         "company-register",
         "thongtincongty",
-        "gdt.gov.vn"
+        "infodoanhnghiep",
+        "hosocongty"
     ];
 
     private static readonly string[] RegistryTextSignals =
@@ -129,12 +140,15 @@ public sealed class SourceClassifier : ISourceClassifier
                 "LinkedIn is a useful supporting source for company identity and public presence.");
         }
 
-        if ((domain is not null && HasRegistryHostSignal(domain)) || HasAnySignal(text, RegistryTextSignals))
+        if (domain is not null && IsOfficialBusinessRegistryDomain(domain))
         {
-            return Result(SourceKind.BusinessRegistry, domain,
-                "Business-registry sources are especially useful for legal identity and registered address.");
+            return Result(SourceKind.OfficialBusinessRegistry, domain,
+                "This is a government business or tax registry and is the strongest source for registered company facts.");
         }
 
+        // Official identity always wins over text signals. An official company
+        // page may mention a tax ID or registration without becoming a registry
+        // record itself.
         if (isOfficial && IsOfficialDocument(input.Url, input.Title, input.Snippet))
         {
             return Result(SourceKind.OfficialDocument, domain,
@@ -145,6 +159,14 @@ public sealed class SourceClassifier : ISourceClassifier
         {
             return Result(SourceKind.OfficialWebsite, domain,
                 "This page is on the identified official company domain.");
+        }
+
+        if ((domain is not null && HasBusinessDirectoryHostSignal(domain)) || HasAnySignal(text, RegistryTextSignals))
+        {
+            var reason = domain is not null && IsMaSoThueDomain(domain)
+                ? "MaSoThue is a third-party business directory that can corroborate tax and registered-company facts; it is not an official government registry."
+                : "A third-party business directory can corroborate legal identity and registered address, but does not have government-registry authority.";
+            return Result(SourceKind.BusinessDirectory, domain, reason);
         }
 
         if ((domain is not null && NewsHosts.Any(host => IsSameOrChildDomain(domain, host))) ||
@@ -209,8 +231,14 @@ public sealed class SourceClassifier : ISourceClassifier
     private static bool IsLinkedInDomain(string domain) =>
         IsSameOrChildDomain(domain, "linkedin.com") || IsSameOrChildDomain(domain, "lnkd.in");
 
-    private static bool HasRegistryHostSignal(string domain) =>
-        RegistryHostSignals.Any(signal => domain.Contains(signal, StringComparison.OrdinalIgnoreCase));
+    private static bool IsOfficialBusinessRegistryDomain(string domain) =>
+        OfficialBusinessRegistryHosts.Any(host => IsSameOrChildDomain(domain, host));
+
+    private static bool HasBusinessDirectoryHostSignal(string domain) =>
+        BusinessDirectoryHostSignals.Any(signal => domain.Contains(signal, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsMaSoThueDomain(string domain) =>
+        IsSameOrChildDomain(domain, "masothue.com");
 
     private static bool HasAnySignal(string text, IEnumerable<string> signals) =>
         signals.Any(text.Contains);

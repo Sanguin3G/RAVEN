@@ -1,23 +1,26 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { ChatCircleDots, Sparkle } from "@phosphor-icons/react";
 import styles from "./dossier.module.css";
-import { AskRavenHandoff } from "./AskRavenHandoff";
 import { CompanyChangesTab } from "./CompanyChangesTab";
+import { AskRavenHandoff } from "./AskRavenHandoff";
 import { CompanyIdentityHeader } from "./CompanyIdentityHeader";
+import { CompanyInvestigationsTab } from "./CompanyInvestigationsTab";
+import { CompanyMonitoringTab } from "./CompanyMonitoringTab";
 import { CompanyOverview } from "./CompanyOverview";
-import { CompanyResearchTab } from "./CompanyResearchTab";
 import { CompanySourcesTab } from "./CompanySourcesTab";
 import type { CompanyDossierProps, DossierTab } from "./dossierTypes";
 
 const tabs: Array<{ id: DossierTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "sources", label: "Sources" },
-  { id: "research", label: "Research" },
+  { id: "investigations", label: "Investigations" },
   { id: "changes", label: "Changes" },
-  { id: "ask", label: "Ask RAVEN" },
+  { id: "monitoring", label: "Monitoring" },
 ];
 
-export function CompanyDossier({ company, profile, sources, research, tracking, monitoring, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
+export function CompanyDossier({ company, profile, sources, research, tracking, monitoring, coverage, investigations, initialEnrichmentTargets, openEnrichment, onProfileConfirmed, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
   const [internalTab, setInternalTab] = useState<DossierTab>(initialTab);
+  const [assistantCollapsed, setAssistantCollapsed] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const idPrefix = useId();
   const selectedTab = activeTab ?? internalTab;
@@ -43,7 +46,8 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
   const tabPanelId = `${idPrefix}-panel-${selectedTab}`;
 
   return (
-    <div className={styles.workspace} data-testid="company-dossier">
+    <div className={`${styles.workspaceShell} ${assistantCollapsed ? styles.workspaceShellCollapsed : ""}`} data-testid="company-dossier">
+    <div className={styles.workspace}>
       <CompanyIdentityHeader company={company} profile={profile} />
       <div className={styles.tabList} role="tablist" aria-label={`${company.displayName} dossier sections`}>
         {tabs.map((tab, index) => {
@@ -53,12 +57,20 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
         })}
       </div>
       <div aria-labelledby={`${idPrefix}-tab-${selectedTab}`} className={styles.tabPanel} id={tabPanelId} role="tabpanel" tabIndex={0}>
-        {selectedTab === "overview" && <CompanyOverview company={company} profile={profile} />}
+        {selectedTab === "overview" && <CompanyOverview company={company} profile={profile} coverage={coverage} initialEnrichmentTargets={initialEnrichmentTargets} openEnrichment={openEnrichment} onProfileConfirmed={onProfileConfirmed} />}
         {selectedTab === "sources" && <CompanySourcesTab sources={sources} />}
-        {selectedTab === "research" && <CompanyResearchTab companyName={company.displayName} monitoring={monitoring} research={research} />}
+        {selectedTab === "investigations" && <CompanyInvestigationsTab companyId={company.id} investigations={investigations} />}
         {selectedTab === "changes" && <CompanyChangesTab tracking={tracking} />}
-        {selectedTab === "ask" && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
+        {selectedTab === "monitoring" && <CompanyMonitoringTab companyName={company.displayName} monitoring={monitoring} research={research} />}
       </div>
+    </div>
+    <aside className={styles.assistantDock} aria-label="Ask RAVEN assistant">
+      <button className={styles.assistantToggle} type="button" onClick={() => setAssistantCollapsed((value) => !value)} aria-expanded={!assistantCollapsed}>
+        {assistantCollapsed ? <ChatCircleDots size={18} weight="fill" aria-hidden="true" /> : <Sparkle size={17} weight="fill" aria-hidden="true" />}
+        <span>{assistantCollapsed ? "Ask RAVEN" : "Collapse assistant"}</span>
+      </button>
+      {!assistantCollapsed && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
+    </aside>
     </div>
   );
 }

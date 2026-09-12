@@ -136,6 +136,48 @@ public sealed class IdentityGroundingTests
     }
 
     [Fact]
+    public async Task Resolver_keeps_distinct_entities_when_the_top_level_recommendation_is_unknown()
+    {
+        var provider = new FakeAiModelProvider(Json("""
+            {
+              "ambiguous": false,
+              "recommendedTemporaryId": "FPT Corporation",
+              "entities": [
+                {
+                  "temporaryId": "fpt-corporation",
+                  "displayName": "FPT Corporation",
+                  "website": "https://fpt.com",
+                  "officialDomain": "fpt.com",
+                  "entityType": "parent_group",
+                  "confidence": "high",
+                  "supportingCandidateIds": ["11111111-1111-1111-1111-111111111111"],
+                  "recommended": false
+                },
+                {
+                  "temporaryId": "fpt-software",
+                  "displayName": "FPT Software",
+                  "website": "https://fptsoftware.com",
+                  "officialDomain": "fptsoftware.com",
+                  "entityType": "subsidiary",
+                  "confidence": "high",
+                  "supportingCandidateIds": ["11111111-1111-1111-1111-111111111111"],
+                  "recommended": false
+                }
+              ]
+            }
+            """));
+        var resolver = new GeminiCompanyIdentityResolver(provider);
+
+        var result = await resolver.ResolveAsync(RequestWithCandidates());
+
+        Assert.Null(result.Failure);
+        Assert.True(result.Ambiguous);
+        Assert.Null(result.RecommendedTemporaryId);
+        Assert.Equal(2, result.Entities.Count);
+        Assert.Contains("no usable default", result.Warning, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Resolver_returns_provider_failure_for_unavailable_model()
     {
         var provider = new FakeAiModelProvider(

@@ -9,6 +9,8 @@ namespace Raven.Api.Features.Research.Events;
 /// </summary>
 public sealed record ResearchEvent
 {
+    public const string LegacyOperation = "legacy";
+
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid? ResearchRunId { get; init; }
     public Guid? ConversationId { get; init; }
@@ -17,6 +19,12 @@ public sealed record ResearchEvent
     public long? DurationMs { get; init; }
     public ResearchStage? Stage { get; init; }
     public ResearchEventCategory Category { get; init; }
+    /// <summary>
+    /// Stable operation purpose, independent of lifecycle status. Existing rows
+    /// are retained with <c>legacy</c> and are interpreted from their category by
+    /// the execution read model.
+    /// </summary>
+    public string Operation { get; init; } = LegacyOperation;
     public ResearchEventStatus Status { get; init; }
     public string? Provider { get; init; }
     public string? Model { get; init; }
@@ -28,6 +36,7 @@ public sealed record ResearchEvent
     public int? InputTokens { get; init; }
     public int? OutputTokens { get; init; }
     public int? CachedTokens { get; init; }
+    public int? ThinkingTokens { get; init; }
     public decimal? EstimatedCost { get; init; }
     public string? PromptTemplateVersion { get; init; }
     public string? InputHash { get; init; }
@@ -42,6 +51,21 @@ public sealed record ResearchEvent
 /// </summary>
 public enum ResearchEventCategory
 {
+    // Canonical execution categories. Lifecycle is represented by Status and
+    // operation purpose by Operation; these values are intentionally stable.
+    Search,
+    Crawl,
+    AI,
+    Tool,
+    Parsing,
+    Identity,
+    Profile,
+    Research,
+    Monitoring,
+
+    // Legacy names remain readable so existing ResearchEvents can be loaded
+    // after the vocabulary cleanup. New execution telemetry should use one of
+    // the canonical values above and a bounded Operation.
     SearchRequested,
     SearchCompleted,
     CandidateDiscovery,
@@ -95,6 +119,7 @@ public sealed record ResearchEventDraft
     public long? DurationMs { get; init; }
     public ResearchStage? Stage { get; init; }
     public ResearchEventCategory Category { get; init; }
+    public string Operation { get; init; } = ResearchEvent.LegacyOperation;
     public ResearchEventStatus Status { get; init; }
     public string? Provider { get; init; }
     public string? Model { get; init; }
@@ -106,6 +131,7 @@ public sealed record ResearchEventDraft
     public int? InputTokens { get; init; }
     public int? OutputTokens { get; init; }
     public int? CachedTokens { get; init; }
+    public int? ThinkingTokens { get; init; }
     public decimal? EstimatedCost { get; init; }
     public string? PromptTemplateVersion { get; init; }
     public string? InputHash { get; init; }

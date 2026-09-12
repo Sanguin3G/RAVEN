@@ -11,6 +11,9 @@ using Raven.Api.Features.Firecrawl;
 using Raven.Api.Features.Search.Exa;
 using Raven.Api.Features.Crawling.Exa;
 using Raven.Api.Features.Research.Routing;
+using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Research.Planning;
+using Raven.Api.Features.Research.Identity;
 
 namespace Raven.Api.Features.Research;
 
@@ -86,13 +89,33 @@ public static class ResearchDiscoveryServiceCollectionExtensions
             serviceProvider.GetRequiredService<FirecrawlCrawlerProvider>(),
             serviceProvider.GetRequiredService<ExaCrawlerProvider>()
         ]));
-        services.AddScoped<ISearchProvider, RoutingSearchProvider>();
-        services.AddScoped<ICrawlerProvider, RoutingCrawlerProvider>();
+        services.AddScoped<IResearchExecutionContext, ResearchExecutionContext>();
+        services.AddScoped<RoutingSearchProvider>();
+        services.AddScoped<ISearchProvider>(serviceProvider => new InstrumentedSearchProvider(
+            serviceProvider.GetRequiredService<RoutingSearchProvider>(),
+            serviceProvider.GetRequiredService<IResearchEventWriter>(),
+            serviceProvider.GetRequiredService<IResearchExecutionContext>()));
+        services.AddScoped<RoutingCrawlerProvider>();
+        services.AddScoped<ICrawlerProvider>(serviceProvider => new InstrumentedCrawlerProvider(
+            serviceProvider.GetRequiredService<RoutingCrawlerProvider>(),
+            serviceProvider.GetRequiredService<IResearchEventWriter>(),
+            serviceProvider.GetRequiredService<IResearchExecutionContext>()));
         services.AddSingleton<SourceUrlNormalizer>();
         services.AddSingleton<SourceCandidateSelector>();
         services.AddSingleton<ISourceClassifier, SourceClassifier>();
         services.AddSingleton<ISourceAuthorityPolicy, SourceAuthorityPolicy>();
+        services.AddSingleton<CoverageAwareSourceSelector>();
+        services.AddSingleton<IEvidenceCoverageEvaluator, EvidenceCoverageEvaluator>();
+        services.AddSingleton<TargetedQueryPlanner>();
+        services.AddSingleton<OfficialSiteEvidencePlanner>();
+        services.AddSingleton<CorporateFamilyDiscoveryPlanner>();
+        services.AddSingleton<DeterministicIdentityFamilyBuilder>();
         services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
+        services.AddSingleton<IdentityResolutionPolicy>();
+        services.AddScoped<IIdentityKnowledgeResolver, GeminiKnowledgeIdentityResolver>();
+        services.AddScoped<IIdentityResolutionService, IdentityResolutionService>();
+        services.AddScoped<IResearchRunConfigurationSnapshot, ResearchRunConfigurationSnapshot>();
+        services.AddScoped<IResearchExecutionService, ResearchExecutionService>();
         services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(
             serviceProvider.GetRequiredService<IAiModelProvider>(),
             researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));

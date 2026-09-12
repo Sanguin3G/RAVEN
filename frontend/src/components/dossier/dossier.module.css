@@ -1,3 +1,14 @@
+.workspaceShell {
+  align-items: start;
+  display: grid;
+  gap: var(--dossier-gap, 1.25rem);
+  grid-template-columns: minmax(0, 1fr) clamp(21rem, 27vw, 30rem);
+}
+
+.workspaceShellCollapsed {
+  grid-template-columns: minmax(0, 1fr) 3.1rem;
+}
+
 .workspace {
   --dossier-gap: clamp(0.8rem, 1.8vw, 1.25rem);
   display: grid;
@@ -299,6 +310,340 @@
   margin-bottom: 0.8rem;
 }
 
+.assistantDock {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+}
+
+.assistantToggle {
+  align-items: center;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--ai) 18%, var(--surface-raised)), var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 52%, var(--border));
+  border-radius: 0.65rem;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ai) 14%, transparent);
+  color: var(--ai);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+  min-height: 2.5rem;
+  padding: 0.45rem;
+}
+.assistantToggle:hover, .assistantToggle:focus-visible { border-color: var(--ai); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ai) 17%, transparent); }
+.workspaceShellCollapsed .assistantToggle { justify-content: center; min-height: 3rem; padding: 0.45rem 0.3rem; }
+.workspaceShellCollapsed .assistantToggle span { display: none; }
+
+.coveragePanel {
+  background: linear-gradient(to bottom, var(--surface-raised), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 2px 5px var(--shadow);
+  min-width: 0;
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.coveragePanelCompact {
+  box-shadow: none;
+}
+
+.coverageHeader {
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.6rem;
+}
+
+.coverageHeader h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.coverageBudget {
+  border: 1px solid var(--warning);
+  border-radius: 4px;
+  color: var(--warning);
+  font-size: 0.67rem;
+  font-weight: 900;
+  padding: 0.25rem 0.4rem;
+  white-space: nowrap;
+}
+
+.coverageIntro {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin: 0 0 0.8rem;
+}
+
+.coverageList {
+  display: grid;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.coverageItem {
+  align-items: center;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.coverageLevel {
+  font-size: 0.95rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.coverageLevelStrong { color: var(--success); }
+.coverageLevelSupported { color: var(--info); }
+.coverageLevelWeak { color: var(--warning); }
+.coverageLevelMissing { color: var(--border-strong); }
+
+.coverageLabel {
+  color: var(--text);
+  font-size: 0.77rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.coverageValue {
+  display: grid;
+  gap: 0.05rem;
+  justify-items: end;
+  text-align: right;
+}
+
+.coverageValue strong {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+.coverageValue small {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.coverageActions {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+  padding-top: 0.75rem;
+}
+
+.coverageAction {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.35rem 0.5rem;
+}
+
+.coverageAction:hover {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface-raised));
+}
+
+.enrichmentDialog {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 1rem 4rem color-mix(in srgb, var(--shadow) 72%, transparent);
+  color: var(--text);
+  max-height: min(92vh, 58rem);
+  max-width: min(72rem, calc(100vw - 2rem));
+  padding: 0;
+  width: 100%;
+}
+
+.enrichmentDialog::backdrop {
+  background: color-mix(in srgb, var(--text) 42%, transparent);
+}
+
+.enrichmentDialogBody {
+  display: grid;
+  gap: 1rem;
+  max-height: min(92vh, 58rem);
+  overflow: auto;
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.enrichmentHeader {
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.enrichmentHeader h2 {
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  margin: 0.2rem 0 0.35rem;
+}
+
+.enrichmentSection {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.enrichmentSection h3,
+.enrichmentSection h4 {
+  margin: 0;
+}
+
+.targetGrid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.targetOption {
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.7rem;
+}
+
+.targetOption:has(input:checked) {
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface-raised));
+  border-color: var(--primary);
+}
+
+.targetOption span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.targetOption strong {
+  font-size: 0.8rem;
+}
+
+.targetOption small {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.enrichmentProgress {
+  border-left: 3px solid var(--primary);
+  color: var(--text-muted);
+  padding: 0.6rem 0.75rem;
+}
+
+.enrichmentCandidateGrid,
+.enrichmentEvidenceGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+}
+
+.patchList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.patchChange {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ai);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.patchChange h4 {
+  font-size: 0.85rem;
+  margin-bottom: 0.65rem;
+}
+
+.patchChange dl {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  margin: 0;
+}
+
+.patchChange dl div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.patchChange dt {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.patchChange dd {
+  font-size: 0.78rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.patchEvidence {
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin: 0.7rem 0 0;
+  padding-top: 0.55rem;
+}
+
+.unchangedPanel {
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--success) 36%, var(--border));
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.unchangedPanel h4 {
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.unchangedPanel p {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.enrichmentWarnings {
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  border-left: 3px solid var(--warning);
+  padding: 0.7rem 0.8rem;
+}
+
+.enrichmentWarnings h4 {
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.enrichmentWarnings ul {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
 .contextList,
 .identifierList {
   display: grid;
@@ -343,6 +688,81 @@
   display: grid;
   gap: 0.8rem;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.investigationList {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.investigationCard {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ai);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem;
+}
+
+.investigationMeta,
+.investigationFooter {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.68rem;
+  gap: 0.55rem 0.8rem;
+  justify-content: space-between;
+}
+
+.investigationType {
+  color: var(--ai);
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.investigationCard h3 {
+  font-size: 0.96rem;
+  margin: 0;
+}
+
+.investigationQuestion {
+  font-size: 0.79rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.investigationQuestion strong {
+  color: var(--text);
+}
+
+.investigationDetails {
+  border-top: 1px solid var(--border);
+  font-size: 0.79rem;
+  padding-top: 0.55rem;
+}
+
+.investigationDetails summary {
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.investigationResult {
+  color: var(--text);
+  line-height: 1.6;
+  margin-top: 0.6rem;
+  max-width: 80ch;
+  white-space: pre-wrap;
+}
+
+.investigationFooter {
+  border-top: 1px solid var(--border);
+  justify-content: flex-start;
+  padding-top: 0.55rem;
 }
 
 .emptyState {
@@ -498,6 +918,12 @@
   gap: 0.85rem;
 }
 
+.handoffTitle {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
 .aiMark {
   align-items: center;
   background: color-mix(in srgb, var(--ai) 19%, var(--surface-raised));
@@ -516,6 +942,18 @@
 
 .handoff h2 {
   margin: 0;
+}
+
+.handoffStatus {
+  align-self: start;
+  border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
+  border-radius: 999px;
+  color: var(--warning);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.18rem 0.45rem;
+  width: fit-content;
 }
 
 .handoff p {
@@ -555,6 +993,224 @@
   overflow-wrap: anywhere;
 }
 
+.assistantCompanyContext {
+  border: 1px solid color-mix(in srgb, var(--ai) 32%, var(--border));
+  border-radius: 4px;
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.9rem;
+  padding: 0.65rem 0.7rem;
+}
+
+.assistantCompanyContext strong {
+  color: var(--text);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.assistantCompanyContext span,
+.assistantComposerFooter span,
+.assistantFootnote {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.assistantModes {
+  border: 0;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+  padding: 0;
+}
+
+.assistantMode {
+  align-items: start;
+  background: color-mix(in srgb, var(--surface-raised) 80%, var(--surface-muted));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.6rem;
+  text-align: start;
+}
+
+.assistantMode:hover,
+.assistantMode:focus-visible {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.assistantModeActive,
+.assistantModeActiveDeep {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface-raised));
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.assistantModeActiveDeep {
+  background: color-mix(in srgb, var(--ai) 11%, var(--surface-raised));
+  border-color: var(--ai);
+  color: var(--ai);
+}
+
+.assistantMode span {
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.assistantMode small {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.assistantModeIntro {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.75rem;
+}
+
+.assistantModeIntro strong {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.assistantModeIntro span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.assistantComposer {
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  padding: 0.65rem;
+}
+
+.assistantComposer label {
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.assistantComposer textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  min-height: 4.3rem;
+  padding: 0.55rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.assistantComposer textarea:focus-visible {
+  border-color: var(--primary);
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.assistantComposerFooter {
+  align-items: center;
+  display: flex;
+  gap: 0.7rem;
+  justify-content: space-between;
+}
+
+.assistantComposerFooter span {
+  min-width: 0;
+}
+
+.assistantSubmit {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  color: var(--surface-raised);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.assistantSubmit:hover:not(:disabled),
+.assistantSubmit:focus-visible:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.assistantSubmit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Keep the dock mostly for the conversation, not a second dossier header. */
+.handoff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-block-size: clamp(31rem, calc(100dvh - 9rem), 48rem);
+  padding: 0.75rem;
+}
+
+.assistantCompactHeader {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--ai) 24%, var(--border));
+  display: flex;
+  gap: 0.55rem;
+  min-inline-size: 0;
+  padding-bottom: 0.55rem;
+}
+
+.assistantCompactHeader > div { flex: 1 1 auto; min-inline-size: 0; }
+.assistantCompactHeader h2 { font-size: 0.94rem; }
+.assistantCompactHeader p { margin: 0.08rem 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assistantCompactHeader .handoffStatus { flex: 0 0 auto; margin-left: auto; }
+.chatViewport { background: color-mix(in srgb, var(--surface-raised) 72%, var(--surface-muted)); border: 1px solid color-mix(in srgb, var(--ai) 20%, var(--border)); border-radius: 0.65rem; display: flex; flex: 1 1 auto; flex-direction: column; min-block-size: 14rem; min-inline-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1rem; scrollbar-gutter: stable; }
+.chatEmptyState { display: grid; gap: 0.32rem; margin: auto; max-inline-size: 28ch; place-items: center; text-align: center; }
+.chatEmptyState p { margin: 0; }
+.chatEmptyMark { color: var(--ai); font-size: 1.45rem; line-height: 1; }
+.chatSystemMessage { background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised)); border-left: 3px solid var(--warning); color: var(--text-muted); font-size: 0.74rem; line-height: 1.45; margin-top: auto; padding: 0.55rem 0.6rem; }
+.assistantComposer { background: var(--surface-raised); border-radius: 0.7rem; gap: 0.35rem; margin-top: 0; padding: 0.55rem 0.6rem; }
+.assistantComposer textarea { background: transparent; border: 0; border-radius: 0; min-block-size: 3.75rem; padding: 0.3rem 0; resize: vertical; }
+.assistantComposer textarea:focus-visible { outline-offset: 2px; }
+.assistantComposerFooter { gap: 0.42rem; justify-content: flex-start; }
+.assistantAttach, .assistantModeSelect { align-items: center; background: var(--surface-muted); border: 1px solid var(--border); color: var(--text-muted); display: inline-flex; }
+.assistantAttach { border-radius: 50%; height: 1.9rem; justify-content: center; padding: 0; width: 1.9rem; }
+.assistantModeSelect { border-radius: 999px; gap: 0.2rem; padding: 0 0.42rem; position: relative; }
+.assistantModeSelect select { appearance: none; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 0.72rem; font-weight: 800; padding: 0.4rem 0.05rem; }
+.assistantModeSelect svg:last-child { pointer-events: none; }
+.assistantSubmit { align-items: center; border-radius: 50%; display: inline-flex; height: 1.9rem; justify-content: center; margin-left: auto; min-height: 1.9rem; padding: 0; width: 1.9rem; }
+.handoffDeep .assistantComposer { background: color-mix(in srgb, var(--ai) 9%, var(--surface-raised)); border-color: color-mix(in srgb, var(--ai) 58%, var(--border)); }
+.handoffDeep .assistantModeSelect { background: color-mix(in srgb, var(--ai) 13%, var(--surface-raised)); border-color: color-mix(in srgb, var(--ai) 52%, var(--border)); color: var(--ai); }
+.handoffDeep .assistantSubmit { background: var(--ai); border-color: var(--ai); }
+
+.assistantPending {
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised));
+  border-left: 3px solid var(--warning);
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin: 0.8rem 0 0;
+  padding: 0.55rem 0.65rem;
+}
+
+.assistantFootnote {
+  margin: 0.85rem 0 0;
+}
+
 .unavailable {
   background: color-mix(in srgb, var(--warning) 9%, var(--surface-raised));
   border-left-color: var(--warning);
@@ -566,6 +1222,39 @@
 }
 
 @media (max-width: 760px) {
+  .workspaceShell,
+  .workspaceShellCollapsed {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .assistantDock {
+    background: var(--surface-raised);
+    border-left: 1px solid var(--border-strong);
+    box-shadow: -0.5rem 0 2rem color-mix(in srgb, var(--shadow) 75%, transparent);
+    inset-block: 0;
+    inset-inline-end: 0;
+    max-width: min(92vw, 27rem);
+    overflow-y: auto;
+    padding: 0.8rem;
+    position: fixed;
+    width: min(92vw, 27rem);
+    z-index: 20;
+  }
+
+  .handoff { min-block-size: calc(100dvh - 1.6rem); }
+
+  .global-research-strip { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+  .global-research-strip__items { max-inline-size: 100%; width: 100%; }
+
+  .workspaceShellCollapsed .assistantDock {
+    background: transparent;
+    border-left: 0;
+    box-shadow: none;
+    max-width: none;
+    padding: 0.35rem;
+    width: 3.1rem;
+  }
   .identityHeader,
   .timelineHeader {
     display: grid;

@@ -87,3 +87,49 @@ it("resets the draft and persisted settings through the reset endpoint", async (
   expect(screen.getByRole("switch", { name: "AI source recommendations" })).not.toBeChecked();
   expect(fetchMock).toHaveBeenCalledWith("/api/settings/research/reset", expect.objectContaining({ method: "POST" }));
 });
+
+it("uses the custom editors as the single priority view", async () => {
+  const customSettings = {
+    ...settings,
+    providerPreset: "Custom",
+    searchProviderPriority: ["brave", "exa", "firecrawl-search"],
+    crawlerProviderPriority: ["crawl4ai-local", "exa", "firecrawl"],
+  } as const;
+
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/settings/research")) return jsonResponse(customSettings);
+    if (url.endsWith("/api/system/provider-status")) return jsonResponse(providerStatus);
+    return jsonResponse({}, 404);
+  });
+
+  renderWithRouter(<SettingsPage />, "/settings");
+
+  expect(await screen.findByRole("heading", { name: "Research intelligence" })).toBeInTheDocument();
+  expect(screen.queryByText("Search priority")).not.toBeInTheDocument();
+  expect(screen.queryByText("Crawler priority")).not.toBeInTheDocument();
+  expect(screen.getByText("Search order")).toBeInTheDocument();
+  expect(screen.getByText("Crawler order")).toBeInTheDocument();
+  expect(screen.getAllByText("Firecrawl Search")).toHaveLength(2);
+});
+
+it("uses Resilient as the ordered fallback preset", async () => {
+  const user = userEvent.setup();
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/settings/research")) return jsonResponse(settings);
+    if (url.endsWith("/api/system/provider-status")) return jsonResponse(providerStatus);
+    return jsonResponse({}, 404);
+  });
+
+  renderWithRouter(<SettingsPage />, "/settings");
+  await screen.findByRole("heading", { name: "Research intelligence" });
+
+  await user.click(screen.getByRole("radio", { name: /RAVEN Resilient/ }));
+
+  expect(screen.getByRole("radio", { name: /RAVEN Resilient/ })).toBeChecked();
+  expect(screen.getByLabelText("Search provider priority")).toHaveTextContent("Brave Search");
+  expect(screen.getByLabelText("Search provider priority")).toHaveTextContent("Exa Search & Contents");
+  expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Crawl4AI Local");
+  expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Firecrawl");
+});

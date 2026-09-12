@@ -4,7 +4,7 @@ namespace Raven.Api.Features.Settings;
 
 public enum ProviderPreset
 {
-    Balanced,
+    Resilient,
     LocalFirst,
     Cloud,
     Custom

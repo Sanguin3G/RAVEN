@@ -1,4 +1,6 @@
-export type ResearchRunStatus = "Searching" | "Crawling" | "Completed" | "Failed";
+export type ResearchRunStatus = "Searching" | "Crawling" | "Completed" | "Cancelled" | "Failed";
+
+import type { ResolvedIdentitySnapshot } from "./identity";
 
 export type GroundingMode = "Auto" | "Always" | "Off";
 
@@ -13,17 +15,34 @@ export type ResearchStage =
   | "GeneratingProfile"
   | "AwaitingProfileConfirmation"
   | "Completed"
+  | "Cancelled"
   | "Failed";
 
 export type SourceKind =
   | "OfficialWebsite"
   | "OfficialDocument"
+  | "OfficialBusinessRegistry"
+  | "BusinessDirectory"
+  /** @deprecated Retained for documents created before Day 5 taxonomy. */
   | "BusinessRegistry"
   | "TopCv"
   | "LinkedIn"
   | "News"
   | "ExternalWebsite"
   | "SearchResult";
+
+export type ResearchMode = "Initial" | "Refresh" | "Monitoring" | "TargetedEnrichment";
+
+export type ResearchTarget =
+  | "LegalIdentity"
+  | "TaxRegistration"
+  | "FoundedHistory"
+  | "Industry"
+  | "EmployeeScale"
+  | "ProductsServices"
+  | "Markets"
+  | "Leadership"
+  | "Locations";
 
 export interface ResearchRun {
   id: string;
@@ -53,7 +72,28 @@ export interface ResearchRun {
   crawlFailed: number;
   documentsAdded: number;
   duplicatesSkipped: number;
+  mode?: ResearchMode;
+  baseProfileVersionId?: string | null;
+  targets?: ResearchTarget[] | null;
+  resolvedIdentity?: ResolvedIdentitySnapshot | null;
 }
+
+export interface ActiveResearchRun {
+  run: ResearchRun;
+  companyName: string;
+}
+
+export interface ResearchExecutionSummary {
+  totalWallClockDurationMs: number; searchCalls: number; providerAttempts: number; fallbacks: number;
+  crawlCalls: number; successfulCrawls: number; failedCrawls: number; aiCalls: number;
+  inputTokens?: number | null; outputTokens?: number | null; failures: number; documentsAcquired: number;
+}
+export interface ResearchExecutionOperation {
+  id: string; category: string; operation: string; status: string; provider?: string | null;
+  model?: string | null; durationMs?: number | null; inputTokens?: number | null; outputTokens?: number | null;
+  inputSummary?: string | null; outputSummary?: string | null;
+}
+export interface ResearchExecution { researchRunId: string; summary: ResearchExecutionSummary; operations: ResearchExecutionOperation[]; }
 
 export type GroundedEntityType = "ParentGroup" | "Company" | "Subsidiary" | "Affiliate" | "Brand" | "Unknown";
 export type GroundingConfidence = "Low" | "Medium" | "High";

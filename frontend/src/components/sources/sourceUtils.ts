@@ -1,6 +1,8 @@
 export type SourceKind =
   | "OfficialWebsite"
   | "OfficialDocument"
+  | "OfficialBusinessRegistry"
+  | "BusinessDirectory"
   | "BusinessRegistry"
   | "TopCv"
   | "LinkedIn"
@@ -20,6 +22,8 @@ export type SourceIconIdentity = {
 const sourceLabels: Record<string, string> = {
   OfficialWebsite: "Official website",
   OfficialDocument: "Official document",
+  OfficialBusinessRegistry: "Official business registry",
+  BusinessDirectory: "Business directory",
   BusinessRegistry: "Business registry",
   TopCv: "TopCV",
   LinkedIn: "LinkedIn",
@@ -100,8 +104,12 @@ export function sourceIconIdentity(kind?: SourceKind | null, domain?: string | n
     return { label: "GitHub", monogram: "GH", tone: "github", faviconHost: "github.com" };
   }
 
-  if (kindValue.includes("businessregistry") || kindValue.includes("registry") || kindValue.includes("gleif") || kindValue.includes("opencorporates")) {
-    return { label: "Business registry", monogram: "BR", tone: "registry", faviconHost: domainValue || "dangkykinhdoanh.gov.vn" };
+  if (kindValue.includes("businessdirectory") || domainValue === "masothue.com" || isHostOrSubdomain(domainValue, "masothue.com")) {
+    return { label: "Business directory", monogram: "BD", tone: "registry", faviconHost: domainValue || "masothue.com" };
+  }
+
+  if (kindValue.includes("officialbusinessregistry") || kindValue.includes("businessregistry") || kindValue.includes("registry") || kindValue.includes("gleif") || kindValue.includes("opencorporates")) {
+    return { label: "Official business registry", monogram: "OR", tone: "registry", faviconHost: domainValue || "dangkykinhdoanh.gov.vn" };
   }
 
   if (kindValue.includes("brave") || providerValue.includes("brave")) {

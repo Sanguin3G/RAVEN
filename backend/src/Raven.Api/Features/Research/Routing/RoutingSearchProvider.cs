@@ -10,7 +10,8 @@ namespace Raven.Api.Features.Research.Routing;
 /// </summary>
 public sealed class RoutingSearchProvider(
     IProviderCatalog<ISearchProvider> catalog,
-    IResearchSettingsService settings) : ISearchProvider, IProviderRouteDiagnostics
+    IResearchSettingsService settings,
+    IResearchRunConfigurationSnapshot? configuration = null) : ISearchProvider, IProviderRouteDiagnostics
 {
     public const string ProviderId = "routing-search";
 
@@ -24,7 +25,7 @@ public sealed class RoutingSearchProvider(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var priorities = (await settings.GetAsync(cancellationToken)).SearchProviderPriority;
+        var priorities = (await (configuration ?? new ResearchRunConfigurationSnapshot()).GetOrLoadAsync(settings, cancellationToken)).SearchProviderPriority;
         var providers = ResolveProviders(priorities);
         if (providers.Count == 0)
         {

@@ -4,6 +4,8 @@ import {
   Buildings,
   CaretLeft,
   CaretRight,
+  CheckCircle,
+  CircleNotch,
   Desktop,
   GearSix,
   Info,
@@ -11,15 +13,22 @@ import {
   MagnifyingGlass,
   Moon,
   Palette,
+  Pause,
+  Play,
   Pulse,
   Question,
   SquaresFour,
   Sun,
   UserCircle,
+  WarningCircle,
   X,
   type IconProps,
 } from "@phosphor-icons/react";
 import { useTheme, type ThemePreference } from "../app/theme";
+import { cancelResearchRun, getActiveResearchRuns, getResearchRun } from "../api/research";
+import type { ActiveResearchRun } from "../types/research";
+import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused, type CurrentResearchSession } from "../utils/researchSession";
+import { canPauseResearchStage, isFinishedResearch, researchProgressLabel } from "../utils/researchProgress";
 
 const sidebarStorageKey = "raven-sidebar-collapsed";
 
@@ -72,16 +81,88 @@ function isNavigationItemActive(item: NavigationItem, pathname: string) {
   return item.exact ? pathname === item.to : pathname.startsWith(item.to);
 }
 
+function globalResearchState(item: ActiveResearchRun, session: CurrentResearchSession | null) {
+  if (session?.runId === item.run.id && session.paused) return "paused";
+  if (item.run.stage === "Failed") return "failed";
+  if (canPauseResearchStage(item.run.stage)) return "ready";
+  return "active";
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { preference, resolvedTheme, setPreference } = useTheme();
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(readSidebarPreference);
   const [isMobileOpen, setMobileOpen] = useState(false);
   const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [activeResearch, setActiveResearch] = useState<ActiveResearchRun[]>([]);
+  const [currentResearchSession, setCurrentResearchSession] = useState<CurrentResearchSession | null>(readCurrentResearch);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const accountMenuButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refreshActiveResearch = async () => {
+      const serverRuns = await getActiveResearchRuns().catch(() => null);
+      if (!active) return;
+
+      let session = readCurrentResearch();
+      let rememberedRun: ActiveResearchRun | null = null;
+
+      if (session) {
+        const serverRun = serverRuns?.find((item) => item.run.id === session?.runId);
+        const run = serverRun?.run ?? await getResearchRun(session.runId).catch(() => null);
+        if (run) {
+          if (isFinishedResearch(run)) {
+            clearCurrentResearch(session.runId);
+            session = null;
+          } else {
+            if (!canPauseResearchStage(run.stage) && session.paused) {
+              setCurrentResearchPaused(run.id, false);
+              session = readCurrentResearch();
+            }
+            rememberedRun = { run, companyName: session?.companyName ?? "Company research" };
+          }
+        }
+      }
+
+      if (!session && serverRuns && serverRuns.length > 0) {
+        const first = serverRuns[0];
+        rememberCurrentResearch(first.run, first.companyName);
+        session = readCurrentResearch();
+      }
+
+      const merged = [...(Array.isArray(serverRuns) ? serverRuns : [])];
+      if (rememberedRun && !merged.some((item) => item.run.id === rememberedRun?.run.id)) {
+        merged.unshift(rememberedRun);
+      }
+      setCurrentResearchSession(session);
+      setActiveResearch(merged);
+    };
+    void refreshActiveResearch();
+    const timer = window.setInterval(refreshActiveResearch, 2_500);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
+  async function cancelActiveResearch(runId: string) {
+    try {
+      await cancelResearchRun(runId);
+      clearCurrentResearch(runId);
+      setCurrentResearchSession(readCurrentResearch());
+      setActiveResearch((current) => current.filter((item) => item.run.id !== runId));
+    } catch {
+      // The destination page remains the source of truth if cancellation fails.
+    }
+  }
+
+  function togglePauseResearch(runId: string) {
+    const item = activeResearch.find((entry) => entry.run.id === runId);
+    if (!item || !canPauseResearchStage(item.run.stage)) return;
+    const isPaused = currentResearchSession?.runId === runId && currentResearchSession.paused;
+    const next = setCurrentResearchPaused(runId, !isPaused);
+    setCurrentResearchSession(next);
+  }
 
   const closeMobileNavigation = (returnFocus = false) => {
     setMobileOpen(false);
@@ -282,6 +363,25 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span>Operational</span>
           </Link>
         </header>
+
+        {activeResearch.length > 0 && location.pathname !== "/companies/new" && <section className="global-research-strip" aria-label="Current research">
+          <div className="global-research-strip__lead">
+            {currentResearchSession?.paused ? <Pause size={18} weight="fill" aria-hidden="true" /> : activeResearch.some((item) => item.run.stage === "Failed") ? <WarningCircle size={18} weight="fill" aria-hidden="true" /> : activeResearch.some((item) => canPauseResearchStage(item.run.stage)) ? <CheckCircle size={18} weight="fill" aria-hidden="true" /> : <CircleNotch className="global-research-strip__spinner" size={18} weight="bold" aria-hidden="true" />}
+            <strong>{activeResearch.length === 1 ? "Current research" : `${activeResearch.length} research runs`}</strong>
+          </div>
+          <div className="global-research-strip__items">
+            {activeResearch.slice(0, 3).map((item) => {
+              const { run, companyName } = item;
+              const paused = currentResearchSession?.runId === run.id && currentResearchSession.paused;
+              const state = globalResearchState(item, currentResearchSession);
+              return <div className={`global-research-run global-research-run--${state}`} key={run.id}>
+                <Link to={`/companies/new?researchRun=${encodeURIComponent(run.id)}`}><strong>{companyName}</strong><small>{researchProgressLabel(run, paused)}</small></Link>
+                {canPauseResearchStage(run.stage) ? <button type="button" className="global-research-run__pause" onClick={() => togglePauseResearch(run.id)}>{paused ? <><Play size={13} weight="fill" aria-hidden="true" /> Resume</> : <><Pause size={13} weight="fill" aria-hidden="true" /> Pause</>}</button> : null}
+                {run.stage !== "Completed" ? <button type="button" className="global-research-run__cancel" onClick={() => void cancelActiveResearch(run.id)}>Cancel</button> : null}
+              </div>;
+            })}
+          </div>
+        </section>}
 
         <main className="page-content" id="main-content">{children}</main>
         <footer className="site-footer">RAVEN is building a public-source company record.</footer>

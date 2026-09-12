@@ -16,6 +16,10 @@ public interface ICompanyProfilePersistenceService
         Guid candidateId,
         CancellationToken cancellationToken = default);
 
+    Task<CompanyProfileCandidate?> GetLatestCandidateForRunAsync(
+        Guid researchRunId,
+        CancellationToken cancellationToken = default);
+
     Task<CompanyProfileVersion?> ConfirmCandidateAsync(
         Guid candidateId,
         CancellationToken cancellationToken = default);

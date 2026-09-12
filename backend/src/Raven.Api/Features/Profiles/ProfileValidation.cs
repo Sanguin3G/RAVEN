@@ -10,7 +10,8 @@ public sealed record ProfileValidationContext(
     Guid CompanyId,
     Guid ResearchRunId,
     IReadOnlySet<Guid> CompanySourceDocumentIds,
-    IReadOnlySet<Guid> ResearchRunSourceDocumentIds);
+    IReadOnlySet<Guid> ResearchRunSourceDocumentIds,
+    bool AllowCompanyOwnedSources = false);
 
 public sealed record ProfileValidationResult(
     CompanyProfileCandidate Candidate,
@@ -118,7 +119,7 @@ public static partial class CompanyProfileValidator
                     continue;
                 }
 
-                if (!context.ResearchRunSourceDocumentIds.Contains(sourceDocumentId))
+                if (!context.AllowCompanyOwnedSources && !context.ResearchRunSourceDocumentIds.Contains(sourceDocumentId))
                 {
                     warnings.Add($"Dropped source '{sourceDocumentId}' for '{fieldPath}' because it is not owned by the research run.");
                     continue;

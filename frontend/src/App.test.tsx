@@ -69,17 +69,47 @@ const researchSources = [{
   contentPreview: "FPT Software company information.",
 }];
 
+const resolvedIdentity = {
+  status: "Resolved",
+  ambiguityType: "None",
+  recommendedEntityId: "fpt-software",
+  entities: [{
+    temporaryId: "fpt-software",
+    displayName: "FPT Software",
+    legalName: "FPT Software Company Limited",
+    country: "Vietnam",
+    region: null,
+    officialDomain: "fptsoftware.com",
+    entityType: "Subsidiary",
+    parentTemporaryId: null,
+    relationshipToQuery: "Exact",
+    confidence: "High",
+    shortDescription: "Technology services subsidiary of FPT Corporation",
+  }],
+  requestedHints: [],
+  message: null,
+  resolutionMethod: "ModelKnowledge",
+};
+
+const execution = {
+  summary: { totalWallClockDurationMs: 0, searchCalls: 0, crawlCalls: 0, aiCalls: 0, providerAttempts: 0, fallbacks: 0, inputTokens: null, outputTokens: null },
+  operations: [],
+};
+
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   let createdCompany: typeof apiCompanies[number] | null = null;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
     if (url.endsWith("/matches") && init?.method === "POST") return jsonResponse([]);
     if (url.endsWith("/profile")) return jsonResponse({ message: "No accepted profile" }, 404);
-    if (url.endsWith("/research/discover") && init?.method === "POST") return jsonResponse(researchRun);
+    if (url.endsWith("/research/start") && init?.method === "POST") return jsonResponse(researchRun);
     if (url.endsWith("/candidates")) return jsonResponse(researchCandidates);
     if (url.endsWith("/acquire") && init?.method === "POST") return jsonResponse(acquiredResearchRun);
     if (url.endsWith("/sources")) return jsonResponse(researchSources);
+    if (url.includes("/execution")) return jsonResponse(execution);
     if (url.includes("/api/research-runs/")) return jsonResponse(researchRun);
     if (url.endsWith("/api/companies") && init?.method === "POST") {
       const body = JSON.parse(String(init.body)) as { name: string; website?: string; country?: string };
@@ -97,7 +127,7 @@ beforeEach(() => {
 it("renders the Day 2 dashboard and new navigation", async () => {
   renderWithRouter(<App />);
 
-  expect(screen.getByRole("heading", { name: "Company intelligence, at a glance." })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Know what needs attention." })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Companies" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Research Company" })).toBeInTheDocument();
@@ -110,8 +140,9 @@ it("filters the company list by name", async () => {
   renderWithRouter(<App />, "/companies");
 
   await screen.findByRole("link", { name: "FPT Software" });
-  expect(screen.getByRole("columnheader", { name: "Logo" })).toBeInTheDocument();
-  expect(screen.getByRole("columnheader", { name: "Last update" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Profile health" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Monitoring" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Last researched" })).toBeInTheDocument();
   await user.type(screen.getByPlaceholderText("Search by company name"), "Masan");
 
   expect(screen.getByRole("link", { name: "Masan Group" })).toBeInTheDocument();
@@ -136,9 +167,9 @@ it("runs staged public-source research and shows its acquired evidence", async (
 
   expect(await screen.findByText(/Review source candidates/i)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /Acquire 2 selected sources/i }));
-  expect(await screen.findByText(/Evidence ready/i)).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: /Evidence ready/i })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open source" })).toHaveAttribute("href", "https://fptsoftware.com/about");
-  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research/discover", expect.objectContaining({ method: "POST" }));
+  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research/start", expect.objectContaining({ method: "POST" }));
 });
 
 it("marks only Research Company as active on the research page", () => {

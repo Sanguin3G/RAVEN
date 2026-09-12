@@ -23,6 +23,9 @@ namespace Raven.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Country")
                         .HasColumnType("TEXT");
 
@@ -57,6 +60,8 @@ namespace Raven.Api.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ArchivedAt");
 
                     b.HasIndex("Name");
 
@@ -444,6 +449,13 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("legacy");
+
                     b.Property<string>("OutputSummary")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
@@ -473,6 +485,9 @@ namespace Raven.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("ThinkingTokens")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset>("Timestamp")
                         .HasColumnType("TEXT");
@@ -654,6 +669,9 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("BaseProfileVersionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("TEXT");
 
@@ -687,6 +705,11 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("QueriesCompleted")
                         .HasColumnType("INTEGER");
 
@@ -710,7 +733,16 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ResearchTargetsJson")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("ResolvedIdentityCandidateId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResolvedIdentitySnapshotJson")
+                        .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("SourcesCrawled")

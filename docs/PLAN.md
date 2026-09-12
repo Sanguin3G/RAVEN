@@ -45,6 +45,20 @@ Extend the bounded Deep Research backend with RAG-first retrieval, cancellation,
 
 **Exit condition:** RAVEN can explain whether an answer came from stored evidence or newly acquired evidence, while keeping persistence application-owned.
 
+## Day 5 — Evidence coverage and workspace quality
+
+**Status: implemented on `feat/day5-enrichment-workspace`; release verification remains branch-local until Microsoft Edge completion checks and review pass.**
+
+Delivered scope is coverage-aware source-root selection, generic corporate-family discovery with review-only deterministic fallback, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds cancellable in-process background discovery, server-owned profile-candidate retrieval, and the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; this branch consumes no invented conversation contract.
+
+## Day 6 — Pre-search identity resolution
+
+**Status: PASS** on `feat/day6-identity-resolution`; merge into `main` is the release step.
+
+Delivered scope is a Company-independent identity preflight endpoint, explicit website/registration fast paths, one bounded Gemini topology call for weak inputs, deterministic derivation of `Resolved`, `Ambiguous`, `NeedsMoreInfo`, or `Unknown`, distinct family/name-collision handling, parent-first identity choices, and a deliberate exact-name override for obscure companies. The frontend keeps the original research form as the single edit surface and presents guided clarification in a compact, dismissible modal. Identity options and model-provided domains/legal names remain navigation hints, not accepted profile evidence. Duplicate matching runs only after resolution, and a bounded resolved-identity snapshot is carried into each new ResearchRun.
+
+Day 7 owns deletion of obsolete candidate-driven family discovery from normal new research and simplification of downstream Search, reranking, and acquisition work below the resolved-identity boundary.
+
 ## Stabilization principles
 
 Prefer small feature branches, focused reviews, mockable provider tests, and working vertical slices. Do not add distributed infrastructure merely to simulate activity; recorded run state and staged HTTP operations are sufficient for the MVP.

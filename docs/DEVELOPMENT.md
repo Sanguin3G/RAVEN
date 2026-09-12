@@ -26,7 +26,7 @@ npm install
 npm run dev
 ```
 
-The frontend uses port 5173. The API uses `http://localhost:5180`, serves OpenAPI at `/openapi/v1.json` in development, and exposes `/health`.
+The frontend uses port 5173. The API uses `http://localhost:5180`, serves OpenAPI at `/openapi/v1.json` in development, and exposes `/health` (plus `/api/health` for the frontend's proxied status check).
 
 ## API surface
 
@@ -43,13 +43,25 @@ Staged research endpoints:
 
 ```text
 POST /api/companies/{id}/research/discover
+POST /api/companies/{id}/research/start            (202; in-process background discovery)
+POST /api/companies/{id}/research/targeted
+POST /api/companies/{id}/archive
+POST /api/companies/{id}/restore
+DELETE /api/companies/{id}                 (requires `{ "confirm": true }`)
+POST /api/companies/merge/preview
+POST /api/companies/merge/confirm
+POST /api/companies/workspace-review
 POST /api/companies/{id}/research                 (legacy discover + auto-acquire)
 GET  /api/companies/{id}/research-runs
 GET  /api/research-runs/{id}
+POST /api/research-runs/{id}/cancel
+GET  /api/research-runs/active
 GET  /api/research-runs/{id}/candidates
 POST /api/research-runs/{id}/acquire
 GET  /api/research-runs/{id}/sources
 GET  /api/companies/{id}/sources
+GET  /api/research-runs/{id}/coverage
+GET  /api/companies/{id}/coverage
 GET  /api/sources/{id}
 POST /api/companies/{id}/deep-research
 GET  /api/deep-research-runs/{id}
@@ -62,9 +74,14 @@ Profile endpoints:
 
 ```text
 POST /api/research-runs/{id}/profile/generate
+GET  /api/research-runs/{id}/profile/candidate
 POST /api/research-runs/{id}/profile/confirm
+POST /api/research-runs/{id}/profile-patch/generate
+POST /api/research-runs/{id}/profile-patch/confirm
 GET  /api/companies/{id}/profile
 ```
+
+`ResearchMode.TargetedEnrichment` is used both for accepted-profile patches and for an optional first-profile strengthening pass. With no base profile, generation combines the original approved Company evidence with the newly acquired target evidence. With a base profile, only the server-owned patch confirmation endpoint may append a replacement version.
 
 System endpoints:
 
@@ -91,7 +108,11 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
 
-Research Settings persist safe model roles, grounding/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Balanced and Cloud presets can route retrieval through Exa Contents and Firecrawl after retryable failures. Authentication, configuration, and invalid-request errors never silently fall back.
+Research Settings persist safe model roles, identity-resolution/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets can route retrieval through Exa Contents and Firecrawl after retryable failures. Authentication, configuration, and invalid-request errors never silently fall back.
+
+## Identity preflight API
+
+`POST /api/research/identity/resolve` accepts only company identity hints (`name`, optional legal name, website, country, registration number, headquarters, and research hint). It resolves a strong explicit identifier without AI or otherwise makes one model-assisted topology attempt. It never creates a Company or ResearchRun and never invokes Search, Crawl, or profile generation. The response is a safe workflow state plus bounded identity options; model-provided fields are navigation hints, not verified profile facts. Gemini returns topology (`SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`); deterministic RAVEN policy derives the workflow status. `guidedRefinement=true` is advice-only and always returns no selectable target, so the user can edit the original form and submit a new attempt. `confirmExactName=true` is the deliberate manual override for an obscure or unresolved name.
 
 ## Docker
 
@@ -127,9 +148,25 @@ npm run build
 
 Provider tests must use fakes, mocks, or fixtures. Normal automated tests must not require live provider credentials, paid traffic, TopCV availability, LinkedIn access, or a running crawler.
 
+Microsoft Edge completion checks use Playwright with `--browser msedge`; Chromium is not a substitute. The repository does not currently ship live-provider fixtures, so external-provider checks must be separately marked as controlled live smoke tests.
+
+## Controlled identity-model probe
+
+`backend/tools/IdentityProbe` is a non-production Day-6 preparation tool. It exercises the configured `IAiModelProvider`/Gemini path with identity hints only: it creates no Company or ResearchRun and makes no Search, Crawl, or evidence calls. It is a controlled live smoke, not an automated test.
+
+```powershell
+# from repository root; avoid rebuilding Raven.Api if a local API process holds its executable
+dotnet build backend/tools/IdentityProbe/IdentityProbe.csproj --no-restore -p:BuildProjectReferences=false
+dotnet run --project backend/tools/IdentityProbe/IdentityProbe.csproj --no-build
+```
+
+It uses the existing Raven API user secret or `GEMINI_API_KEY`, defaults to `gemini-3.5-flash-lite`, and emits only sanitized semantic summaries, timing, token usage, parse state, and safe failure codes. Never commit credentials or raw model responses.
+
 ## Monitoring and Deep Research
 
 Monitoring and Deep Research use in-process `BackgroundService` workers. They execute only while the API process is running; this project deliberately does not add an external scheduler or job broker. Monitoring produces a review-ready profile candidate and never accepts a profile automatically.
+
+The background research start endpoint also uses an in-process channel-backed worker. It returns `202 Accepted`, exposes active runs, and supports cancellation. It is not a durable job queue: a process restart drops queued work, by design for this MVP.
 
 Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
 

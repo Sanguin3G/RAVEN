@@ -9,6 +9,7 @@ export interface Company {
   createdAt: string;
   updatedAt: string;
   lastResearchedAt?: string | null;
+  archivedAt?: string | null;
 }
 
 export interface CreateCompanyRequest {

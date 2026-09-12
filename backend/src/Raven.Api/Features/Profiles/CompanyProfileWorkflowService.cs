@@ -3,6 +3,7 @@ using Raven.Api.Data;
 using Raven.Api.Features.Profiles.Generation;
 using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Research.Events;
 
 namespace Raven.Api.Features.Profiles;
@@ -30,8 +31,14 @@ public sealed class CompanyProfileWorkflowService(
 
         var company = await dbContext.Companies
             .SingleAsync(item => item.Id == run.CompanyId, cancellationToken);
+        // A first-profile strengthening pass is a target-scoped normal run, but
+        // it has no accepted base profile to patch. Generate that first profile
+        // from the original approved evidence plus the newly acquired gap
+        // evidence; otherwise the strengthening pass would discard the dossier
+        // the user had already reviewed.
+        var useCompanyEvidence = run.Mode == ResearchMode.TargetedEnrichment && run.BaseProfileVersionId is null;
         var sources = await dbContext.SourceDocuments
-            .Where(item => item.ResearchRunId == run.Id)
+            .Where(item => useCompanyEvidence ? item.CompanyId == run.CompanyId : item.ResearchRunId == run.Id)
             .ToListAsync(cancellationToken);
         if (sources.Count == 0)
         {
@@ -63,7 +70,7 @@ public sealed class CompanyProfileWorkflowService(
                 company.RegistrationNumber,
                 run.ResearchHint),
             sources,
-            new ProfileValidationContext(company.Id, run.Id, companySourceIds, runSourceIds)), cancellationToken);
+            new ProfileValidationContext(company.Id, run.Id, companySourceIds, runSourceIds, useCompanyEvidence)), cancellationToken);
 
         if (!result.Succeeded || result.Candidate is null)
         {
@@ -100,6 +107,16 @@ public sealed class CompanyProfileWorkflowService(
             $"Validated {candidate.Evidence.Count} evidence groups.", cancellationToken);
 
         return ToResponse(result, candidate);
+    }
+
+    public async Task<CompanyProfileCandidate?> GetCandidateAsync(Guid researchRunId, CancellationToken cancellationToken)
+    {
+        if (!await dbContext.ResearchRuns.AnyAsync(run => run.Id == researchRunId, cancellationToken))
+        {
+            return null;
+        }
+
+        return await persistenceService.GetLatestCandidateForRunAsync(researchRunId, cancellationToken);
     }
 
     public async Task<CompanyProfileVersion?> ConfirmAsync(Guid researchRunId, Guid candidateId, CancellationToken cancellationToken)

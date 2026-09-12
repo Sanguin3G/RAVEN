@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Raven.Api.Data;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles.Changes;
+using Raven.Api.Features.Research.Coverage;
 
 namespace Raven.Api.Features.Profiles.Persistence;
 
@@ -84,6 +85,19 @@ public sealed class CompanyProfilePersistenceService(
         var persisted = await dbContext.CompanyProfileCandidates
             .AsNoTracking()
             .SingleOrDefaultAsync(profile => profile.Id == candidateId, cancellationToken);
+
+        return persisted is null ? null : HydrateCandidate(persisted);
+    }
+
+    public async Task<CompanyProfileCandidate?> GetLatestCandidateForRunAsync(
+        Guid researchRunId,
+        CancellationToken cancellationToken = default)
+    {
+        var persisted = await dbContext.CompanyProfileCandidates
+            .AsNoTracking()
+            .Where(profile => profile.ResearchRunId == researchRunId)
+            .OrderByDescending(profile => profile.GeneratedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return persisted is null ? null : HydrateCandidate(persisted);
     }
@@ -319,8 +333,10 @@ public sealed class CompanyProfilePersistenceService(
 
         var runBelongsToCompany = await dbContext.ResearchRuns
             .AsNoTracking()
-            .AnyAsync(run => run.Id == researchRunId && run.CompanyId == companyId, cancellationToken);
-        if (!runBelongsToCompany)
+            .Where(run => run.Id == researchRunId && run.CompanyId == companyId)
+            .Select(run => new { run.Mode })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (runBelongsToCompany is null)
         {
             return null;
         }
@@ -340,7 +356,8 @@ public sealed class CompanyProfilePersistenceService(
             companyId,
             researchRunId,
             companySourceDocumentIds,
-            researchRunSourceDocumentIds);
+            researchRunSourceDocumentIds,
+            runBelongsToCompany.Mode == ResearchMode.TargetedEnrichment);
     }
 
     private static CompanyProfileCandidate NewCandidateEntity(
