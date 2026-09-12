@@ -19,7 +19,7 @@ import { resolveCompanyIdentity } from "../../api/identity";
 import type { Company, CompanyMatchResponse, CreateCompanyRequest } from "../../types/company";
 import type { GroundingMode, ResearchCandidate, ResearchIdentityCandidate, ResearchRun, ResearchTarget, SourceDocument } from "../../types/research";
 import type { CompanyProfileCandidate } from "../../types/profile";
-import type { IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
+import type { IdentityHintKind, IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
 import { canPauseResearchStage, researchProgressLabel } from "../../utils/researchProgress";
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused } from "../../utils/researchSession";
 import type { CompanyResearchWorkflow, GroundingOverride, IdentityForm, WorkspaceView } from "./types";
@@ -355,6 +355,9 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   }
 
   function requestPreflightClarification() {
+    const requestedHints: IdentityHintKind[] = preflightResponse?.requestedHints?.length
+      ? [...preflightResponse.requestedHints]
+      : ["Country", "Website"];
     setSelectedPreflightEntityId(null);
     setError(null);
     setPreflightResponse({
@@ -362,8 +365,8 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
       ambiguityType: "Unclear",
       recommendedEntityId: null,
       entities: [],
-      requestedHints: ["Country", "Website"],
-      message: "Can't find the organization you mean? Add a country, website, or a more specific company name.",
+      requestedHints,
+      message: "Use the suggested detail to narrow the organization choices.",
       resolutionMethod: "ModelKnowledge",
     });
     setView("preflightIdentity");

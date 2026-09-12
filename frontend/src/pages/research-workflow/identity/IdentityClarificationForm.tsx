@@ -61,7 +61,7 @@ export function IdentityClarificationForm({
     <form className={styles.clarification} onSubmit={onSubmit}>
       <div className={styles.clarificationHeading}>
         <strong>{message || "A little more information will help"}</strong>
-        <p>Country or website would usually be enough. Your existing details will stay in place while you try again.</p>
+        <p>Add only the detail that best distinguishes the organization. Your existing details will stay in place while you try again.</p>
       </div>
       <div className={styles.hintFields}>
         {showName ? (

@@ -20,7 +20,7 @@ public sealed class IdentityResolutionPolicy
         {
             var family = entities.Where(x => x.Confidence != IdentityConfidence.Low).ToArray();
             return family.Length >= 2
-                ? Make(IdentityResolutionStatus.Ambiguous, IdentityAmbiguityType.CorporateFamily, null, family, hints, topology.Message ?? "Several organizations could match.", topology)
+                ? Make(IdentityResolutionStatus.Ambiguous, IdentityAmbiguityType.CorporateFamily, null, family, Useful(hints), topology.Message ?? "Several organizations could match.", topology)
                 : Make(IdentityResolutionStatus.NeedsMoreInfo, IdentityAmbiguityType.Unclear, null, [], Useful(hints), "A little more information will help.", topology);
         }
 

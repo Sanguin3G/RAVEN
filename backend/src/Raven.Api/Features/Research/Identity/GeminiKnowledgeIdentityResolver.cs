@@ -51,6 +51,8 @@ An input that is commonly used as an umbrella/group/family name is CorporateFami
 
 Every populated user hint below is relevant to topology. Use it to distinguish the intended organization and to select only relevant family members; do not treat any hint as verified public evidence. A specific legal name, website, registration/tax identifier, headquarters, country, or research hint can make an otherwise generic name specific.
 
+When returning CorporateFamilyShorthand or NameCollision, requestedHints must name up to three details that would most efficiently distinguish an omitted intended organization. Prefer country, official website, legal name, registration/tax ID, or headquarters only when each is genuinely useful.
+
 Only use SpecificEntity when the user's wording plus supplied hints sufficiently names one organization. NameCollision is for unrelated plausible matches; Unknown when unsafe. Do not repeat the query as an entity without recognized context. Domains/legal names are optional navigation hints, not evidence. Return JSON only.
 
 Name: {Text(x.Name)}

@@ -48,6 +48,31 @@
   margin: 0 0 0.7rem;
 }
 
+.identityAdvice {
+  background: color-mix(in oklab, var(--warning) 10%, var(--surface-raised));
+  border: 1px dashed color-mix(in oklab, var(--warning) 55%, var(--border));
+  border-inline-start: 4px solid var(--warning);
+  border-radius: 6px;
+  margin-top: 0.9rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.identityAdvice strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.identityAdvice p {
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  line-height: 1.45;
+  margin: 0.25rem 0 0;
+}
+
+.identityAdvice :global(.button) {
+  margin-top: 0.7rem;
+}
+
 .choiceList {
   display: grid;
   gap: 0.6rem;
