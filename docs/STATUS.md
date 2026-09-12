@@ -1,6 +1,7 @@
 # RAVEN Status
 
 Last updated: 2026-09-12
+Day 5.5 closure: **PASS** on `feat/day5-enrichment-workspace`. Execution telemetry, Resilient preset compatibility, run-scoped settings snapshots, workflow extraction, and Microsoft Edge smoke checks are complete. CSS ownership splitting remains intentionally deferred to avoid expanding the Day-6 preparation scope.
 Day-5 branch: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are integrated here but not merged into `main`.
 Current branch: **feat/day5-enrichment-workspace** (not merged into `main`)
 Current milestone: **M2 — Research Intelligence and Tracking**
