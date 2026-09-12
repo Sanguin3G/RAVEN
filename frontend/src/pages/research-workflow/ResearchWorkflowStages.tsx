@@ -108,8 +108,8 @@ export function MatchStage({ workflow }: { workflow: CompanyResearchWorkflow }) 
 
 /** Pre-search identity gate. No Company or ResearchRun exists at this stage. */
 export function PreflightIdentityStage({ workflow }: { workflow: CompanyResearchWorkflow }) {
-  const { view, preflightResponse, selectedPreflightEntityId, loading, error } = workflow;
-  if (view !== "preflightIdentity" || !preflightResponse) return null;
+  const { view, preflightResponse, identityGuidance, selectedPreflightEntityId, loading, error } = workflow;
+  if ((view !== "preflightIdentity" && view !== "guidedIdentity") || !preflightResponse) return null;
 
   const input = {
     name: workflow.form.name,
@@ -120,17 +120,22 @@ export function PreflightIdentityStage({ workflow }: { workflow: CompanyResearch
     headquarters: workflow.form.headquarters || undefined,
     researchHint: workflow.form.researchHint || undefined,
   };
+  if (view === "guidedIdentity") {
+    const guidance = identityGuidance ?? preflightResponse;
+    return <Panel title="Refine your company search" eyebrow="GUIDED IDENTITY SEARCH" className={`${styles.identityResolutionPanel} ${styles.guidedIdentityPanel}`}>
+      <p className={styles.panelIntro}>Tell RAVEN what distinguishes the organization you have in mind. This does not start public research; it updates the choices you already saw.</p>
+      <IdentityClarificationForm input={input} requestedHints={guidance.requestedHints} guided loading={loading} error={error} message={guidance.message || "Add the details that best describe the missing company."} onChange={(field, value) => workflow.updateField(field as keyof typeof workflow.form, value)} onSubmit={(event) => { event.preventDefault(); void workflow.retryGuidedIdentity(); }} />
+      <div className={styles.guidedIdentityBack}><Button type="button" tone="quiet" onClick={workflow.returnToIdentityChoices} disabled={loading}>Back to original choices</Button></div>
+    </Panel>;
+  }
   if (preflightResponse.status === "Ambiguous") {
-    const hintLabels: Record<string, string> = { Country: "country or region", Website: "official website", LegalName: "full legal name", RegistrationNumber: "registration or tax ID", Headquarters: "headquarters", Region: "region" };
-    const suggestedDetails = preflightResponse.requestedHints.map((hint) => hintLabels[hint]).filter(Boolean).join(", ") || "country or official website";
     return <Panel title="Which organization do you mean?" eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
       <p className={styles.panelIntro}>{preflightResponse.message || "Several organizations could match."}</p>
       <IdentityChoiceList entities={preflightResponse.entities} ambiguityType={preflightResponse.ambiguityType} selectedEntityId={selectedPreflightEntityId} onSelect={workflow.setSelectedPreflightEntityId} disabled={loading} />
-      <aside className={styles.identityAdvice} aria-label="Identity refinement advice">
-        <strong>I can’t find the organization I mean</strong>
-        <p>These are only the most relevant family members, not an exhaustive directory. RAVEN suggests adding {suggestedDetails}. A research hint such as “manufacturer” can also prioritize the right member.</p>
-        <Button type="button" tone="secondary" onClick={workflow.requestPreflightClarification} disabled={loading}>Get identity refinement advice</Button>
-      </aside>
+      <button className={styles.refinementChoice} type="button" aria-labelledby="identity-refinement-choice" onClick={() => void workflow.requestPreflightClarification()} disabled={loading}>
+        <Sparkle size={22} weight="duotone" aria-hidden="true" />
+        <span><strong id="identity-refinement-choice">Still can’t find it? Help me refine this search</strong><small>Get guided suggestions about the name, website, location, legal identity, or what the company does.</small></span>
+      </button>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <div className="form-actions"><Button type="button" onClick={() => void workflow.handlePreflightSelection()} loading={loading} disabled={!selectedPreflightEntityId}>Continue with selected organization</Button><Button type="button" tone="quiet" onClick={() => workflow.setView("identify")} disabled={loading}>Back to edit</Button></div>
     </Panel>;

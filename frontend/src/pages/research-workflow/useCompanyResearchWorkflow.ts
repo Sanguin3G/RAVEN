@@ -19,7 +19,7 @@ import { resolveCompanyIdentity } from "../../api/identity";
 import type { Company, CompanyMatchResponse, CreateCompanyRequest } from "../../types/company";
 import type { GroundingMode, ResearchCandidate, ResearchIdentityCandidate, ResearchRun, ResearchTarget, SourceDocument } from "../../types/research";
 import type { CompanyProfileCandidate } from "../../types/profile";
-import type { IdentityHintKind, IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
+import type { IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
 import { canPauseResearchStage, researchProgressLabel } from "../../utils/researchProgress";
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused } from "../../utils/researchSession";
 import type { CompanyResearchWorkflow, GroundingOverride, IdentityForm, WorkspaceView } from "./types";
@@ -60,6 +60,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   const [run, setRun] = useState<ResearchRun | null>(null);
   const [matches, setMatches] = useState<CompanyMatchResponse[]>([]);
   const [preflightResponse, setPreflightResponse] = useState<IdentityResolutionResponse | null>(null);
+  const [identityGuidance, setIdentityGuidance] = useState<IdentityResolutionResponse | null>(null);
   const [selectedPreflightEntityId, setSelectedPreflightEntityId] = useState<string | null>(null);
   const [pendingResolvedIdentity, setPendingResolvedIdentity] = useState<ResolvedIdentitySnapshot | null>(null);
   const [identityCandidates, setIdentityCandidates] = useState<ResearchIdentityCandidate[]>([]);
@@ -316,6 +317,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     event.preventDefault();
     setError(null);
     setSelectionError(null);
+    setIdentityGuidance(null);
     setLoading(true);
     setView("checkingIdentity");
 
@@ -354,29 +356,68 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setLoading(true); setError(null); await continueResolvedIdentity(preflightResponse, selectedPreflightEntityId);
   }
 
-  function requestPreflightClarification() {
-    const requestedHints: IdentityHintKind[] = preflightResponse?.requestedHints?.length
-      ? [...preflightResponse.requestedHints]
-      : ["Country", "Website"];
+  async function requestPreflightClarification() {
+    setLoading(true);
     setSelectedPreflightEntityId(null);
     setError(null);
-    setPreflightResponse({
-      status: "NeedsMoreInfo",
-      ambiguityType: "Unclear",
-      recommendedEntityId: null,
-      entities: [],
-      requestedHints,
-      message: "Use the suggested detail to narrow the organization choices.",
-      resolutionMethod: "ModelKnowledge",
-    });
+    try {
+      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off", guidedRefinement: true });
+      setIdentityGuidance(response);
+      setView("guidedIdentity");
+    } catch (reason: unknown) {
+      setError(getApiErrorMessage(reason, "RAVEN couldn't prepare search guidance right now."));
+      setView("preflightIdentity");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function returnToIdentityChoices() {
+    setIdentityGuidance(null);
+    setError(null);
     setView("preflightIdentity");
+  }
+
+  function mergeIdentityOptions(original: IdentityResolutionResponse, addition: IdentityResolutionResponse) {
+    const identities = new Set<string>();
+    const entities = [...original.entities, ...addition.entities].filter((entity) => {
+      const key = `${entity.displayName.trim().toLocaleLowerCase()}|${entity.country?.trim().toLocaleLowerCase() ?? ""}`;
+      if (identities.has(key)) return false;
+      identities.add(key);
+      return true;
+    });
+    return { ...original, entities, requestedHints: addition.requestedHints.length ? addition.requestedHints : original.requestedHints };
+  }
+
+  async function retryGuidedIdentity() {
+    if (!preflightResponse) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off" });
+      const merged = mergeIdentityOptions(preflightResponse, response);
+      const addedEntityId = response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null);
+      setPreflightResponse({
+        ...merged,
+        message: addedEntityId
+          ? `${response.entities.find((entity) => entity.temporaryId === addedEntityId)?.displayName ?? "The organization"} was added to the choices below.`
+          : response.message || "The original choices are still available. Add another detail if the intended organization is missing.",
+      });
+      setSelectedPreflightEntityId(addedEntityId);
+      setIdentityGuidance(null);
+      setView("preflightIdentity");
+    } catch (reason: unknown) {
+      setError(getApiErrorMessage(reason, "RAVEN couldn't update the company choices right now."));
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function retryPreflightIdentity() {
     setLoading(true); setError(null); setView("checkingIdentity");
     try {
       const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off" });
-      setPreflightResponse(response); setSelectedPreflightEntityId(response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null));
+      setIdentityGuidance(null); setPreflightResponse(response); setSelectedPreflightEntityId(response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null));
       if (response.status === "Resolved" && (response.recommendedEntityId || response.entities.length === 1)) await continueResolvedIdentity(response, response.recommendedEntityId || response.entities[0].temporaryId);
       else { setView("preflightIdentity"); setLoading(false); }
     } catch (reason: unknown) { setError(getApiErrorMessage(reason, "RAVEN couldn't confidently resolve this organization right now.")); setView("preflightIdentity"); setLoading(false); }
@@ -537,6 +578,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setError(null);
     setSelectionError(null);
     setMatches([]);
+    setIdentityGuidance(null);
     setCompany(null);
     setRun(null);
     setIdentityCandidates([]);
@@ -676,6 +718,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setMatches([]);
     setCompany(null);
     setRun(null);
+    setIdentityGuidance(null);
     setCandidates([]);
     setSources([]);
     setProfileCandidate(null);
@@ -692,6 +735,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     run,
     matches,
     preflightResponse,
+    identityGuidance,
     selectedPreflightEntityId,
     setSelectedPreflightEntityId,
     identityCandidates,
@@ -720,6 +764,8 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     handleIdentitySubmit,
     handlePreflightSelection,
     requestPreflightClarification,
+    returnToIdentityChoices,
+    retryGuidedIdentity,
     retryPreflightIdentity,
     researchExactName,
     handleResearchExisting,

@@ -60,7 +60,7 @@ public sealed class IdentityResolutionService(
             return IdentityResolutionServiceResult.Valid(CreateExactNameResponse(normalized));
         }
 
-        if (TryResolveExplicit(normalized, out var explicitResponse))
+        if (!normalized.GuidedRefinement && TryResolveExplicit(normalized, out var explicitResponse))
         {
             return IdentityResolutionServiceResult.Valid(explicitResponse);
         }
@@ -174,7 +174,8 @@ public sealed class IdentityResolutionService(
             Headquarters = NormalizeOptional(request.Headquarters),
             ResearchHint = NormalizeOptional(request.ResearchHint),
             ConfirmExactName = request.ConfirmExactName,
-            AllowModelKnowledge = request.AllowModelKnowledge
+            AllowModelKnowledge = request.AllowModelKnowledge,
+            GuidedRefinement = request.GuidedRefinement
         };
 
     private static Dictionary<string, string[]> Validate(IdentityResolutionRequest? request)

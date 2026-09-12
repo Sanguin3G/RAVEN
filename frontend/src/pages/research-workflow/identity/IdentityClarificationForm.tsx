@@ -18,6 +18,7 @@ interface IdentityClarificationFormProps {
   error?: string | null;
   message?: string | null;
   showName?: boolean;
+  guided?: boolean;
 }
 
 const hintFields: Record<IdentityHintKind, {
@@ -35,6 +36,7 @@ const hintFields: Record<IdentityHintKind, {
   // The preflight request carries geographic context as headquarters; the
   // label can stay narrower when the policy specifically asks for a region.
   Region: { field: "headquarters", label: "Region", placeholder: "e.g. Massachusetts" },
+  ResearchHint: { field: "researchHint", label: "What the company does", placeholder: "e.g. telecom equipment manufacturer" },
 };
 
 function uniqueHints(requestedHints: IdentityHintKind[]) {
@@ -52,8 +54,11 @@ export function IdentityClarificationForm({
   error,
   message,
   showName = true,
+  guided = false,
 }: IdentityClarificationFormProps) {
-  const fields = uniqueHints(requestedHints).filter((hint, index, all) =>
+  const fields = (guided
+    ? ["Country", "Website", "LegalName", "RegistrationNumber", "Headquarters", "ResearchHint"] as IdentityHintKind[]
+    : uniqueHints(requestedHints)).filter((hint, index, all) =>
     all.findIndex((candidate) => hintFields[candidate].field === hintFields[hint].field) === index,
   );
 
@@ -77,7 +82,7 @@ export function IdentityClarificationForm({
             disabled={loading}
           />
         ) : null}
-        {fields.map((hint) => {
+        {fields.filter((hint) => hint !== "ResearchHint").map((hint) => {
           const config = hintFields[hint];
           return (
             <TextInput
@@ -94,10 +99,17 @@ export function IdentityClarificationForm({
             />
           );
         })}
+        {fields.includes("ResearchHint") ? (
+          <div className="field">
+            <label htmlFor="identity-research-hint">What the company does</label>
+            <textarea id="identity-research-hint" name="researchHint" value={input.researchHint ?? ""} onChange={(event) => onChange("researchHint", event.target.value)} placeholder="e.g. telecom equipment manufacturer" maxLength={500} rows={3} disabled={loading} />
+            <p className="field__hint">A short description can distinguish a subsidiary from its parent or peers.</p>
+          </div>
+        ) : null}
       </div>
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
       <div className={styles.actions}>
-        <Button type="submit" loading={loading}>Try again</Button>
+        <Button type="submit" loading={loading}>{guided ? "Update company choices" : "Try again"}</Button>
         {onManualExactName ? (
           <Button type="button" tone="secondary" onClick={onManualExactName} disabled={loading || !input.name.trim()}>
             Research this exact name anyway

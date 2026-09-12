@@ -48,29 +48,55 @@
   margin: 0 0 0.7rem;
 }
 
-.identityAdvice {
-  background: color-mix(in oklab, var(--warning) 10%, var(--surface-raised));
-  border: 1px dashed color-mix(in oklab, var(--warning) 55%, var(--border));
-  border-inline-start: 4px solid var(--warning);
+.refinementChoice {
+  align-items: center;
+  background: color-mix(in oklab, var(--info) 8%, var(--surface-raised));
+  border: 1px solid color-mix(in oklab, var(--info) 48%, var(--border));
+  border-inline-start: 4px solid var(--info);
   border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr);
   margin-top: 0.9rem;
-  padding: 0.75rem 0.85rem;
+  min-block-size: 4.5rem;
+  padding: 0.8rem 0.85rem;
+  text-align: start;
 }
 
-.identityAdvice strong {
+.refinementChoice:hover:not(:disabled),
+.refinementChoice:focus-visible {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--info) 18%, transparent);
+}
+
+.refinementChoice:disabled { cursor: wait; opacity: 0.7; }
+
+.refinementChoice > svg { color: var(--info); flex: 0 0 auto; }
+
+.refinementChoice span { display: grid; gap: 0.18rem; min-width: 0; }
+
+.refinementChoice strong {
   color: var(--text);
-  font-size: 0.84rem;
+  font-size: 0.9rem;
 }
 
-.identityAdvice p {
+.refinementChoice small {
   color: var(--text-muted);
   font-size: 0.77rem;
   line-height: 1.45;
-  margin: 0.25rem 0 0;
 }
 
-.identityAdvice :global(.button) {
-  margin-top: 0.7rem;
+.guidedIdentityPanel {
+  border-inline-start: 4px solid var(--info);
+}
+
+.guidedIdentityBack { margin-top: 0.85rem; }
+
+.guidedIdentityPanel .clarification {
+  background: color-mix(in oklab, var(--info) 5%, var(--surface-muted));
+  border-color: color-mix(in oklab, var(--info) 32%, var(--border));
 }
 
 .choiceList {

@@ -40,6 +40,27 @@ public sealed class IdentityResolutionServiceTests
     }
 
     [Fact]
+    public async Task Guided_refinement_is_an_explicit_knowledge_call()
+    {
+        IdentityResolutionRequest? received = null;
+        var knowledge = new SpyKnowledgeResolver(request =>
+        {
+            received = request;
+            return new IdentityTopologyResponse(IdentityQueryInterpretation.Unknown, [], [IdentityHintKind.ResearchHint]);
+        });
+        var service = new IdentityResolutionService(knowledge, new IdentityResolutionPolicy());
+
+        var result = await service.ResolveAsync(new IdentityResolutionRequest(
+            "FPT",
+            Website: "https://fpt.com.vn",
+            GuidedRefinement: true));
+
+        Assert.Equal(IdentityResolutionStatus.Unknown, result.Response!.Status);
+        Assert.True(received?.GuidedRefinement);
+        Assert.Equal(1, knowledge.CallCount);
+    }
+
+    [Fact]
     public async Task Specific_entity_with_one_high_confidence_exact_candidate_resolves()
     {
         var knowledge = new SpyKnowledgeResolver(_ => new IdentityTopologyResponse(

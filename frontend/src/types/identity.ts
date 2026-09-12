@@ -33,7 +33,8 @@ export type IdentityHintKind =
   | "LegalName"
   | "RegistrationNumber"
   | "Headquarters"
-  | "Region";
+  | "Region"
+  | "ResearchHint";
 
 export type IdentityEntityType =
   | "ParentGroup"
@@ -63,6 +64,7 @@ export interface IdentityResolutionRequest {
   researchHint?: string | null;
   confirmExactName?: boolean;
   allowModelKnowledge?: boolean;
+  guidedRefinement?: boolean;
 }
 
 export interface IdentityOption {

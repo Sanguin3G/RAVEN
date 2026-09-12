@@ -28,6 +28,7 @@ export type WorkspaceView =
   | "matching"
   | "checkingIdentity"
   | "preflightIdentity"
+  | "guidedIdentity"
   | "discovering"
   | "resolvingIdentity"
   | "reviewingSources"
@@ -52,6 +53,7 @@ export type CompanyResearchWorkflow = {
   run: ResearchRun | null;
   matches: CompanyMatchResponse[];
   preflightResponse: IdentityResolutionResponse | null;
+  identityGuidance: IdentityResolutionResponse | null;
   selectedPreflightEntityId: string | null;
   setSelectedPreflightEntityId: (value: string | null) => void;
   identityCandidates: ResearchIdentityCandidate[];
@@ -79,7 +81,9 @@ export type CompanyResearchWorkflow = {
   updateField: (field: keyof IdentityForm, value: string) => void;
   handleIdentitySubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   handlePreflightSelection: () => Promise<void>;
-  requestPreflightClarification: () => void;
+  requestPreflightClarification: () => Promise<void>;
+  returnToIdentityChoices: () => void;
+  retryGuidedIdentity: () => Promise<void>;
   retryPreflightIdentity: () => Promise<void>;
   researchExactName: () => Promise<void>;
   handleResearchExisting: (company: Company) => Promise<void>;

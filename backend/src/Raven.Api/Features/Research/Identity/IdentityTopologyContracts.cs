@@ -24,7 +24,8 @@ public enum IdentityHintKind
     LegalName,
     RegistrationNumber,
     Headquarters,
-    Region
+    Region,
+    ResearchHint
 }
 
 public enum IdentityEntityType
@@ -63,7 +64,8 @@ public sealed record IdentityResolutionRequest(
     string? Headquarters = null,
     string? ResearchHint = null,
     bool ConfirmExactName = false,
-    bool AllowModelKnowledge = true);
+    bool AllowModelKnowledge = true,
+    bool GuidedRefinement = false);
 
 /// <summary>
 /// An identity/search hint from model knowledge. It is never an accepted

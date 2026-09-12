@@ -21,6 +21,7 @@ export function toIdentityResolutionRequest(input: IdentityResolutionRequest): I
     researchHint: optional(input.researchHint),
     confirmExactName: input.confirmExactName || undefined,
     allowModelKnowledge: input.allowModelKnowledge,
+    guidedRefinement: input.guidedRefinement || undefined,
   };
 }
 

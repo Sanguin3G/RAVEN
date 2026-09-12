@@ -21,7 +21,8 @@ public sealed class GeminiKnowledgeIdentityResolver(IAiModelProvider aiProvider)
                 ["country"] = Text(request.Country),
                 ["registrationNumber"] = Text(request.RegistrationNumber),
                 ["headquarters"] = Text(request.Headquarters),
-                ["researchHint"] = Text(request.ResearchHint, 1_000)
+                ["researchHint"] = Text(request.ResearchHint, 1_000),
+                ["guidedRefinement"] = request.GuidedRefinement ? "requested" : null
             }, []), Schema), cancellationToken);
         if (!modelResult.Succeeded || !modelResult.StructuredJson.HasValue)
             return Failure(modelResult.Failure?.Code ?? "invalid_response", "RAVEN couldn't confidently resolve this organization right now.", modelResult);
@@ -53,6 +54,8 @@ Every populated user hint below is relevant to topology. Use it to distinguish t
 
 When returning CorporateFamilyShorthand or NameCollision, requestedHints must name up to three details that would most efficiently distinguish an omitted intended organization. Prefer country, official website, legal name, registration/tax ID, or headquarters only when each is genuinely useful.
 
+{(x.GuidedRefinement ? "The user explicitly says none of the shown choices was right. Act as a guided-search assistant: do not invent an omitted organization or choose one for them. Explain, in one short user-facing message, which one to three fields would most efficiently make the next lookup useful. Include ResearchHint only when a concise business description, industry, product, or role could distinguish the company." : "")}
+
 Only use SpecificEntity when the user's wording plus supplied hints sufficiently names one organization. NameCollision is for unrelated plausible matches; Unknown when unsafe. Do not repeat the query as an entity without recognized context. Domains/legal names are optional navigation hints, not evidence. Return JSON only.
 
 Name: {Text(x.Name)}
@@ -76,5 +79,5 @@ Research hint: {Text(x.ResearchHint, 1_000) ?? "null"}
     private sealed class Item { public string? TemporaryId { get; set; } public string? DisplayName { get; set; } public string? LegalName { get; set; } public string? Country { get; set; } public string? Region { get; set; } public string? OfficialDomain { get; set; } public string? EntityType { get; set; } public string? ParentTemporaryId { get; set; } public string? RelationshipToQuery { get; set; } public string? Confidence { get; set; } public string? ShortDescription { get; set; } }
     private const string SystemInstruction = "RAVEN uses your output as non-evidentiary identity navigation. Describe topology only. Never decide what the user intended; return only structured JSON and no hidden reasoning.";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private static readonly JsonElement Schema = JsonDocument.Parse("""{"type":"object","properties":{"interpretation":{"type":"string","enum":["SpecificEntity","CorporateFamilyShorthand","NameCollision","Unknown"]},"candidates":{"type":"array","maxItems":7,"items":{"type":"object","properties":{"temporaryId":{"type":"string"},"displayName":{"type":"string"},"entityType":{"type":"string","enum":["ParentGroup","Company","Subsidiary","Affiliate","Brand","Unknown"]},"relationshipToQuery":{"type":"string","enum":["Exact","Alias","Parent","Subsidiary","SimilarName","Possible"]},"confidence":{"type":"string","enum":["High","Medium","Low"]}}}},"requestedHints":{"type":"array","maxItems":3,"items":{"type":"string","enum":["Country","Website","LegalName","RegistrationNumber","Headquarters","Region"]}},"message":{"type":"string"}},"required":["interpretation","candidates","requestedHints"]}""").RootElement.Clone();
+    private static readonly JsonElement Schema = JsonDocument.Parse("""{"type":"object","properties":{"interpretation":{"type":"string","enum":["SpecificEntity","CorporateFamilyShorthand","NameCollision","Unknown"]},"candidates":{"type":"array","maxItems":7,"items":{"type":"object","properties":{"temporaryId":{"type":"string"},"displayName":{"type":"string"},"entityType":{"type":"string","enum":["ParentGroup","Company","Subsidiary","Affiliate","Brand","Unknown"]},"relationshipToQuery":{"type":"string","enum":["Exact","Alias","Parent","Subsidiary","SimilarName","Possible"]},"confidence":{"type":"string","enum":["High","Medium","Low"]}}}},"requestedHints":{"type":"array","maxItems":3,"items":{"type":"string","enum":["Country","Website","LegalName","RegistrationNumber","Headquarters","Region","ResearchHint"]}},"message":{"type":"string"}},"required":["interpretation","candidates","requestedHints"]}""").RootElement.Clone();
 }

@@ -180,10 +180,16 @@ it("shows ambiguous grounded targets and resumes targeted discovery after select
     confidence: "High",
     shortDescription: "Technology services subsidiary of FPT Corporation",
   };
+  const ambiguousIdentity = { status: "Ambiguous", ambiguityType: "CorporateFamily", recommendedEntityId: null, entities: [{ ...identityCandidate, entityType: "Subsidiary", parentTemporaryId: "fpt" }, { temporaryId: "fpt", displayName: "FPT Corporation", legalName: null, country: "Vietnam", region: null, officialDomain: "fpt.com.vn", entityType: "ParentGroup", parentTemporaryId: null, relationshipToQuery: "Exact", confidence: "High", shortDescription: "Parent group" }], requestedHints: ["Country", "Website", "RegistrationNumber"], message: "Several organizations could match.", resolutionMethod: "ModelKnowledge" };
   const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
     if (url.endsWith("/execution")) return jsonResponse(execution);
-    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse({ status: "Ambiguous", ambiguityType: "CorporateFamily", recommendedEntityId: null, entities: [{ ...identityCandidate, entityType: "Subsidiary", parentTemporaryId: "fpt" }, { temporaryId: "fpt", displayName: "FPT Corporation", legalName: null, country: "Vietnam", region: null, officialDomain: "fpt.com.vn", entityType: "ParentGroup", parentTemporaryId: null, relationshipToQuery: "Exact", confidence: "High", shortDescription: "Parent group" }], requestedHints: ["Country", "Website", "RegistrationNumber"], message: "Several organizations could match.", resolutionMethod: "ModelKnowledge" });
+    if (url.endsWith("/api/research/identity/resolve")) {
+      const identityRequest = JSON.parse(String(init?.body || "{}"));
+      if (identityRequest.guidedRefinement) return jsonResponse({ ...ambiguousIdentity, requestedHints: ["ResearchHint", "Country"], message: "A short description of the business will help identify the missing company." });
+      if (identityRequest.researchHint === "artificial intelligence services") return jsonResponse({ status: "Resolved", ambiguityType: "None", recommendedEntityId: "fpt-ai", entities: [{ temporaryId: "fpt-ai", displayName: "FPT AI", legalName: null, country: "Vietnam", region: null, officialDomain: null, entityType: "Subsidiary", parentTemporaryId: "fpt", relationshipToQuery: "Exact", confidence: "High", shortDescription: "Artificial intelligence services" }], requestedHints: [], message: "Specific company recognized.", resolutionMethod: "ModelKnowledge" });
+      return jsonResponse(ambiguousIdentity);
+    }
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
     if (url.endsWith("/research/start")) return jsonResponse(run);
@@ -197,13 +203,17 @@ it("shows ambiguous grounded targets and resumes targeted discovery after select
 
   expect(await screen.findByRole("heading", { name: "Which organization do you mean?" })).toBeInTheDocument();
   expect(screen.getByText("Technology services subsidiary of FPT Corporation")).toBeInTheDocument();
-  expect(screen.getByText("I can’t find the organization I mean")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Get identity refinement advice" }));
-  expect(await screen.findByText(/Use the suggested detail/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Still can’t find it\? Help me refine this search/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /Still can’t find it\? Help me refine this search/ }));
+  expect(await screen.findByRole("heading", { name: "Refine your company search" })).toBeInTheDocument();
   expect(screen.getByLabelText("Country")).toBeInTheDocument();
   expect(screen.getByLabelText("Registration / tax ID")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Try again" }));
+  expect(screen.getByLabelText("What the company does")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Back to original choices" })).toBeInTheDocument();
+  await user.type(screen.getByLabelText("What the company does"), "artificial intelligence services");
+  await user.click(screen.getByRole("button", { name: "Update company choices" }));
   await screen.findByRole("heading", { name: "Which organization do you mean?" });
+  expect(screen.getByRole("radio", { name: /FPT AI/ })).toBeChecked();
   await user.click(screen.getByRole("radio", { name: /FPT Software/ }));
   await user.click(screen.getByRole("button", { name: "Continue with selected organization" }));
 

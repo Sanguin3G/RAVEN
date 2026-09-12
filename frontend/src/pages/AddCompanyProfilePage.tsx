@@ -28,6 +28,7 @@ function activityStage(view: WorkspaceView): ActivityStage {
       return "resolvingIdentity";
     case "checkingIdentity":
     case "preflightIdentity":
+    case "guidedIdentity":
       return "identifying";
     case "reviewingSources":
       return "awaitingSourceSelection";
