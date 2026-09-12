@@ -13,6 +13,12 @@ public static class ProfileEndpoints
             .Produces<ProfileGenerationResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        app.MapGet("/api/research-runs/{researchRunId:guid}/profile/candidate", GetCandidateAsync)
+            .WithTags("Profiles")
+            .WithSummary("Get the latest server-owned Company Profile candidate for a research run")
+            .Produces<CompanyProfileCandidate>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapPost("/api/research-runs/{researchRunId:guid}/profile/confirm", ConfirmAsync)
             .WithTags("Profiles")
             .WithSummary("Confirm a server-owned Company Profile candidate")
@@ -49,6 +55,13 @@ public static class ProfileEndpoints
     {
         var result = await profiles.GenerateAsync(researchRunId, cancellationToken);
         return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+    }
+
+    private static async Task<Results<Ok<CompanyProfileCandidate>, NotFound>> GetCandidateAsync(
+        Guid researchRunId, ICompanyProfileWorkflowService profiles, CancellationToken cancellationToken)
+    {
+        var candidate = await profiles.GetCandidateAsync(researchRunId, cancellationToken);
+        return candidate is null ? TypedResults.NotFound() : TypedResults.Ok(candidate);
     }
 
     private static async Task<Results<Ok<CompanyProfileVersion>, NotFound>> ConfirmAsync(

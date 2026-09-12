@@ -42,7 +42,12 @@ public sealed record DiscoverResearchRequest(
     bool UseAcceptedProfileIdentity = false,
     ResearchMode Mode = ResearchMode.Initial,
     Guid? BaseProfileVersionId = null,
-    IReadOnlyList<ResearchTarget>? Targets = null);
+    IReadOnlyList<ResearchTarget>? Targets = null,
+    Guid? ResearchRunId = null);
+
+public sealed record ActiveResearchRunResponse(
+    ResearchRunResponse Run,
+    string CompanyName);
 
 /// <summary>Returns a persisted possible real-world research target.</summary>
 public sealed record ResearchIdentityCandidateResponse(

@@ -3,6 +3,20 @@
 .primaryColumn, .contextColumn { display: grid; gap: 1.25rem; min-width: 0; }
 .contextColumn { position: sticky; top: calc(var(--topbar-height, 4.35rem) + 1rem); }
 .identityPanel, .matchPanel, .sourcesPanel, .evidencePanel, .failurePanel, .contextPanel { min-width: 0; }
+.compactContext { align-items: center; background: color-mix(in srgb, var(--primary) 9%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border)); border-radius: 6px; display: flex; gap: 0.65rem; min-width: 0; padding: 0.55rem 0.65rem; }
+.compactContextIcon { align-items: center; background: color-mix(in srgb, var(--primary) 16%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--border)); border-radius: 5px; color: var(--primary); display: inline-flex; flex: 0 0 auto; font-size: 0.66rem; font-weight: 900; height: 1.9rem; justify-content: center; width: 1.9rem; }
+.compactContextCopy { display: grid; gap: 0.08rem; min-width: 0; }
+.compactContextCopy small { color: var(--primary); font-size: 0.61rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.compactContextCopy strong, .compactContextCopy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compactContextCopy strong { color: var(--text); font-size: 0.86rem; }
+.compactContextCopy span { color: var(--text-muted); font-size: 0.68rem; }
+.researchControls { background: color-mix(in srgb, var(--ai) 8%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--ai) 34%, var(--border)); border-left: 4px solid var(--ai); border-radius: 5px; display: grid; gap: 0.7rem; padding: 0.75rem 0.85rem; }
+.researchControls[data-paused="true"] { background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised)); border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); border-left-color: var(--warning); }
+.researchControlsCopy { display: grid; gap: 0.2rem; }
+.researchControlsCopy strong { color: var(--text); font-size: 0.8rem; }
+.researchControlsCopy span { color: var(--text-muted); font-size: 0.7rem; line-height: 1.4; }
+.researchControlsActions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.researchControlsActions :global(.button) { align-items: center; display: inline-flex; gap: 0.3rem; }
 .fieldset { border: 0; margin: 0; padding: 0; }
 .visuallyHidden { height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; clip: rect(0 0 0 0); white-space: nowrap; }
 .formGrid { display: grid; gap: 0 0.9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -23,6 +37,12 @@
 .groundingOption strong { color: var(--text); font-size: 0.78rem; }
 .groundingOption small { color: var(--text-muted); font-size: 0.68rem; line-height: 1.25; }
 .identityResolutionPanel { min-width: 0; }
+.alternateIdentityBox { background: var(--surface-muted); border: 1px dashed var(--border-strong); border-radius: 6px; display: grid; gap: 0.65rem; margin-top: 1rem; padding: 0.8rem 0.9rem; }
+.alternateIdentityBox > div:first-child { display: grid; gap: 0.18rem; }
+.alternateIdentityBox strong { color: var(--text); font-size: 0.82rem; }
+.alternateIdentityBox p { color: var(--text-muted); font-size: 0.76rem; line-height: 1.4; margin: 0; }
+.alternateIdentityForm { align-items: end; display: grid; gap: 0.65rem; grid-template-columns: minmax(0, 1fr) auto; }
+.alternateIdentityForm :global(.text-input) { min-width: 0; }
 .identityCandidateList { display: grid; gap: 0.75rem; margin-top: 1rem; }
 .identityCandidateCard { align-items: flex-start; background: var(--surface-muted); border: 1px solid var(--border); border-left: 4px solid var(--border-strong); border-radius: 6px; cursor: pointer; display: grid; gap: 0.7rem; grid-template-columns: auto minmax(0, 1fr); padding: 0.9rem; transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease; }
 .identityCandidateCard:hover { border-color: var(--primary); }

@@ -49,7 +49,7 @@ Extend the bounded Deep Research backend with RAG-first retrieval, cancellation,
 
 **Status: implemented on `feat/day5-enrichment-workspace`; release verification remains branch-local until Microsoft Edge completion checks and review pass.**
 
-Delivered scope is coverage-aware source-root selection, generic corporate-family discovery, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; this branch consumes no invented conversation contract.
+Delivered scope is coverage-aware source-root selection, generic corporate-family discovery with review-only deterministic fallback, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds cancellable in-process background discovery, server-owned profile-candidate retrieval, and the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; this branch consumes no invented conversation contract.
 
 ## Stabilization principles
 

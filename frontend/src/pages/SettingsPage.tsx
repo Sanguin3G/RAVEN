@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { CaretDown, CaretUp, DotsSixVertical, Minus } from "@phosphor-icons/react";
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
 import { ThemeSelector } from "../components/ThemeSelector";
@@ -38,10 +39,10 @@ const groundingChoices: Array<{ value: GroundingMode; title: string; description
 ];
 
 const presetChoices: Array<{ value: ProviderPreset; title: string; description: string }> = [
-  { value: "Balanced", title: "RAVEN Balanced", description: "Brave first, with Crawl4AI Local then Exa Contents and Firecrawl available for resilient page retrieval." },
-  { value: "LocalFirst", title: "RAVEN Local First", description: "Prefer the local Crawl4AI service and Brave Search." },
-  { value: "Cloud", title: "RAVEN Cloud", description: "Prefer Exa Search and Contents, with Firecrawl as the cloud retrieval fallback." },
-  { value: "Custom", title: "Custom", description: "Keep the provider priority order returned by the API." },
+  { value: "Balanced", title: "RAVEN Resilient", description: "Use Brave and local Crawl4AI first, then retry with Exa or Firecrawl when a provider fails." },
+  { value: "LocalFirst", title: "RAVEN Local First", description: "Use Brave Search and local Crawl4AI only for the lowest-cost, local-first route." },
+  { value: "Cloud", title: "RAVEN Cloud", description: "Use Exa first, then Firecrawl, for both search and cloud retrieval." },
+  { value: "Custom", title: "Custom", description: "Manually choose which providers are enabled and set their exact order below." },
 ];
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
@@ -58,6 +59,9 @@ const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateRes
     crawlerProviderPriority: ["exa", "firecrawl"],
   },
 };
+
+const customSearchProviders = ["brave", "exa", "firecrawl-search"];
+const customCrawlerProviders = ["crawl4ai-local", "exa", "firecrawl"];
 
 function sameSettings(left: ResearchSettings, right: ResearchSettings) {
   return JSON.stringify({ ...left, updatedAt: "" }) === JSON.stringify({ ...right, updatedAt: "" });
@@ -121,6 +125,9 @@ export function SettingsPage() {
   const [isLoading, setLoading] = useState(true);
   const [isSaving, setSaving] = useState(false);
   const [isResetting, setResetting] = useState(false);
+  const [draggingPriority, setDraggingPriority] = useState<{ kind: "searchProviderPriority" | "crawlerProviderPriority"; index: number } | null>(null);
+  const [dragOverPriority, setDragOverPriority] = useState<{ kind: "searchProviderPriority" | "crawlerProviderPriority"; index: number } | null>(null);
+  const [movedPriority, setMovedPriority] = useState<{ kind: "searchProviderPriority" | "crawlerProviderPriority"; index: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -204,6 +211,86 @@ export function SettingsPage() {
       return;
     }
     updateDraft({ providerPreset: preset, ...presetPriorities[preset] });
+  };
+
+  const updatePriority = (kind: "searchProviderPriority" | "crawlerProviderPriority", next: string[]) => {
+    updateDraft({ providerPreset: "Custom", [kind]: next } as Partial<ResearchSettings>);
+  };
+
+  const toggleCustomProvider = (kind: "searchProviderPriority" | "crawlerProviderPriority", provider: string) => {
+    const current = draft[kind];
+    if (current.includes(provider)) {
+      if (current.length === 1) return;
+      updatePriority(kind, current.filter((item) => item !== provider));
+      return;
+    }
+    updatePriority(kind, [...current, provider]);
+  };
+
+  const moveCustomProvider = (kind: "searchProviderPriority" | "crawlerProviderPriority", index: number, offset: -1 | 1) => {
+    const nextIndex = index + offset;
+    const current = [...draft[kind]];
+    if (nextIndex < 0 || nextIndex >= current.length) return;
+    [current[index], current[nextIndex]] = [current[nextIndex], current[index]];
+    updatePriority(kind, current);
+    setMovedPriority({ kind, index: nextIndex });
+    window.setTimeout(() => setMovedPriority(null), 600);
+  };
+
+  const dragStartCustomProvider = (event: DragEvent<HTMLLIElement>, kind: "searchProviderPriority" | "crawlerProviderPriority", index: number) => {
+    setDraggingPriority({ kind, index });
+    setDragOverPriority({ kind, index });
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", `${kind}:${index}`);
+  };
+
+  const dropCustomProvider = (event: DragEvent<HTMLLIElement>, kind: "searchProviderPriority" | "crawlerProviderPriority", targetIndex: number) => {
+    event.preventDefault();
+    if (!draggingPriority || draggingPriority.kind !== kind || draggingPriority.index === targetIndex) {
+      setDraggingPriority(null);
+      setDragOverPriority(null);
+      return;
+    }
+    const current = [...draft[kind]];
+    const [moved] = current.splice(draggingPriority.index, 1);
+    if (moved) current.splice(targetIndex, 0, moved);
+    updatePriority(kind, current);
+    setMovedPriority({ kind, index: targetIndex });
+    window.setTimeout(() => setMovedPriority(null), 600);
+    setDraggingPriority(null);
+    setDragOverPriority(null);
+  };
+
+  const customPriorityEditor = (kind: "searchProviderPriority" | "crawlerProviderPriority", label: string, options: string[]) => {
+    const values = draft[kind];
+    return <div className={styles.customEditor}>
+      <div className={styles.customEditorHeading}><strong>{label}</strong><small>First available provider wins.</small></div>
+      <div className={styles.customEditorBody}>
+        <div className={styles.customProviderChoices}>
+          {options.map((provider) => <label key={provider} className={styles.customProviderChoice}><input type="checkbox" checked={values.includes(provider)} onChange={() => toggleCustomProvider(kind, provider)} /><span>{displayProvider(provider)}</span></label>)}
+        </div>
+        <ol className={styles.customPriorityList} aria-label={`${label} order`}>
+          {values.map((provider, index) => <li
+          key={provider}
+          draggable
+          data-dragging={draggingPriority?.kind === kind && draggingPriority.index === index ? "true" : undefined}
+          data-drop-target={dragOverPriority?.kind === kind && dragOverPriority.index === index && draggingPriority?.index !== index ? "true" : undefined}
+          data-moved={movedPriority?.kind === kind && movedPriority.index === index ? "true" : undefined}
+          onDragStart={(event) => dragStartCustomProvider(event, kind, index)}
+          onDragOver={(event) => { event.preventDefault(); setDragOverPriority({ kind, index }); }}
+          onDrop={(event) => dropCustomProvider(event, kind, index)}
+          onDragEnd={() => { setDraggingPriority(null); setDragOverPriority(null); }}
+          aria-label={`${displayProvider(provider)}, priority ${index + 1}`}
+          >
+            <span className={styles.customPriorityDragHandle} title="Drag to reorder"><DotsSixVertical size={16} weight="bold" aria-hidden="true" /></span>
+            <span className={styles.customPriorityNumber}>{index + 1}</span>
+            <strong>{displayProvider(provider)}</strong>
+            {index === 0 ? <span className={styles.customPriorityBoundary} title="Already first in this order"><Minus size={14} weight="bold" aria-hidden="true" /></span> : <button type="button" className={styles.customPriorityButton} onClick={() => moveCustomProvider(kind, index, -1)} aria-label={`Move ${displayProvider(provider)} up`} title={`Move ${displayProvider(provider)} up`}><CaretUp size={15} weight="bold" aria-hidden="true" /></button>}
+            {index === values.length - 1 ? <span className={styles.customPriorityBoundary} title="Already last in this order"><Minus size={14} weight="bold" aria-hidden="true" /></span> : <button type="button" className={styles.customPriorityButton} onClick={() => moveCustomProvider(kind, index, 1)} aria-label={`Move ${displayProvider(provider)} down`} title={`Move ${displayProvider(provider)} down`}><CaretDown size={15} weight="bold" aria-hidden="true" /></button>}
+          </li>)}
+        </ol>
+      </div>
+    </div>;
   };
 
   const roleOptions = (value: string) => models.some((model) => model.value === value)
@@ -297,6 +384,7 @@ export function SettingsPage() {
         </div>
         <fieldset className={styles.fieldSet} disabled={isLoading || isSaving || isResetting}>
           <legend>Research preset</legend>
+          <p className={styles.fieldHint}>These presets control provider priority and fallback behavior, not research depth. Grounding <strong>Auto</strong> is a separate identity-resolution setting.</p>
           <div className={styles.presetGrid}>
             {presetChoices.map((choice) => (
               <label className={`${styles.preset} ${draft.providerPreset === choice.value ? styles["preset--active"] : ""}`} key={choice.value}>
@@ -327,7 +415,7 @@ export function SettingsPage() {
           </div>
         </div>
 
-        <div className={styles.priorityGrid}>
+        {draft.providerPreset !== "Custom" ? <div className={styles.priorityGrid}>
           <div>
             <span className={styles.priorityLabel}>Search priority</span>
             <div className={styles.priorityList} aria-label="Search provider priority">
@@ -340,7 +428,15 @@ export function SettingsPage() {
               {draft.crawlerProviderPriority.map((provider) => <span className={styles.priorityItem} key={provider}>{displayProvider(provider)}</span>)}
             </div>
           </div>
-        </div>
+        </div> : null}
+
+        {draft.providerPreset === "Custom" ? <div className={styles.customRouting}>
+          <div className={styles.customRoutingIntro}><strong>Custom routing</strong><p>RAVEN will use the exact provider order below. This is manual routing, not a second cloud preset.</p></div>
+          <div className={styles.customRoutingGrid}>
+            {customPriorityEditor("searchProviderPriority", "Search order", customSearchProviders)}
+            {customPriorityEditor("crawlerProviderPriority", "Crawler order", customCrawlerProviders)}
+          </div>
+        </div> : null}
       </Panel>
 
       <Panel title="Appearance" eyebrow="PREFERENCES" className={styles.section}>

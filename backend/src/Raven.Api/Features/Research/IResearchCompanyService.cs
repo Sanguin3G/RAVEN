@@ -2,6 +2,9 @@ namespace Raven.Api.Features.Research;
 
 public interface IResearchCompanyService
 {
+    Task<ResearchRunResponse?> CreateQueuedRunAsync(Guid companyId, DiscoverResearchRequest? request, CancellationToken cancellationToken);
+    Task<ResearchRunResponse?> CancelAsync(Guid researchRunId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ActiveResearchRunResponse>> ListActiveRunsAsync(CancellationToken cancellationToken);
     Task<ResearchRunResponse?> ResearchAsync(Guid companyId, CancellationToken cancellationToken);
     Task<ResearchRunResponse?> DiscoverAsync(
         Guid companyId,

@@ -38,6 +38,9 @@ builder.Services.AddScoped<ICompanyWorkspaceReviewService, CompanyWorkspaceRevie
 builder.Services.AddScoped<ITargetedProfileUpdateService, TargetedProfileUpdateService>();
 builder.Services.AddScoped<IResearchSettingsStore, EfResearchSettingsStore>();
 builder.Services.AddScoped<IResearchSettingsService, ResearchSettingsService>();
+builder.Services.AddSingleton<ResearchRunBackgroundQueue>();
+builder.Services.AddSingleton<IResearchRunBackgroundQueue>(services => services.GetRequiredService<ResearchRunBackgroundQueue>());
+builder.Services.AddHostedService(services => services.GetRequiredService<ResearchRunBackgroundQueue>());
 builder.Services.AddSingleton<IMonitoringClock, SystemMonitoringClock>();
 builder.Services.AddScoped<ICompanyMonitoringService, CompanyMonitoringService>();
 builder.Services.AddScoped<ICompanyMonitoringStore, EfCompanyMonitoringStore>();
@@ -79,6 +82,9 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseCors("DevelopmentFrontend");
 app.MapHealthChecks("/health");
+// Keep the API health probe on the same /api surface used by the frontend
+// dev proxy. The root route remains available for infrastructure probes.
+app.MapHealthChecks("/api/health");
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
 app.MapCompanyEndpoints();
 app.MapCompanyLifecycleEndpoints();

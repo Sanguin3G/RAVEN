@@ -89,6 +89,19 @@ public sealed class CompanyProfilePersistenceService(
         return persisted is null ? null : HydrateCandidate(persisted);
     }
 
+    public async Task<CompanyProfileCandidate?> GetLatestCandidateForRunAsync(
+        Guid researchRunId,
+        CancellationToken cancellationToken = default)
+    {
+        var persisted = await dbContext.CompanyProfileCandidates
+            .AsNoTracking()
+            .Where(profile => profile.ResearchRunId == researchRunId)
+            .OrderByDescending(profile => profile.GeneratedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return persisted is null ? null : HydrateCandidate(persisted);
+    }
+
     public async Task<CompanyProfileVersion?> ConfirmCandidateAsync(
         Guid candidateId,
         CancellationToken cancellationToken = default)

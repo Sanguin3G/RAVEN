@@ -1,13 +1,13 @@
 # RAVEN Status
 
 Last updated: 2026-09-12
-Day-5 branch: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, workspace health, lifecycle operations, and corrected workspace IA are integrated here but not merged into `main`.
+Day-5 branch: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are integrated here but not merged into `main`.
 Current branch: **feat/day5-enrichment-workspace** (not merged into `main`)
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state
 
-The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence. Day 5 adds coverage-driven follow-up research, generic corporate-family planning, deliberate MaSoThue directory evidence, target-scoped profile patches, lifecycle safety, and the clarified Company workspace.
+The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence. Day 5 adds coverage-driven follow-up research, generic corporate-family planning with a cautious deterministic fallback, deliberate MaSoThue directory evidence, target-scoped profile patches, cancellable in-process background discovery, lifecycle safety, and the clarified Company workspace.
 
 ## Integrated
 
@@ -30,6 +30,8 @@ The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assi
 - Coverage levels and ResearchTargets drive bounded follow-up research. Recommended roots remain complementary; one approved official root may yield several bounded same-domain documents.
 - Corporate-family discovery, coverage-aware source selection, target-aware official-site planning, and MaSoThue parsing as a BusinessDirectory rather than an official registry.
 - Targeted enrichment and server-owned ProfilePatch confirmation preserve every unrelated accepted profile field.
+- Background research start, cancellation, and active-run listing are available through an in-process queue; queued work is deliberately not durable across an API restart.
+- The latest server-owned profile candidate is available by research run for review without treating it as accepted profile truth.
 - Company health, deterministic duplicate review, archive/restore, permanent-delete confirmation, and transactional merge preview/confirmation.
 - Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. Ask RAVEN is a responsive right dock that remains an integration-pending frontend boundary until Hung's backend contract is published.
 
@@ -39,7 +41,7 @@ Latest local integration check:
 
 ```text
 dotnet build Raven.sln --no-restore   passed
-dotnet test Raven.sln --no-restore    252 passed
+dotnet test Raven.sln --no-restore    257 passed
 npm run build                         passed
 Vitest focused suites                  42 passed across isolated single-worker runs
 npm run build                         passed
@@ -67,7 +69,6 @@ Day-5 browser coverage currently covers Company List responsive behavior only. P
 ## Deliberately not implemented
 
 - Source chunks, embeddings, vector retrieval, and RAG.
-- RAG and SourceChunk/embedding retrieval.
 - MCP, Crawl4AI Cloud, full monitoring operations, and arbitrary profile-version comparisons.
 - Hung's Ask RAVEN backend, conversation persistence, Quick Ask orchestration, and prompt/context contract. The Day-5 dock deliberately does not fabricate messages while that handoff is unavailable.
 

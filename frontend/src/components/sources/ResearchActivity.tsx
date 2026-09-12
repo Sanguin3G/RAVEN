@@ -4,12 +4,14 @@ export type ResearchStage =
   | "idle"
   | "identifying"
   | "discovering"
+  | "resolvingIdentity"
   | "awaitingSourceSelection"
   | "acquiring"
   | "evidenceReady"
   | "generatingProfile"
   | "awaitingProfileConfirmation"
   | "completed"
+  | "cancelled"
   | "failed";
 
 export type ResearchActivityStatus = "completed" | "active" | "waiting" | "failed" | "pending";
@@ -41,12 +43,14 @@ export type ResearchActivityProps = {
   items?: ResearchActivityItem[];
   counters?: ResearchActivityCounters;
   failureMessage?: string | null;
+  statusDetail?: string | null;
   className?: string;
 };
 
 const stageItems: Array<{ stage: Exclude<ResearchStage, "idle" | "failed">; label: string }> = [
   { stage: "identifying", label: "Identity prepared" },
   { stage: "discovering", label: "Discover public sources" },
+  { stage: "resolvingIdentity", label: "Resolve research target" },
   { stage: "awaitingSourceSelection", label: "Review candidate sources" },
   { stage: "acquiring", label: "Acquire selected sources" },
   { stage: "evidenceReady", label: "Review acquired evidence" },
@@ -56,8 +60,8 @@ const stageItems: Array<{ stage: Exclude<ResearchStage, "idle" | "failed">; labe
 ];
 
 const counterLabels: Array<[keyof ResearchActivityCounters, string]> = [
-  ["queriesTotal", "Brave queries planned"],
-  ["queriesCompleted", "Brave queries"],
+  ["queriesTotal", "Search queries planned"],
+  ["queriesCompleted", "Search queries completed"],
   ["searchResultsFound", "Search results"],
   ["uniqueCandidates", "Unique candidates"],
   ["recommendedCandidates", "Recommended sources"],
@@ -72,6 +76,7 @@ const counterLabels: Array<[keyof ResearchActivityCounters, string]> = [
 
 function stageLabel(stage: ResearchStage): string {
   if (stage === "failed") return "Research failed";
+  if (stage === "cancelled") return "Research cancelled";
   return stageItems.find((item) => item.stage === stage)?.label || "Ready to research";
 }
 
@@ -79,6 +84,9 @@ function derivedItems(stage: ResearchStage): ResearchActivityItem[] {
   if (stage === "idle") return [];
   if (stage === "failed") {
     return [{ id: "failed", label: "Research failed", status: "failed" }];
+  }
+  if (stage === "cancelled") {
+    return [{ id: "cancelled", label: "Research cancelled", status: "failed" }];
   }
 
   const currentIndex = stageItems.findIndex((item) => item.stage === stage);
@@ -98,14 +106,34 @@ function formatCounter(key: keyof ResearchActivityCounters, counters: ResearchAc
   return String(value);
 }
 
-export function ResearchActivity({ stage, items, counters, failureMessage, className = "" }: ResearchActivityProps) {
+export function ResearchActivity({ stage, items, counters, failureMessage, statusDetail, className = "" }: ResearchActivityProps) {
   const activityItems = items || derivedItems(stage);
   const visibleCounters = counters
     ? counterLabels
+        .filter(([key]) => {
+          // Query totals are useful while discovery is actually running. Once all
+          // queries have returned, showing “4 / 4” makes the run look finished
+          // even though classification or identity grounding may still be active.
+          if (key === "queriesTotal" || key === "queriesCompleted") {
+            return stage === "discovering" && (counters.queriesTotal ?? 0) > (counters.queriesCompleted ?? 0);
+          }
+          if (key === "crawlTotal" || key === "crawlCompleted" || key === "crawlSucceeded" || key === "crawlFailed") {
+            return stage === "acquiring" || stage === "evidenceReady";
+          }
+          return true;
+        })
         .map(([key, label]) => ({ key, label, value: formatCounter(key, counters) }))
         .filter((counter): counter is { key: keyof ResearchActivityCounters; label: string; value: string } => counter.value !== undefined)
     : [];
-  const statusText = stage === "failed" ? `Research failed${failureMessage ? `: ${failureMessage}` : ""}` : stage === "completed" ? "Research completed" : stage === "awaitingSourceSelection" || stage === "awaitingProfileConfirmation" ? `Waiting for you: ${stageLabel(stage)}` : `Research activity: ${stageLabel(stage)}`;
+  const statusText = stage === "failed"
+    ? `Research failed${failureMessage ? `: ${failureMessage}` : ""}`
+    : stage === "cancelled"
+      ? "Research cancelled"
+      : stage === "completed"
+        ? "Research completed"
+        : stage === "awaitingSourceSelection" || stage === "awaitingProfileConfirmation"
+          ? `Waiting for you: ${stageLabel(stage)}`
+          : `Research activity: ${stageLabel(stage)}`;
 
   return (
     <section aria-labelledby="research-activity-heading" className={`${styles.activity} ${className}`}>
@@ -115,7 +143,7 @@ export function ResearchActivity({ stage, items, counters, failureMessage, class
           <h2 id="research-activity-heading">{stageLabel(stage)}</h2>
         </div>
         <p aria-live="polite" className={styles.activityStatus} role="status">
-          {statusText}
+          {statusText}{statusDetail ? ` · ${statusDetail}` : ""}
         </p>
       </div>
       {failureMessage && stage === "failed" && <p className={styles.activityFailure}>{failureMessage}</p>}

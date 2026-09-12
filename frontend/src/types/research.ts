@@ -1,4 +1,4 @@
-export type ResearchRunStatus = "Searching" | "Crawling" | "Completed" | "Failed";
+export type ResearchRunStatus = "Searching" | "Crawling" | "Completed" | "Cancelled" | "Failed";
 
 export type GroundingMode = "Auto" | "Always" | "Off";
 
@@ -13,6 +13,7 @@ export type ResearchStage =
   | "GeneratingProfile"
   | "AwaitingProfileConfirmation"
   | "Completed"
+  | "Cancelled"
   | "Failed";
 
 export type SourceKind =
@@ -72,6 +73,11 @@ export interface ResearchRun {
   mode?: ResearchMode;
   baseProfileVersionId?: string | null;
   targets?: ResearchTarget[] | null;
+}
+
+export interface ActiveResearchRun {
+  run: ResearchRun;
+  companyName: string;
 }
 
 export type GroundedEntityType = "ParentGroup" | "Company" | "Subsidiary" | "Affiliate" | "Brand" | "Unknown";

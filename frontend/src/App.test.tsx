@@ -71,12 +71,13 @@ const researchSources = [{
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   let createdCompany: typeof apiCompanies[number] | null = null;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
     if (url.endsWith("/matches") && init?.method === "POST") return jsonResponse([]);
     if (url.endsWith("/profile")) return jsonResponse({ message: "No accepted profile" }, 404);
-    if (url.endsWith("/research/discover") && init?.method === "POST") return jsonResponse(researchRun);
+    if (url.endsWith("/research/start") && init?.method === "POST") return jsonResponse(researchRun);
     if (url.endsWith("/candidates")) return jsonResponse(researchCandidates);
     if (url.endsWith("/acquire") && init?.method === "POST") return jsonResponse(acquiredResearchRun);
     if (url.endsWith("/sources")) return jsonResponse(researchSources);
@@ -97,7 +98,7 @@ beforeEach(() => {
 it("renders the Day 2 dashboard and new navigation", async () => {
   renderWithRouter(<App />);
 
-  expect(screen.getByRole("heading", { name: "Company intelligence, at a glance." })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Know what needs attention." })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Companies" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Research Company" })).toBeInTheDocument();
@@ -137,9 +138,9 @@ it("runs staged public-source research and shows its acquired evidence", async (
 
   expect(await screen.findByText(/Review source candidates/i)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /Acquire 2 selected sources/i }));
-  expect(await screen.findByText(/Evidence ready/i)).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: /Evidence ready/i })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open source" })).toHaveAttribute("href", "https://fptsoftware.com/about");
-  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research/discover", expect.objectContaining({ method: "POST" }));
+  expect(globalThis.fetch).toHaveBeenCalledWith("/api/companies/33333333-3333-3333-3333-333333333333/research/start", expect.objectContaining({ method: "POST" }));
 });
 
 it("marks only Research Company as active on the research page", () => {

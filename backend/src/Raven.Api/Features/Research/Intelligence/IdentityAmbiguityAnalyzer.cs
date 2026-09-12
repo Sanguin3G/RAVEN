@@ -18,18 +18,6 @@ public sealed record IdentityAmbiguityAnalysis(
 /// </summary>
 public sealed class IdentityAmbiguityAnalyzer
 {
-    private static readonly HashSet<string> ShortGeneralNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "fpt",
-        "vin",
-        "sun",
-        "meta",
-        "delta",
-        "shell",
-        "orange",
-        "apple"
-    };
-
     private static readonly string[] ParentSignals =
     [
         "parent",
@@ -62,7 +50,10 @@ public sealed class IdentityAmbiguityAnalyzer
         var identity = request.Identity;
         var normalizedName = Normalize(identity.Name);
 
-        if (normalizedName.Length <= 4 || ShortGeneralNames.Contains(normalizedName))
+        // Keep this generic: family grounding must work for any short or
+        // underspecified organization name, not a hard-coded list of brands.
+        var nameTokenCount = normalizedName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        if (normalizedName.Length <= 4 || nameTokenCount == 1 && normalizedName.Length <= 8)
         {
             signals.Add("company name is short or general");
         }

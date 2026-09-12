@@ -33,7 +33,8 @@ public sealed class ResearchCompanyService(
     CorporateFamilyDiscoveryPlanner? corporateFamilyDiscoveryPlanner = null,
     CoverageAwareSourceSelector? coverageAwareSourceSelector = null,
     TargetedQueryPlanner? targetedQueryPlanner = null,
-    OfficialSiteEvidencePlanner? officialSiteEvidencePlanner = null) : IResearchCompanyService
+    OfficialSiteEvidencePlanner? officialSiteEvidencePlanner = null,
+    DeterministicIdentityFamilyBuilder? deterministicIdentityFamilyBuilder = null) : IResearchCompanyService
 {
     private const int MaximumRecommendedCandidates = 5;
     private const int SearchResultsPerQuery = 5;
@@ -48,6 +49,60 @@ public sealed class ResearchCompanyService(
     private readonly CoverageAwareSourceSelector coverageSourceSelector = coverageAwareSourceSelector ?? new();
     private readonly TargetedQueryPlanner targetedPlanner = targetedQueryPlanner ?? new();
     private readonly OfficialSiteEvidencePlanner officialEvidencePlanner = officialSiteEvidencePlanner ?? new(urlNormalizer);
+    private readonly DeterministicIdentityFamilyBuilder deterministicIdentityFamilyBuilder = deterministicIdentityFamilyBuilder ?? new();
+
+    public async Task<ResearchRunResponse?> CreateQueuedRunAsync(
+        Guid companyId,
+        DiscoverResearchRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var company = await dbContext.Companies.SingleOrDefaultAsync(item => item.Id == companyId, cancellationToken);
+        if (company is null) return null;
+        var settings = await ReadSettingsAsync(cancellationToken);
+        var run = new ResearchRun
+        {
+            CompanyId = company.Id,
+            RequestedSearchProvider = settings?.SearchProviderPriority.FirstOrDefault() ?? searchProvider.Id,
+            RequestedCrawlerProvider = settings?.CrawlerProviderPriority.FirstOrDefault() ?? crawlerProvider.Id,
+            ResearchHint = TrimOptional(request?.ResearchHint),
+            GroundingMode = request?.GroundingMode ?? settings?.GroundingMode ?? GroundingMode.Auto,
+            Mode = request?.Mode ?? ResearchMode.Initial,
+            BaseProfileVersionId = request?.BaseProfileVersionId,
+            ResearchTargetsJson = SerializeTargets(request?.Targets),
+            Stage = ResearchStage.Identifying,
+            Status = ResearchRunStatus.Searching
+        };
+        dbContext.ResearchRuns.Add(run);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToResponse(run);
+    }
+
+    public async Task<ResearchRunResponse?> CancelAsync(Guid researchRunId, CancellationToken cancellationToken)
+    {
+        var run = await dbContext.ResearchRuns.SingleOrDefaultAsync(item => item.Id == researchRunId, cancellationToken);
+        if (run is null) return null;
+        // EvidenceReady and AwaitingProfileConfirmation use Completed as the
+        // acquisition/generation operation status, but the user still owns the
+        // workflow. They remain cancellable until the profile is confirmed and
+        // the run reaches the terminal Completed stage.
+        if (run.Stage is ResearchStage.Completed or ResearchStage.Failed or ResearchStage.Cancelled) return ToResponse(run);
+        run.Status = ResearchRunStatus.Cancelled;
+        run.Stage = ResearchStage.Cancelled;
+        run.CompletedAt = DateTimeOffset.UtcNow;
+        run.Error = "Research cancelled by the user.";
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToResponse(run);
+    }
+
+    public async Task<IReadOnlyList<ActiveResearchRunResponse>> ListActiveRunsAsync(CancellationToken cancellationToken)
+    {
+        var runs = await dbContext.ResearchRuns.AsNoTracking()
+            .Where(run => run.Status == ResearchRunStatus.Searching || run.Status == ResearchRunStatus.Crawling)
+            .Where(run => run.Stage == ResearchStage.Identifying || run.Stage == ResearchStage.Discovering || run.Stage == ResearchStage.Grounding || run.Stage == ResearchStage.Acquiring || run.Stage == ResearchStage.GeneratingProfile)
+            .Join(dbContext.Companies.AsNoTracking(), run => run.CompanyId, company => company.Id, (run, company) => new ActiveResearchRunResponse(ToResponse(run), company.Name))
+            .ToListAsync(cancellationToken);
+        return runs.OrderByDescending(item => item.Run.StartedAt).ToArray();
+    }
 
     public async Task<ResearchRunResponse?> ResearchAsync(Guid companyId, CancellationToken cancellationToken)
     {
@@ -85,19 +140,33 @@ public sealed class ResearchCompanyService(
             return null;
         }
 
-        var persistedSettings = await ReadSettingsAsync(cancellationToken);
-        var run = new ResearchRun
+        ResearchRun? run = request?.ResearchRunId is { } queuedRunId
+            ? await dbContext.ResearchRuns.SingleOrDefaultAsync(item => item.Id == queuedRunId && item.CompanyId == companyId, cancellationToken)
+            : null;
+        if (request?.ResearchRunId is not null && run is null) return null;
+        if (run?.Status == ResearchRunStatus.Cancelled) return ToResponse(run);
+        if (run is null)
         {
-            CompanyId = company.Id,
-            RequestedSearchProvider = persistedSettings?.SearchProviderPriority.FirstOrDefault() ?? searchProvider.Id,
-            RequestedCrawlerProvider = persistedSettings?.CrawlerProviderPriority.FirstOrDefault() ?? crawlerProvider.Id,
-            ResearchHint = TrimOptional(request?.ResearchHint),
-            GroundingMode = request?.GroundingMode ?? persistedSettings?.GroundingMode ?? GroundingMode.Auto,
-            Mode = request?.Mode ?? ResearchMode.Initial,
-            BaseProfileVersionId = request?.BaseProfileVersionId,
-            ResearchTargetsJson = SerializeTargets(request?.Targets)
-        };
-        dbContext.ResearchRuns.Add(run);
+            var persistedSettings = await ReadSettingsAsync(cancellationToken);
+            run = new ResearchRun
+            {
+                CompanyId = company.Id,
+                RequestedSearchProvider = persistedSettings?.SearchProviderPriority.FirstOrDefault() ?? searchProvider.Id,
+                RequestedCrawlerProvider = persistedSettings?.CrawlerProviderPriority.FirstOrDefault() ?? crawlerProvider.Id,
+                ResearchHint = TrimOptional(request?.ResearchHint),
+                GroundingMode = request?.GroundingMode ?? persistedSettings?.GroundingMode ?? GroundingMode.Auto,
+                Mode = request?.Mode ?? ResearchMode.Initial,
+                BaseProfileVersionId = request?.BaseProfileVersionId,
+                ResearchTargetsJson = SerializeTargets(request?.Targets)
+            };
+            dbContext.ResearchRuns.Add(run);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        run.Stage = ResearchStage.Discovering;
+        run.Status = ResearchRunStatus.Searching;
+        run.CompletedAt = null;
+        run.Error = null;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         try
@@ -148,9 +217,10 @@ public sealed class ResearchCompanyService(
                 }
             }
             var settings = await ReadSettingsAsync(cancellationToken);
+            var groundingCandidates = drafts.Select(ToGroundingCandidate).ToArray();
             var shouldGround = identityResolver is not null &&
                                ambiguityAnalyzer.RequiresGrounding(
-                                   new IdentityResolutionRequest(initialIdentity, drafts.Select(ToGroundingCandidate).ToArray()),
+                                   new IdentityResolutionRequest(initialIdentity, groundingCandidates),
                                    run.GroundingMode);
             ResolvedResearchEntity? resolvedTarget = null;
             var identityRecords = Array.Empty<ResearchIdentityCandidate>();
@@ -166,7 +236,7 @@ public sealed class ResearchCompanyService(
                 try
                 {
                     resolution = await identityResolver!.ResolveAsync(
-                        new IdentityResolutionRequest(initialIdentity, drafts.Select(ToGroundingCandidate).ToArray()),
+                        new IdentityResolutionRequest(initialIdentity, groundingCandidates),
                         cancellationToken);
                 }
                 catch (Exception) when (!cancellationToken.IsCancellationRequested)
@@ -178,6 +248,16 @@ public sealed class ResearchCompanyService(
                         "Company identity grounding failed; deterministic research can continue.",
                         new AiFailure("provider_error", "Company identity grounding failed.", true));
                 }
+                var deterministicFamily = deterministicIdentityFamilyBuilder.Build(initialIdentity, groundingCandidates);
+                if (deterministicFamily.Count >= 2 && (resolution.Failure is not null || resolution.Entities.Count < 2))
+                {
+                    resolution = new IdentityResolutionResult(
+                        true,
+                        deterministicFamily.FirstOrDefault(entity => entity.Recommended)?.TemporaryId,
+                        deterministicFamily,
+                        "Grounding returned an incomplete family view; showing bounded metadata-based organization choices for review.");
+                }
+
                 identityRecords = PersistIdentityCandidates(run, resolution);
 
                 if (resolution.Failure is not null)
@@ -1014,7 +1094,7 @@ public sealed class ResearchCompanyService(
     {
         if (!useAcceptedProfileIdentity || profilePersistence is null)
         {
-            return ResearchIdentityInput.FromCompany(company, researchHint);
+            return ApplyExplicitIdentityHints(ResearchIdentityInput.FromCompany(company, researchHint));
         }
 
         try
@@ -1022,7 +1102,7 @@ public sealed class ResearchCompanyService(
             var profile = await profilePersistence.GetCurrentProfileAsync(company.Id, cancellationToken);
             if (profile is null)
             {
-                return ResearchIdentityInput.FromCompany(company, researchHint);
+                return ApplyExplicitIdentityHints(ResearchIdentityInput.FromCompany(company, researchHint));
             }
 
             return new ResearchIdentityInput(
@@ -1032,13 +1112,37 @@ public sealed class ResearchCompanyService(
                 profile.Country?.Trim() is { Length: > 0 } country ? country : company.Country,
                 profile.RegistrationNumberOrTaxId?.Trim() is { Length: > 0 } registration ? registration : company.RegistrationNumber,
                 profile.Headquarters?.Trim() is { Length: > 0 } headquarters ? headquarters : company.Headquarters,
-                researchHint);
+                researchHint) with
+            {
+                Country = ReadExplicitHint(researchHint, "Country") ??
+                          (profile.Country?.Trim() is { Length: > 0 } profileCountry ? profileCountry : company.Country),
+                LegalName = ReadExplicitHint(researchHint, "Legal name") ??
+                            (profile.LegalName?.Trim() is { Length: > 0 } profileLegalName ? profileLegalName : company.LegalName)
+            };
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             // Refresh remains available with stable Company identity if old profile data cannot be read.
-            return ResearchIdentityInput.FromCompany(company, researchHint);
+            return ApplyExplicitIdentityHints(ResearchIdentityInput.FromCompany(company, researchHint));
         }
+    }
+
+    private static ResearchIdentityInput ApplyExplicitIdentityHints(ResearchIdentityInput identity) => identity with
+    {
+        Country = ReadExplicitHint(identity.ResearchHint, "Country") ?? identity.Country,
+        LegalName = ReadExplicitHint(identity.ResearchHint, "Legal name") ?? identity.LegalName
+    };
+
+    private static string? ReadExplicitHint(string? researchHint, string label)
+    {
+        if (string.IsNullOrWhiteSpace(researchHint)) return null;
+        var marker = $"{label}:";
+        var start = researchHint.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (start < 0) return null;
+        start += marker.Length;
+        var end = researchHint.IndexOf(';', start);
+        var value = (end >= 0 ? researchHint[start..end] : researchHint[start..]).Trim();
+        return value.Length == 0 ? null : value;
     }
 
     private async Task<IReadOnlyList<SourceDocumentResponse>> ReadSourceResponsesAsync(

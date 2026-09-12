@@ -2,7 +2,7 @@
   align-items: start;
   display: grid;
   gap: var(--dossier-gap, 1.25rem);
-  grid-template-columns: minmax(0, 1fr) minmax(23.75rem, 27vw);
+  grid-template-columns: minmax(0, 1fr) clamp(21rem, 27vw, 30rem);
 }
 
 .workspaceShellCollapsed {
@@ -319,16 +319,23 @@
 }
 
 .assistantToggle {
-  background: var(--surface-muted);
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  color: var(--primary);
+  align-items: center;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--ai) 18%, var(--surface-raised)), var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 52%, var(--border));
+  border-radius: 0.65rem;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ai) 14%, transparent);
+  color: var(--ai);
   cursor: pointer;
+  display: inline-flex;
+  gap: 0.45rem;
   font-size: 0.7rem;
   font-weight: 900;
   min-height: 2.5rem;
   padding: 0.45rem;
 }
+.assistantToggle:hover, .assistantToggle:focus-visible { border-color: var(--ai); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ai) 17%, transparent); }
+.workspaceShellCollapsed .assistantToggle { justify-content: center; min-height: 3rem; padding: 0.45rem 0.3rem; }
+.workspaceShellCollapsed .assistantToggle span { display: none; }
 
 .coveragePanel {
   background: linear-gradient(to bottom, var(--surface-raised), var(--surface));
@@ -1149,6 +1156,47 @@
   opacity: 0.45;
 }
 
+/* Keep the dock mostly for the conversation, not a second dossier header. */
+.handoff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-block-size: clamp(31rem, calc(100dvh - 9rem), 48rem);
+  padding: 0.75rem;
+}
+
+.assistantCompactHeader {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--ai) 24%, var(--border));
+  display: flex;
+  gap: 0.55rem;
+  min-inline-size: 0;
+  padding-bottom: 0.55rem;
+}
+
+.assistantCompactHeader > div { flex: 1 1 auto; min-inline-size: 0; }
+.assistantCompactHeader h2 { font-size: 0.94rem; }
+.assistantCompactHeader p { margin: 0.08rem 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assistantCompactHeader .handoffStatus { flex: 0 0 auto; margin-left: auto; }
+.chatViewport { background: color-mix(in srgb, var(--surface-raised) 72%, var(--surface-muted)); border: 1px solid color-mix(in srgb, var(--ai) 20%, var(--border)); border-radius: 0.65rem; display: flex; flex: 1 1 auto; flex-direction: column; min-block-size: 14rem; min-inline-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1rem; scrollbar-gutter: stable; }
+.chatEmptyState { display: grid; gap: 0.32rem; margin: auto; max-inline-size: 28ch; place-items: center; text-align: center; }
+.chatEmptyState p { margin: 0; }
+.chatEmptyMark { color: var(--ai); font-size: 1.45rem; line-height: 1; }
+.chatSystemMessage { background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised)); border-left: 3px solid var(--warning); color: var(--text-muted); font-size: 0.74rem; line-height: 1.45; margin-top: auto; padding: 0.55rem 0.6rem; }
+.assistantComposer { background: var(--surface-raised); border-radius: 0.7rem; gap: 0.35rem; margin-top: 0; padding: 0.55rem 0.6rem; }
+.assistantComposer textarea { background: transparent; border: 0; border-radius: 0; min-block-size: 3.75rem; padding: 0.3rem 0; resize: vertical; }
+.assistantComposer textarea:focus-visible { outline-offset: 2px; }
+.assistantComposerFooter { gap: 0.42rem; justify-content: flex-start; }
+.assistantAttach, .assistantModeSelect { align-items: center; background: var(--surface-muted); border: 1px solid var(--border); color: var(--text-muted); display: inline-flex; }
+.assistantAttach { border-radius: 50%; height: 1.9rem; justify-content: center; padding: 0; width: 1.9rem; }
+.assistantModeSelect { border-radius: 999px; gap: 0.2rem; padding: 0 0.42rem; position: relative; }
+.assistantModeSelect select { appearance: none; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 0.72rem; font-weight: 800; padding: 0.4rem 0.05rem; }
+.assistantModeSelect svg:last-child { pointer-events: none; }
+.assistantSubmit { align-items: center; border-radius: 50%; display: inline-flex; height: 1.9rem; justify-content: center; margin-left: auto; min-height: 1.9rem; padding: 0; width: 1.9rem; }
+.handoffDeep .assistantComposer { background: color-mix(in srgb, var(--ai) 9%, var(--surface-raised)); border-color: color-mix(in srgb, var(--ai) 58%, var(--border)); }
+.handoffDeep .assistantModeSelect { background: color-mix(in srgb, var(--ai) 13%, var(--surface-raised)); border-color: color-mix(in srgb, var(--ai) 52%, var(--border)); color: var(--ai); }
+.handoffDeep .assistantSubmit { background: var(--ai); border-color: var(--ai); }
+
 .assistantPending {
   background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised));
   border-left: 3px solid var(--warning);
@@ -1193,6 +1241,11 @@
     width: min(92vw, 27rem);
     z-index: 20;
   }
+
+  .handoff { min-block-size: calc(100dvh - 1.6rem); }
+
+  .global-research-strip { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+  .global-research-strip__items { max-inline-size: 100%; width: 100%; }
 
   .workspaceShellCollapsed .assistantDock {
     background: transparent;

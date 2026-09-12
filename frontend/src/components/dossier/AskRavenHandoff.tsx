@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { ArrowUp, CaretDown, Plus, Sparkle } from "@phosphor-icons/react";
 import styles from "./dossier.module.css";
 
 export interface AskRavenHandoffProps {
@@ -11,102 +12,78 @@ export interface AskRavenHandoffProps {
 
 type AssistantMode = "quick" | "deep";
 
-function display(value?: number | string | null): string {
-  if (value === null || value === undefined || value === "") return "Not available";
-  return String(value);
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) return "Not available";
+function formatDate(value?: string | null): string | null {
+  if (!value) return null;
   const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? "Not available" : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp);
+  return Number.isNaN(timestamp) ? null : new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(timestamp);
 }
 
 export function AskRavenHandoff({ companyId, companyName, profileVersion, sourceCount, lastResearchedAt }: AskRavenHandoffProps) {
   const [mode, setMode] = useState<AssistantMode>("quick");
   const [question, setQuestion] = useState("");
   const [handoffMessage, setHandoffMessage] = useState<string | null>(null);
+  const researched = formatDate(lastResearchedAt);
 
   const submitQuestion = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!question.trim()) return;
 
-    // Hung owns the production Ask RAVEN backend. Until its contract is
-    // connected here, keep this interaction explicit instead of fabricating a
-    // response or simulating citations/activity.
+    // Hung owns the production conversation contract. Keep this truthful until
+    // the adapter can call that contract instead of inventing a reply.
     setHandoffMessage("Ask RAVEN backend integration is pending. Your question was not sent.");
   };
 
   return (
-    <section className={styles.handoff} data-testid="ask-raven-handoff" aria-labelledby="ask-raven-heading">
-      <div className={styles.handoffHeader}>
+    <section className={`${styles.handoff} ${mode === "deep" ? styles.handoffDeep : ""}`} data-testid="ask-raven-handoff" aria-labelledby="ask-raven-heading">
+      <header className={styles.assistantCompactHeader}>
         <span aria-hidden="true" className={styles.aiMark}>AI</span>
-        <div className={styles.handoffTitle}>
-          <p className={styles.eyebrow}>Company-scoped assistant</p>
+        <div>
           <h2 id="ask-raven-heading">Ask RAVEN</h2>
-          <span className={styles.handoffStatus}>Integration pending</span>
+          <p title={companyId}>{companyName}<span aria-hidden="true"> · </span>{profileVersion ? `v${profileVersion}` : "No profile"}<span aria-hidden="true"> · </span>{sourceCount} sources{researched ? <><span aria-hidden="true"> · </span>{researched}</> : null}</p>
         </div>
-      </div>
+        <span className={styles.handoffStatus}>Pending</span>
+      </header>
 
-      <div className={styles.assistantCompanyContext}>
-        <strong>{companyName}</strong>
-        <span>RAVEN already has this company context</span>
-      </div>
-
-      <dl className={styles.handoffContext} aria-label="Ask RAVEN context">
-        <div><dt>Company ID</dt><dd>{display(companyId)}</dd></div>
-        <div><dt>Profile version</dt><dd>{display(profileVersion)}</dd></div>
-        <div><dt>Stored sources</dt><dd>{sourceCount}</dd></div>
-        <div><dt>Last researched</dt><dd>{formatDate(lastResearchedAt)}</dd></div>
-      </dl>
-
-      <fieldset className={styles.assistantModes} aria-label="Research mode">
-        <button
-          className={`${styles.assistantMode} ${mode === "quick" ? styles.assistantModeActive : ""}`}
-          type="button"
-          aria-pressed={mode === "quick"}
-          onClick={() => { setMode("quick"); setHandoffMessage(null); }}
-        >
-          <span>Quick</span>
-          <small>Focused answer</small>
-        </button>
-        <button
-          className={`${styles.assistantMode} ${mode === "deep" ? styles.assistantModeActiveDeep : ""}`}
-          type="button"
-          aria-pressed={mode === "deep"}
-          onClick={() => { setMode("deep"); setHandoffMessage(null); }}
-        >
-          <span aria-hidden="true">✦</span> <span>Deep Research</span>
-          <small>Search, read, cross-check</small>
-        </button>
-      </fieldset>
-
-      <div className={styles.assistantModeIntro}>
-        <strong>{mode === "deep" ? "Deep Research" : "Quick Ask"}</strong>
-        <span>{mode === "deep" ? "Several public sources can be reviewed once the research backend is connected." : "Ask a focused question about this company once the assistant backend is connected."}</span>
+      <div className={styles.chatViewport} aria-live="polite" aria-label="Ask RAVEN conversation">
+        <div className={styles.chatEmptyState}>
+          <span className={styles.chatEmptyMark} aria-hidden="true">✦</span>
+          <strong>{mode === "deep" ? "Deep Research is ready" : "Ask about this company"}</strong>
+          <p>{mode === "deep" ? "Choose Deep Research when the question needs several public sources." : "Company context is included automatically."}</p>
+        </div>
+        {handoffMessage ? <div className={styles.chatSystemMessage} role="status">{handoffMessage}</div> : null}
       </div>
 
       <form className={styles.assistantComposer} onSubmit={submitQuestion}>
-        <label htmlFor="ask-raven-question">{mode === "deep" ? "What should RAVEN investigate?" : `Ask about ${companyName}`}</label>
+        <label className="sr-only" htmlFor="ask-raven-question">{mode === "deep" ? "What should RAVEN investigate?" : `Ask about ${companyName}`}</label>
         <textarea
           id="ask-raven-question"
           value={question}
           onChange={(event) => { setQuestion(event.target.value); setHandoffMessage(null); }}
-          placeholder={mode === "deep" ? "Compare markets, leadership, products, or recent public activity…" : `Ask about ${companyName}…`}
-          rows={3}
-          aria-describedby="ask-raven-composer-hint"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
+          }}
+          placeholder={mode === "deep" ? "Investigate this company…" : `Ask about ${companyName}…`}
+          rows={2}
         />
         <div className={styles.assistantComposerFooter}>
-          <span id="ask-raven-composer-hint">Company context is included automatically.</span>
-          <button className={styles.assistantSubmit} type="submit" disabled={!question.trim()}>
-            {mode === "deep" ? "Start research" : "Send"}
-          </button>
+          <button className={styles.assistantAttach} type="button" disabled title="Attachments will be available with Ask RAVEN backend integration" aria-label="Attachments unavailable"><Plus size={17} weight="bold" /></button>
+          <label className={styles.assistantModeSelect}>
+            {mode === "deep" ? <Sparkle size={14} weight="fill" aria-hidden="true" /> : null}
+            <select value={mode} onChange={(event) => { setMode(event.target.value as AssistantMode); setHandoffMessage(null); }} aria-label="Ask RAVEN mode">
+              <option value="quick">Quick</option>
+              <option value="deep">Deep Research</option>
+            </select>
+            <CaretDown size={13} weight="bold" aria-hidden="true" />
+          </label>
+          {question.trim() ? <button className={styles.assistantSubmit} type="submit" aria-label={mode === "deep" ? "Start Deep Research" : "Send question"}>
+            <ArrowUp size={17} weight="bold" aria-hidden="true" />
+          </button> : null}
         </div>
       </form>
-
-      {handoffMessage && <p className={styles.assistantPending} role="status">{handoffMessage}</p>}
-
-      <p className={styles.assistantFootnote}>Responses, citations, activity, and Save Investigation will appear here after Hung’s backend contract is connected.</p>
+      <p className={styles.assistantFootnote}>Quick is the default. Deep changes the research budget when Hung's backend is connected.</p>
     </section>
   );
 }

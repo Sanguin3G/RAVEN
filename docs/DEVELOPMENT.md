@@ -26,7 +26,7 @@ npm install
 npm run dev
 ```
 
-The frontend uses port 5173. The API uses `http://localhost:5180`, serves OpenAPI at `/openapi/v1.json` in development, and exposes `/health`.
+The frontend uses port 5173. The API uses `http://localhost:5180`, serves OpenAPI at `/openapi/v1.json` in development, and exposes `/health` (plus `/api/health` for the frontend's proxied status check).
 
 ## API surface
 
@@ -43,6 +43,7 @@ Staged research endpoints:
 
 ```text
 POST /api/companies/{id}/research/discover
+POST /api/companies/{id}/research/start            (202; in-process background discovery)
 POST /api/companies/{id}/research/targeted
 POST /api/companies/{id}/archive
 POST /api/companies/{id}/restore
@@ -53,6 +54,8 @@ POST /api/companies/workspace-review
 POST /api/companies/{id}/research                 (legacy discover + auto-acquire)
 GET  /api/companies/{id}/research-runs
 GET  /api/research-runs/{id}
+POST /api/research-runs/{id}/cancel
+GET  /api/research-runs/active
 GET  /api/research-runs/{id}/candidates
 POST /api/research-runs/{id}/acquire
 GET  /api/research-runs/{id}/sources
@@ -71,6 +74,7 @@ Profile endpoints:
 
 ```text
 POST /api/research-runs/{id}/profile/generate
+GET  /api/research-runs/{id}/profile/candidate
 POST /api/research-runs/{id}/profile/confirm
 POST /api/research-runs/{id}/profile-patch/generate
 POST /api/research-runs/{id}/profile-patch/confirm
@@ -145,6 +149,8 @@ Microsoft Edge completion checks use Playwright with `--browser msedge`; Chromiu
 ## Monitoring and Deep Research
 
 Monitoring and Deep Research use in-process `BackgroundService` workers. They execute only while the API process is running; this project deliberately does not add an external scheduler or job broker. Monitoring produces a review-ready profile candidate and never accepts a profile automatically.
+
+The background research start endpoint also uses an in-process channel-backed worker. It returns `202 Accepted`, exposes active runs, and supports cancellation. It is not a durable job queue: a process restart drops queued work, by design for this MVP.
 
 Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
 

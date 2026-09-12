@@ -109,6 +109,16 @@ public sealed class CompanyProfileWorkflowService(
         return ToResponse(result, candidate);
     }
 
+    public async Task<CompanyProfileCandidate?> GetCandidateAsync(Guid researchRunId, CancellationToken cancellationToken)
+    {
+        if (!await dbContext.ResearchRuns.AnyAsync(run => run.Id == researchRunId, cancellationToken))
+        {
+            return null;
+        }
+
+        return await persistenceService.GetLatestCandidateForRunAsync(researchRunId, cancellationToken);
+    }
+
     public async Task<CompanyProfileVersion?> ConfirmAsync(Guid researchRunId, Guid candidateId, CancellationToken cancellationToken)
     {
         var candidate = await persistenceService.GetCandidateAsync(candidateId, cancellationToken);

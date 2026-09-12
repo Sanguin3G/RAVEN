@@ -50,21 +50,22 @@
   border-radius: 6px;
   box-shadow: 0 2px 6px var(--shadow, rgb(41 62 88 / 18%));
 }
-.sourceCard { display: grid; gap: 0.75rem; padding: 0.9rem; }
+.sourceCard { display: grid; gap: 0.75rem; min-inline-size: 0; padding: 0.9rem; }
 .sourceCardSelected { border-color: var(--primary, #225fb3); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #225fb3) 20%, transparent), 0 2px 6px var(--shadow, rgb(41 62 88 / 18%)); }
 .sourceCardDisabled { opacity: 0.65; }
 .candidateLabel { align-items: flex-start; cursor: pointer; display: grid; gap: 0.72rem; grid-template-columns: auto 1rem minmax(0, 1fr); }
 .candidateLabel input { height: 1.05rem; margin: 0.45rem 0 0; width: 1.05rem; }
 .checkboxVisual { border: 1px solid transparent; height: 1.05rem; width: 1.05rem; }
 .sourceCardBody { display: grid; gap: 0.35rem; min-width: 0; }
-.sourceCardTopline { align-items: center; display: flex; gap: 0.65rem; justify-content: space-between; }
+.sourceCardTopline { align-items: center; display: flex; gap: 0.65rem; justify-content: space-between; min-inline-size: 0; }
 .sourceCardClassification { align-items: center; display: flex; flex: 1; gap: 0.5rem; justify-content: space-between; min-width: 0; }
 .sourceCardBadges, .evidenceBadges { align-items: center; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .recommendedLabel { color: var(--success, #337953); font-size: 0.72rem; font-weight: 800; }
 .selectionState { color: var(--text-muted, #58697d); font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
-.sourceCardTitle { color: var(--text, #172236); font-size: 1rem; font-weight: 800; line-height: 1.25; }
+.sourceCardTitle { color: var(--text, #172236); font-size: 1rem; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
 .sourceCardDomain { color: var(--primary, #225fb3); font-size: 0.76rem; font-weight: 700; overflow-wrap: anywhere; }
-.sourceCardSnippet, .recommendationReasons { color: var(--text-muted, #58697d); font-size: 0.78rem; line-height: 1.45; }
+.sourceCardSnippet, .recommendationReasons { color: var(--text-muted, #58697d); font-size: 0.78rem; line-height: 1.45; min-inline-size: 0; overflow-wrap: anywhere; }
+.sourceCardSnippet { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: clip; }
 .recommendationReasons { border-left: 3px solid var(--info, #3f7fa8); padding-left: 0.55rem; }
 .sourceCardFooter { align-items: center; border-top: 1px solid var(--border, #a9bbce); display: flex; flex-wrap: wrap; font-size: 0.74rem; gap: 0.6rem; justify-content: space-between; padding-top: 0.65rem; }
 .sourceCardFooter a { font-weight: 800; }
@@ -75,11 +76,11 @@
 .acquisitionStatusFailed { color: var(--danger, #a5484e); }
 .acquisitionStatusDuplicate { color: var(--warning, #ae7217); }
 
-.evidenceCard { display: grid; gap: 0.75rem; padding: 1rem; }
-.evidenceHeader { align-items: flex-start; display: flex; gap: 0.7rem; }
+.evidenceCard { display: grid; gap: 0.75rem; min-inline-size: 0; padding: 1rem; }
+.evidenceHeader { align-items: flex-start; display: flex; gap: 0.7rem; min-inline-size: 0; }
 .evidenceHeading { display: grid; gap: 0.35rem; min-width: 0; }
-.evidenceHeading strong { color: var(--text, #172236); font-size: 1rem; line-height: 1.3; }
-.evidencePreview { background: var(--surface-muted, #e8eef6); border-left: 3px solid var(--info, #3f7fa8); margin: 0; padding: 0.7rem 0.8rem; }
+.evidenceHeading strong { color: var(--text, #172236); font-size: 1rem; line-height: 1.3; overflow-wrap: anywhere; }
+.evidencePreview { background: var(--surface-muted, #e8eef6); border-left: 3px solid var(--info, #3f7fa8); margin: 0; max-inline-size: 100%; overflow-wrap: anywhere; padding: 0.7rem 0.8rem; }
 .evidenceMeta { display: flex; flex-wrap: wrap; gap: 0.8rem 1.5rem; margin: 0; }
 .evidenceMeta div { display: grid; gap: 0.16rem; }
 .evidenceMeta dt { color: var(--text-muted, #58697d); font-size: 0.65rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }

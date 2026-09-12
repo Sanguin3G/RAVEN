@@ -16,7 +16,7 @@ Company identity
 → immutable CompanyProfileVersion + ProfileEvidence
 ```
 
-Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress.
+Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress. An in-process channel-backed worker may run discovery after a `202 Accepted` start request; it supports cancellation and active-run visibility, but is intentionally non-durable, so queued work does not survive an API restart.
 
 ## Technology stack
 
@@ -46,7 +46,7 @@ Provider routing uses persisted priorities and falls back only after retryable r
 
 ## Identity intelligence and tracking
 
-Internal duplicate matching, external target grounding, and source relevance are distinct concerns. `ICompanyIdentityResolver` receives bounded identity hints plus discovery metadata and persists `ResearchIdentityCandidate` records. Grounding can be Auto, Always, or Off; provider/model failure records a safe warning and continues deterministic research.
+Internal duplicate matching, external target grounding, and source relevance are distinct concerns. `ICompanyIdentityResolver` receives bounded identity hints plus discovery metadata and persists `ResearchIdentityCandidate` records. Grounding can be Auto, Always, or Off; provider/model failure records a safe warning and continues deterministic research. When model grounding supplies an incomplete organization-family view, a bounded deterministic fallback may offer review-only parent, subsidiary, or company choices derived solely from candidate title, URL, and snippet metadata; it never asserts an identity as fact.
 
 `ISourceSemanticReranker` provides bounded, user-facing same-entity/related/different-entity relevance reasons. It can alter default source selection but never removes human review or replaces deterministic source classification.
 
@@ -68,7 +68,7 @@ Day 5 evaluates qualitative `ResearchTarget` coverage (`Missing`, `Weak`, `Suppo
 
 Company identity remains separate from research output. Gemini receives a bounded package of identity hints and acquired source evidence, returns structured JSON, and must leave unsupported values unknown. `ProfileInputBuilder` and `CompanyProfileValidator` validate source IDs, company ownership, permitted field paths, and duplicate evidence references.
 
-Generated candidates are not accepted facts. A human confirmation creates an immutable `CompanyProfileVersion` with `ProfileEvidence`. The latest accepted version is available through the Company workspace; previous versions remain in storage.
+Generated candidates are not accepted facts. A human confirmation creates an immutable `CompanyProfileVersion` with `ProfileEvidence`. The latest server-owned candidate can be retrieved by research run for review; the latest accepted version is available through the Company workspace, and previous versions remain in storage.
 
 ## Runtime model preferences
 

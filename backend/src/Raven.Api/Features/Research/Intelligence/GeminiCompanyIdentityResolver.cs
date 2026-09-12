@@ -299,6 +299,7 @@ public sealed class GeminiCompanyIdentityResolver : ICompanyIdentityResolver
         builder.AppendLine("Use only the supplied identity hints and discovery candidate metadata.");
         builder.AppendLine("Do not use outside knowledge, and do not treat a search snippet as verified fact.");
         builder.AppendLine("Classify each plausible entity as parent_group, company, subsidiary, affiliate, brand, or unknown.");
+        builder.AppendLine("Include every distinct plausible organization supported by the bounded candidates, especially each named parent, subsidiary, affiliate, or brand; do not collapse a corporate family into one flat company.");
         builder.AppendLine("Set supportingCandidateIds only to candidate IDs supplied below.");
         builder.AppendLine("Return a short user-facing rationale, never private chain-of-thought.");
         builder.AppendLine("Return only JSON matching the response schema.");

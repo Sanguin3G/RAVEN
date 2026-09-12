@@ -11,25 +11,25 @@ describe("AskRavenHandoff", () => {
     lastResearchedAt: "2026-09-11T09:00:00Z",
   };
 
-  it("keeps the assistant company-scoped and truthful while the backend is pending", () => {
+  it("keeps company context compact and reserves a real conversation viewport", () => {
     render(<AskRavenHandoff {...props} />);
 
     expect(screen.getByRole("heading", { name: "Ask RAVEN" })).toBeInTheDocument();
-    expect(screen.getByText("FPT Smart Cloud")).toBeInTheDocument();
-    expect(screen.getByText("Integration pending")).toBeInTheDocument();
-    expect(screen.getByText("RAVEN already has this company context")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByText(/FPT Smart Cloud.*v2.*17 sources/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask RAVEN conversation")).toBeInTheDocument();
+    expect(screen.getByText("Ask about this company")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask RAVEN mode")).toHaveValue("quick");
+    expect(screen.queryByRole("button", { name: "Send question" })).not.toBeInTheDocument();
   });
 
-  it("switches between Quick and Deep presentation without creating a fake answer", () => {
+  it("switches to Deep presentation without creating a fake answer", () => {
     render(<AskRavenHandoff {...props} />);
 
-    const deepButton = screen.getByRole("button", { name: /Deep Research/ });
-    fireEvent.click(deepButton);
+    fireEvent.change(screen.getByLabelText("Ask RAVEN mode"), { target: { value: "deep" } });
 
-    expect(deepButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("What should RAVEN investigate?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start research" })).toBeDisabled();
+    expect(screen.getByText("Deep Research is ready")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start Deep Research" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Preparing answer|Found .* candidates/)).not.toBeInTheDocument();
   });
 
@@ -38,7 +38,7 @@ describe("AskRavenHandoff", () => {
     const composer = screen.getByLabelText("Ask about FPT Smart Cloud");
 
     fireEvent.change(composer, { target: { value: "Who leads this company?" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Your question was not sent");
     expect(screen.queryByText("Nguyen Van A")).not.toBeInTheDocument();

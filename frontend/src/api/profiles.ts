@@ -1,5 +1,5 @@
 import { request } from "./client";
-import type { CompanyProfileVersion, ProfileGenerationResponse } from "../types/profile";
+import type { CompanyProfileCandidate, CompanyProfileVersion, ProfileGenerationResponse } from "../types/profile";
 import type { ResearchTarget } from "./coverage";
 import type { ResearchRun } from "../types/research";
 
@@ -39,6 +39,10 @@ export function confirmCompanyProfile(researchRunId: string, candidateId: string
 
 export function getCurrentCompanyProfile(companyId: string) {
   return request<CompanyProfileVersion>(`/api/companies/${encodeURIComponent(companyId)}/profile`);
+}
+
+export function getCompanyProfileCandidate(researchRunId: string) {
+  return request<CompanyProfileCandidate>(`/api/research-runs/${encodeURIComponent(researchRunId)}/profile/candidate`);
 }
 
 export function startTargetedResearch(companyId: string, requestBody: StartTargetedResearchRequest) {

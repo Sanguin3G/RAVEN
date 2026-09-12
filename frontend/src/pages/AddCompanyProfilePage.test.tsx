@@ -65,6 +65,7 @@ const candidate = {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -73,9 +74,14 @@ afterEach(() => {
 
 it("offers an explicit reuse-or-create decision for a likely duplicate", async () => {
   const user = userEvent.setup();
-  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse([
-    { company, matchStrength: "Exact", matchReason: "The registration number matches." },
-  ]));
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
+    if (url.endsWith("/api/companies/matches")) return jsonResponse([
+      { company, matchStrength: "Exact", matchReason: "The registration number matches." },
+    ]);
+    return jsonResponse([]);
+  });
 
   renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
   await user.type(screen.getByLabelText(/Company name/), "FPT Software");
@@ -87,7 +93,6 @@ it("offers an explicit reuse-or-create decision for a likely duplicate", async (
   expect(screen.getByRole("button", { name: "Research existing company" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Create separate anyway" })).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith("/api/companies/matches", expect.objectContaining({ method: "POST", body: expect.stringContaining("0101248141") }));
-  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 it("preselects recommendations and rejects an empty acquisition selection", async () => {
@@ -96,7 +101,7 @@ it("preselects recommendations and rejects an empty acquisition selection", asyn
     const url = String(input);
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
-    if (url.endsWith("/research/discover")) return jsonResponse(run);
+    if (url.endsWith("/research/start")) return jsonResponse(run);
     if (url.endsWith("/candidates")) return jsonResponse([candidate]);
     return jsonResponse([]);
   });
@@ -122,7 +127,8 @@ it("shows truthful discovery activity while the discovery request is pending", a
     const url = String(input);
     if (url.endsWith("/api/companies/matches")) return Promise.resolve(jsonResponse([]));
     if (url.endsWith("/api/companies") && init?.method === "POST") return Promise.resolve(jsonResponse(company, 201));
-    if (url.endsWith("/research/discover")) return discoverResponse;
+    if (url.endsWith("/research/start")) return Promise.resolve(jsonResponse({ ...run, stage: "Discovering", status: "Searching" }));
+    if (url.match(/\/api\/research-runs\/[^/]+$/)) return discoverResponse;
     return Promise.resolve(jsonResponse([]));
   });
 
@@ -163,7 +169,8 @@ it("shows ambiguous grounded targets and resumes targeted discovery after select
     const url = String(input);
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
-    if (url.endsWith("/research/discover")) return jsonResponse({ ...run, stage: "AwaitingIdentitySelection" });
+    if (url.endsWith("/research/start")) return jsonResponse({ ...run, stage: "AwaitingIdentitySelection" });
+    if (url.match(/\/api\/research-runs\/[^/]+$/)) return jsonResponse({ ...run, stage: "AwaitingIdentitySelection" });
     if (url.endsWith("/identity-candidates")) return jsonResponse([identityCandidate]);
     if (url.endsWith("/identity/select")) return jsonResponse(targetedRun);
     if (url.endsWith("/candidates")) return jsonResponse([candidate]);
@@ -174,7 +181,7 @@ it("shows ambiguous grounded targets and resumes targeted discovery after select
   await user.type(screen.getByLabelText(/Company name/), "FPT");
   await user.click(screen.getByRole("button", { name: "Research public sources" }));
 
-  expect(await screen.findByRole("heading", { name: "Resolve research target" })).toBeInTheDocument();
+  expect((await screen.findAllByRole("heading", { name: "Resolve research target" })).length).toBeGreaterThanOrEqual(1);
   expect(screen.getByText("The official domain and Vietnam signal match the selected technology subsidiary.")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Research selected company" }));
 
@@ -188,7 +195,7 @@ it("sends an explicit one-run grounding override while keeping the default visib
     const url = String(input);
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
-    if (url.endsWith("/research/discover")) return jsonResponse(run);
+    if (url.endsWith("/research/start")) return jsonResponse(run);
     if (url.endsWith("/candidates")) return jsonResponse([candidate]);
     return jsonResponse([]);
   });
@@ -201,5 +208,5 @@ it("sends an explicit one-run grounding override while keeping the default visib
   await user.click(screen.getByRole("button", { name: "Research public sources" }));
 
   await waitFor(() => expect(screen.getByRole("heading", { name: "Review source candidates" })).toBeInTheDocument());
-  expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}/research/discover`, expect.objectContaining({ body: expect.stringContaining('"groundingMode":"Always"') }));
+  expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}/research/start`, expect.objectContaining({ body: expect.stringContaining('"groundingMode":"Always"') }));
 });

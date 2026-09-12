@@ -51,6 +51,7 @@ public enum ResearchRunStatus
     Searching,
     Crawling,
     Completed,
+    Cancelled,
     Failed
 }
 
@@ -66,5 +67,6 @@ public enum ResearchStage
     GeneratingProfile,
     AwaitingProfileConfirmation,
     Completed,
+    Cancelled,
     Failed
 }

@@ -36,6 +36,7 @@ RAVEN currently supports:
 - persistent research settings, manual refresh, profile history, deterministic changes, and review-only monitoring.
 - neutral Exa and Firecrawl provider adapters plus bounded Deep Research and saved investigation backend contracts.
 - coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
+- cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, and cautious deterministic corporate-family choices when AI grounding is incomplete.
 
 ## Company Profile
 
@@ -52,7 +53,7 @@ SQLite persistence     Profile versions
 Research activity      Human review and confirmation
 ```
 
-### P1 — delivered in Day 4
+### P1 — delivered in Days 4–5
 
 ```text
 AI grounding           Source relevance

@@ -25,6 +25,18 @@ export function getProviderStatus() {
   return request<ProviderStatusResponse>("/api/system/provider-status");
 }
 
+export async function getApiHealth() {
+  const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const baseUrl = configuredApiBaseUrl ? configuredApiBaseUrl.replace(/\/$/, "") : "";
+  const healthPath = baseUrl ? `${baseUrl}/health` : "/api/health";
+  try {
+    const response = await fetch(healthPath, { headers: { Accept: "text/plain" } });
+    return { available: response.ok };
+  } catch {
+    return { available: false };
+  }
+}
+
 export function updateModelPreferences(preferences: RuntimeModelPreferences) {
   return request<RuntimeModelPreferences>("/api/system/model-preferences", {
     method: "PUT",

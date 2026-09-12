@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { ChatCircleDots, Sparkle } from "@phosphor-icons/react";
 import styles from "./dossier.module.css";
 import { CompanyChangesTab } from "./CompanyChangesTab";
 import { AskRavenHandoff } from "./AskRavenHandoff";
@@ -65,7 +66,8 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
     </div>
     <aside className={styles.assistantDock} aria-label="Ask RAVEN assistant">
       <button className={styles.assistantToggle} type="button" onClick={() => setAssistantCollapsed((value) => !value)} aria-expanded={!assistantCollapsed}>
-        {assistantCollapsed ? "Ask RAVEN" : "Collapse assistant"}
+        {assistantCollapsed ? <ChatCircleDots size={18} weight="fill" aria-hidden="true" /> : <Sparkle size={17} weight="fill" aria-hidden="true" />}
+        <span>{assistantCollapsed ? "Ask RAVEN" : "Collapse assistant"}</span>
       </button>
       {!assistantCollapsed && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
     </aside>
