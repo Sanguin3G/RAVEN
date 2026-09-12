@@ -197,6 +197,11 @@ it("shows ambiguous grounded targets and resumes targeted discovery after select
 
   expect(await screen.findByRole("heading", { name: "Which organization do you mean?" })).toBeInTheDocument();
   expect(screen.getByText("Technology services subsidiary of FPT Corporation")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Can't find it? Add details" }));
+  expect(await screen.findByText(/Can't find the organization you mean/)).toBeInTheDocument();
+  expect(screen.getByLabelText("Country")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByRole("heading", { name: "Which organization do you mean?" });
   await user.click(screen.getByRole("radio", { name: /FPT Software/ }));
   await user.click(screen.getByRole("button", { name: "Continue with selected organization" }));
 

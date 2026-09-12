@@ -125,7 +125,7 @@ export function PreflightIdentityStage({ workflow }: { workflow: CompanyResearch
       <p className={styles.panelIntro}>{preflightResponse.message || "Several organizations could match."}</p>
       <IdentityChoiceList entities={preflightResponse.entities} ambiguityType={preflightResponse.ambiguityType} selectedEntityId={selectedPreflightEntityId} onSelect={workflow.setSelectedPreflightEntityId} disabled={loading} />
       {error ? <p className="form-error" role="alert">{error}</p> : null}
-      <div className="form-actions"><Button type="button" onClick={() => void workflow.handlePreflightSelection()} loading={loading} disabled={!selectedPreflightEntityId}>Continue with selected organization</Button><Button type="button" tone="secondary" onClick={() => workflow.setView("identify")} disabled={loading}>Back to edit</Button></div>
+      <div className="form-actions"><Button type="button" onClick={() => void workflow.handlePreflightSelection()} loading={loading} disabled={!selectedPreflightEntityId}>Continue with selected organization</Button><Button type="button" tone="secondary" onClick={workflow.requestPreflightClarification} disabled={loading}>Can't find it? Add details</Button><Button type="button" tone="quiet" onClick={() => workflow.setView("identify")} disabled={loading}>Back to edit</Button></div>
     </Panel>;
   }
   return <Panel title="A little more information will help" eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>

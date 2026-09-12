@@ -4,6 +4,9 @@ namespace Raven.Api.Features.Research.Identity;
 public sealed class IdentityResolutionPolicy
 {
     public IdentityResolutionResponse Derive(IdentityTopologyResponse topology)
+        => Derive(topology, request: null);
+
+    public IdentityResolutionResponse Derive(IdentityTopologyResponse topology, IdentityResolutionRequest? request)
     {
         ArgumentNullException.ThrowIfNull(topology);
         var entities = topology.Entities ?? [];
@@ -32,6 +35,14 @@ public sealed class IdentityResolutionPolicy
         if (topology.Interpretation == IdentityQueryInterpretation.SpecificEntity)
         {
             var exact = entities.Where(x => x.RelationshipToQuery is IdentityRelationshipToQuery.Exact or IdentityRelationshipToQuery.Alias && x.Confidence == IdentityConfidence.High).ToArray();
+            // A short, generic input is not permission to turn a parent group
+            // into the user's intended target. This is a deterministic safety
+            // net for a topology model that ignores the family-shorthand rule.
+            if (exact.Length == 1 && exact[0].EntityType == IdentityEntityType.ParentGroup && IsGenericShortName(request?.Name))
+            {
+                return Make(IdentityResolutionStatus.NeedsMoreInfo, IdentityAmbiguityType.Unclear, null, [], Useful(hints),
+                    "This name may refer to a group or one of its companies. Country or website would usually be enough.", topology);
+            }
             return exact.Length == 1
                 ? Make(IdentityResolutionStatus.Resolved, IdentityAmbiguityType.None, exact[0].TemporaryId, exact, [], topology.Message, topology)
                 : Make(IdentityResolutionStatus.NeedsMoreInfo, IdentityAmbiguityType.Unclear, null, [], Useful(hints), "A little more information will help.", topology);
@@ -44,4 +55,7 @@ public sealed class IdentityResolutionPolicy
         new(status, type, id, entities, hints, message, IdentityResolutionMethod.ModelKnowledge, topology.ModelUsed, topology.Warning);
 
     private static IReadOnlyList<IdentityHintKind> Useful(IReadOnlyList<IdentityHintKind> hints) => hints.Count > 0 ? hints : [IdentityHintKind.Country, IdentityHintKind.Website];
+
+    private static bool IsGenericShortName(string? name) =>
+        !string.IsNullOrWhiteSpace(name) && name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).Length == 1;
 }

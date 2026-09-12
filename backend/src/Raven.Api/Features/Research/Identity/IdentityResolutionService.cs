@@ -101,7 +101,7 @@ public sealed class IdentityResolutionService(
                     Retryable: true));
         }
 
-        return IdentityResolutionServiceResult.Valid(policy.Derive(topology));
+        return IdentityResolutionServiceResult.Valid(policy.Derive(topology, normalized));
     }
 
     private static IdentityResolutionResponse CreateExactNameResponse(

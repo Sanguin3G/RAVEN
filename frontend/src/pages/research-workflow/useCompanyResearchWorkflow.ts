@@ -354,6 +354,21 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setLoading(true); setError(null); await continueResolvedIdentity(preflightResponse, selectedPreflightEntityId);
   }
 
+  function requestPreflightClarification() {
+    setSelectedPreflightEntityId(null);
+    setError(null);
+    setPreflightResponse({
+      status: "NeedsMoreInfo",
+      ambiguityType: "Unclear",
+      recommendedEntityId: null,
+      entities: [],
+      requestedHints: ["Country", "Website"],
+      message: "Can't find the organization you mean? Add a country, website, or a more specific company name.",
+      resolutionMethod: "ModelKnowledge",
+    });
+    setView("preflightIdentity");
+  }
+
   async function retryPreflightIdentity() {
     setLoading(true); setError(null); setView("checkingIdentity");
     try {
@@ -701,6 +716,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     updateField,
     handleIdentitySubmit,
     handlePreflightSelection,
+    requestPreflightClarification,
     retryPreflightIdentity,
     researchExactName,
     handleResearchExisting,

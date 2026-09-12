@@ -57,6 +57,22 @@ public sealed class IdentityResolutionServiceTests
     }
 
     [Fact]
+    public async Task Generic_short_name_cannot_auto_resolve_to_a_parent_group()
+    {
+        var knowledge = new SpyKnowledgeResolver(_ => new IdentityTopologyResponse(
+            IdentityQueryInterpretation.SpecificEntity,
+            [Option("viettel-group", "Viettel Group", IdentityRelationshipToQuery.Exact, IdentityConfidence.High, IdentityEntityType.ParentGroup)],
+            []));
+        var service = new IdentityResolutionService(knowledge, new IdentityResolutionPolicy());
+
+        var result = await service.ResolveAsync(new IdentityResolutionRequest("Viettel"));
+
+        Assert.Equal(IdentityResolutionStatus.NeedsMoreInfo, result.Response!.Status);
+        Assert.Null(result.Response.RecommendedEntityId);
+        Assert.Equal(1, knowledge.CallCount);
+    }
+
+    [Fact]
     public async Task Corporate_family_topology_is_ambiguous_even_when_parent_is_first()
     {
         var knowledge = new SpyKnowledgeResolver(_ => new IdentityTopologyResponse(

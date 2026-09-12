@@ -79,6 +79,7 @@ export type CompanyResearchWorkflow = {
   updateField: (field: keyof IdentityForm, value: string) => void;
   handleIdentitySubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   handlePreflightSelection: () => Promise<void>;
+  requestPreflightClarification: () => void;
   retryPreflightIdentity: () => Promise<void>;
   researchExactName: () => Promise<void>;
   handleResearchExisting: (company: Company) => Promise<void>;
