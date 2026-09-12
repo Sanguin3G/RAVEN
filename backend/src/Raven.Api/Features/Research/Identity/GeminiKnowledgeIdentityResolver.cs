@@ -13,7 +13,16 @@ public sealed class GeminiKnowledgeIdentityResolver(IAiModelProvider aiProvider)
     {
         if (string.IsNullOrWhiteSpace(request.Name)) return Failure("invalid_request", "A company name is required.");
         var modelResult = await aiProvider.GenerateStructuredAsync(new AiModelRequest(Model, SystemInstruction, Prompt(request), Template,
-            new AiEvidencePayload(new Dictionary<string, string?> { ["name"] = Text(request.Name), ["legalName"] = Text(request.LegalName), ["website"] = Text(request.Website), ["country"] = Text(request.Country), ["registrationNumber"] = Text(request.RegistrationNumber), ["headquarters"] = Text(request.Headquarters) }, []), Schema), cancellationToken);
+            new AiEvidencePayload(new Dictionary<string, string?>
+            {
+                ["name"] = Text(request.Name),
+                ["legalName"] = Text(request.LegalName),
+                ["website"] = Text(request.Website),
+                ["country"] = Text(request.Country),
+                ["registrationNumber"] = Text(request.RegistrationNumber),
+                ["headquarters"] = Text(request.Headquarters),
+                ["researchHint"] = Text(request.ResearchHint, 1_000)
+            }, []), Schema), cancellationToken);
         if (!modelResult.Succeeded || !modelResult.StructuredJson.HasValue)
             return Failure(modelResult.Failure?.Code ?? "invalid_response", "RAVEN couldn't confidently resolve this organization right now.", modelResult);
         try
@@ -40,7 +49,17 @@ Describe company identity topology from these hints. You identify possible organ
 
 An input that is commonly used as an umbrella/group/family name is CorporateFamilyShorthand when it could reasonably mean the parent or meaningful member companies. Do this even when the parent is the canonical or most famous match. Return the parent first plus up to six relevant children. Never reduce such a family to one parent candidate. "FPT" and "Viettel" are examples of family shorthand; "FPT Software" and "Viettel Telecom" are examples of specific entities. A corporation merely having subsidiaries does not make its full, specific legal/group name ambiguous.
 
-Only use SpecificEntity when the user's wording itself sufficiently names one organization. NameCollision is for unrelated plausible matches; Unknown when unsafe. Do not repeat the query as an entity without recognized context. Domains/legal names are optional navigation hints, not evidence. Return JSON only. Name: {Text(x.Name)} Country: {Text(x.Country) ?? "null"} Legal name: {Text(x.LegalName) ?? "null"} Website: {Text(x.Website) ?? "null"}
+Every populated user hint below is relevant to topology. Use it to distinguish the intended organization and to select only relevant family members; do not treat any hint as verified public evidence. A specific legal name, website, registration/tax identifier, headquarters, country, or research hint can make an otherwise generic name specific.
+
+Only use SpecificEntity when the user's wording plus supplied hints sufficiently names one organization. NameCollision is for unrelated plausible matches; Unknown when unsafe. Do not repeat the query as an entity without recognized context. Domains/legal names are optional navigation hints, not evidence. Return JSON only.
+
+Name: {Text(x.Name)}
+Legal name: {Text(x.LegalName) ?? "null"}
+Website: {Text(x.Website) ?? "null"}
+Country: {Text(x.Country) ?? "null"}
+Registration/tax ID: {Text(x.RegistrationNumber) ?? "null"}
+Headquarters/region: {Text(x.Headquarters) ?? "null"}
+Research hint: {Text(x.ResearchHint, 1_000) ?? "null"}
 """;
     private static string? Text(string? x, int max = 160) => string.IsNullOrWhiteSpace(x) ? null : Bound(x, max);
     private static string Bound(string x, int max) { var t = x.Replace('\0', ' ').Trim(); return t.Length <= max ? t : t[..max]; }
