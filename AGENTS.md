@@ -65,14 +65,12 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 - Generated EF migrations, designers, and snapshots are exempt. Split by cohesive responsibility, not arbitrary line count, and do not create a swarm of tiny Manager/Helper/Processor classes.
 - React pages coordinate page-level behavior; reusable workflow stages belong in components or hooks. Backend coordinators orchestrate; discovery, acquisition, telemetry, parsing, ranking, and persistence policy belong in focused boundaries.
 
-## Identity — Day-6 direction
-
-These are future architecture principles; Day 5.5 does not implement them.
+## Identity — Day-6 architecture
 
 - Resolve who the user means before expensive public-source research. Explicit identifiers (official domain, tax/registration ID) outweigh probabilistic inference.
-- Model prior knowledge may assist identity resolution but is not accepted Company Profile evidence. Public sources support profile facts; RAVEN may return Resolved, Ambiguous, NeedsMoreInfo, or Unknown.
+- Model prior knowledge describes identity topology only; deterministic RAVEN policy derives Resolved, Ambiguous, NeedsMoreInfo, or Unknown. One logical model call is allowed for a weak identity attempt; no public Search or Crawl occurs before resolution.
 - When uncertain, request the minimum useful clarification: country, website, legal name, tax/registration ID, or useful headquarters/region. Distinguish corporate-family ambiguity from unrelated similar names; present a confidently known parent above subsidiaries.
-- Trust an accepted identity during targeted enrichment unless identity itself is under review. Unsupported identity claims must never silently become accepted profile truth.
+- Model prior knowledge and selected identity metadata are navigation hints, not accepted Company Profile evidence. Public sources support profile facts. Explicit identifiers bypass unnecessary AI; accepted identity is trusted during targeted enrichment unless identity itself is under review.
 
 ## Team ownership
 

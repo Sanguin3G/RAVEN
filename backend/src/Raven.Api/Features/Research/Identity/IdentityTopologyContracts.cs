@@ -62,7 +62,8 @@ public sealed record IdentityResolutionRequest(
     string? RegistrationNumber = null,
     string? Headquarters = null,
     string? ResearchHint = null,
-    bool ConfirmExactName = false);
+    bool ConfirmExactName = false,
+    bool AllowModelKnowledge = true);
 
 /// <summary>
 /// An identity/search hint from model knowledge. It is never an accepted

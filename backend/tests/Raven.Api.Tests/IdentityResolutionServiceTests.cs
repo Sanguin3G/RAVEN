@@ -26,6 +26,20 @@ public sealed class IdentityResolutionServiceTests
     }
 
     [Fact]
+    public async Task Model_off_requests_a_stronger_hint_without_a_knowledge_call()
+    {
+        var knowledge = new SpyKnowledgeResolver(_ => throw new InvalidOperationException("must not call"));
+        var service = new IdentityResolutionService(knowledge, new IdentityResolutionPolicy());
+
+        var result = await service.ResolveAsync(new IdentityResolutionRequest("FPT", AllowModelKnowledge: false));
+
+        Assert.Equal(IdentityResolutionStatus.NeedsMoreInfo, result.Response!.Status);
+        Assert.Contains(IdentityHintKind.Website, result.Response.RequestedHints);
+        Assert.Contains(IdentityHintKind.Country, result.Response.RequestedHints);
+        Assert.Equal(0, knowledge.CallCount);
+    }
+
+    [Fact]
     public async Task Specific_entity_with_one_high_confidence_exact_candidate_resolves()
     {
         var knowledge = new SpyKnowledgeResolver(_ => new IdentityTopologyResponse(

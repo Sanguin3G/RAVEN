@@ -5,7 +5,8 @@
 RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Day 4 adds bounded agentic Deep Research and small in-process workers, but not RAG, MCP, distributed queues, or microservices.
 
 ```text
-Company identity
+Identity preflight
+→ resolved identity snapshot
 → deterministic discovery
 → persisted ResearchCandidate review
 → selected-source acquisition
@@ -44,9 +45,11 @@ Application workflows depend on those neutral capabilities rather than provider-
 
 Provider routing uses persisted priorities and falls back only after retryable rate-limit, timeout, unavailable, or retrieval failures. Authentication, configuration, invalid requests, and malformed responses remain visible failures. Brave/Exa discover candidate URLs; Crawl4AI Local, Exa Contents, and Firecrawl read selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts.
 
-## Identity intelligence and tracking
+## Identity preflight and tracking
 
-Internal duplicate matching, external target grounding, and source relevance are distinct concerns. `ICompanyIdentityResolver` receives bounded identity hints plus discovery metadata and persists `ResearchIdentityCandidate` records. Grounding can be Auto, Always, or Off; provider/model failure records a safe warning and continues deterministic research. When model grounding supplies an incomplete organization-family view, a bounded deterministic fallback may offer review-only parent, subsidiary, or company choices derived solely from candidate title, URL, and snippet metadata; it never asserts an identity as fact.
+External identity resolution, internal duplicate matching, and source relevance are distinct concerns. `POST /api/research/identity/resolve` receives identity hints only; it creates no Company, `ResearchRun`, evidence, Search, or Crawl work. Strong explicit domains and appropriately scoped registration identifiers resolve deterministically without AI. Otherwise `IIdentityKnowledgeResolver` makes one bounded Gemini topology call. Gemini may describe `SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`, but deterministic RAVEN policy derives the workflow state. In particular, corporate-family shorthand is always ambiguous; the model cannot auto-select the parent as the user's intent.
+
+The resolved target is carried into discovery as a bounded `ResolvedIdentitySnapshot` persisted with the `ResearchRun`. Its legal-name, domain, parent, and entity-type fields remain identity/search hints, never accepted profile facts. The normal initial workflow resolves first, then performs duplicate matching, creates or reuses a Company, and begins discovery. Accepted identity is trusted for targeted enrichment. Legacy candidate-driven grounding remains only for compatibility with existing stored runs and is intentionally isolated from the Day-6 initial path.
 
 `ISourceSemanticReranker` provides bounded, user-facing same-entity/related/different-entity relevance reasons. It can alter default source selection but never removes human review or replaces deterministic source classification.
 

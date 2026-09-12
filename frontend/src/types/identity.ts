@@ -62,6 +62,7 @@ export interface IdentityResolutionRequest {
   headquarters?: string | null;
   researchHint?: string | null;
   confirmExactName?: boolean;
+  allowModelKnowledge?: boolean;
 }
 
 export interface IdentityOption {

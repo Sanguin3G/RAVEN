@@ -19,6 +19,8 @@ export function toIdentityResolutionRequest(input: IdentityResolutionRequest): I
     registrationNumber: optional(input.registrationNumber),
     headquarters: optional(input.headquarters),
     researchHint: optional(input.researchHint),
+    confirmExactName: input.confirmExactName || undefined,
+    allowModelKnowledge: input.allowModelKnowledge,
   };
 }
 

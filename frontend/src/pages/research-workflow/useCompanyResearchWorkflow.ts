@@ -320,7 +320,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setView("checkingIdentity");
 
     try {
-      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint) });
+      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off" });
       setPreflightResponse(response);
       const selected = response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null);
       setSelectedPreflightEntityId(selected);
@@ -357,7 +357,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   async function retryPreflightIdentity() {
     setLoading(true); setError(null); setView("checkingIdentity");
     try {
-      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint) });
+      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), allowModelKnowledge: groundingOverride !== "Off" });
       setPreflightResponse(response); setSelectedPreflightEntityId(response.recommendedEntityId ?? (response.entities.length === 1 ? response.entities[0].temporaryId : null));
       if (response.status === "Resolved" && (response.recommendedEntityId || response.entities.length === 1)) await continueResolvedIdentity(response, response.recommendedEntityId || response.entities[0].temporaryId);
       else { setView("preflightIdentity"); setLoading(false); }
@@ -367,7 +367,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   async function researchExactName() {
     setLoading(true); setError(null);
     try {
-      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), confirmExactName: true });
+      const response = await resolveCompanyIdentity({ ...companyRequest(form), researchHint: optional(form.researchHint), confirmExactName: true, allowModelKnowledge: groundingOverride !== "Off" });
       setPreflightResponse(response); await continueResolvedIdentity(response, response.recommendedEntityId || "");
     } catch (reason: unknown) { setError(getApiErrorMessage(reason, "RAVEN couldn't start exact-name research.")); setLoading(false); }
   }
@@ -378,7 +378,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
       form.legalName.trim() ? `Legal name: ${form.legalName.trim()}` : "",
       form.researchHint.trim(),
     ].filter(Boolean).join("; ");
-    await discoverForCompany(existingCompany, false, identityHint || undefined);
+    await discoverForCompany(existingCompany, false, identityHint || undefined, pendingResolvedIdentity ?? undefined);
   }
 
   useEffect(() => {

@@ -65,6 +65,18 @@ public sealed class IdentityResolutionService(
             return IdentityResolutionServiceResult.Valid(explicitResponse);
         }
 
+        if (!normalized.AllowModelKnowledge)
+        {
+            return IdentityResolutionServiceResult.Valid(new IdentityResolutionResponse(
+                IdentityResolutionStatus.NeedsMoreInfo,
+                IdentityAmbiguityType.Unclear,
+                null,
+                [],
+                [IdentityHintKind.Website, IdentityHintKind.Country],
+                "Add a website or country, or confirm the exact name to continue.",
+                IdentityResolutionMethod.ModelKnowledge));
+        }
+
         IdentityTopologyResponse topology;
         try
         {
@@ -161,7 +173,8 @@ public sealed class IdentityResolutionService(
             RegistrationNumber = NormalizeOptional(request.RegistrationNumber),
             Headquarters = NormalizeOptional(request.Headquarters),
             ResearchHint = NormalizeOptional(request.ResearchHint),
-            ConfirmExactName = request.ConfirmExactName
+            ConfirmExactName = request.ConfirmExactName,
+            AllowModelKnowledge = request.AllowModelKnowledge
         };
 
     private static Dictionary<string, string[]> Validate(IdentityResolutionRequest? request)

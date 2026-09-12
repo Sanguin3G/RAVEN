@@ -38,15 +38,15 @@ export function IdentityStage({ workflow }: { workflow: CompanyResearchWorkflow 
             <p className="field__hint">Hints help discovery; they are not accepted profile facts until public evidence supports them.</p>
           </div>
           <fieldset className={styles.groundingFieldset} aria-describedby="grounding-help">
-            <legend className={styles.visuallyHidden}>AI-assisted grounding</legend>
+            <legend className={styles.visuallyHidden}>Identity resolution preferences</legend>
             <div className={styles.groundingHeading}>
               <span className={styles.groundingIcon} aria-hidden="true"><Sparkle size={18} weight="duotone" /></span>
               <div>
-                <strong>AI-assisted grounding</strong>
+                <strong>Identity resolution</strong>
                 <span className={styles.groundingDefault}>{groundingOverride === "default" ? `Workspace default · ${defaultGroundingMode}` : groundingOverride === "Always" ? "One-run override · On" : "One-run override · Off"}</span>
               </div>
             </div>
-            <p className={styles.groundingHelp} id="grounding-help">Resolve ambiguous company names and improve source recommendations using public search evidence.</p>
+            <p className={styles.groundingHelp} id="grounding-help">Use model knowledge to describe a company identity before public-source discovery. It does not verify company-profile facts.</p>
             <div className={styles.groundingOptions}>
               <label className={styles.groundingOption}>
                 <input name="groundingOverride" type="radio" value="default" checked={groundingOverride === "default"} onChange={() => workflow.setGroundingOverride("default")} />
@@ -54,11 +54,11 @@ export function IdentityStage({ workflow }: { workflow: CompanyResearchWorkflow 
               </label>
               <label className={styles.groundingOption}>
                 <input name="groundingOverride" type="radio" value="Always" checked={groundingOverride === "Always"} onChange={() => workflow.setGroundingOverride("Always")} />
-                <span><strong>On</strong><small>Always ground this run</small></span>
+                <span><strong>On</strong><small>Use model assistance for this run</small></span>
               </label>
               <label className={styles.groundingOption}>
                 <input name="groundingOverride" type="radio" value="Off" checked={groundingOverride === "Off"} onChange={() => workflow.setGroundingOverride("Off")} />
-                <span><strong>Off</strong><small>Use deterministic research</small></span>
+                <span><strong>Off</strong><small>Ask for a stronger identifier</small></span>
               </label>
             </div>
           </fieldset>

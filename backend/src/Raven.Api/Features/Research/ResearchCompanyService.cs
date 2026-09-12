@@ -227,6 +227,7 @@ public sealed class ResearchCompanyService(
             var groundingCandidates = drafts.Select(ToGroundingCandidate).ToArray();
             var shouldGround = identityResolver is not null &&
                                string.IsNullOrWhiteSpace(run.ResolvedIdentitySnapshotJson) &&
+                               !request!.UseAcceptedProfileIdentity &&
                                ambiguityAnalyzer.RequiresGrounding(
                                    new IdentityResolutionRequest(initialIdentity, groundingCandidates),
                                    run.GroundingMode);
@@ -1401,7 +1402,8 @@ public sealed class ResearchCompanyService(
             run.ResolvedIdentityCandidateId,
             run.Mode,
             run.BaseProfileVersionId,
-            GetTargets(run));
+            GetTargets(run),
+            Day6IdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson));
 
     private CandidateDraft[] ApplyCoverageAwareSelection(
         IReadOnlyList<CandidateDraft> drafts,

@@ -63,6 +63,23 @@ const candidate = {
   discoveredAt: "2026-09-10T00:00:00Z",
 };
 
+const resolvedIdentity = {
+  status: "Resolved",
+  ambiguityType: "None",
+  recommendedEntityId: "fpt-software",
+  entities: [{
+    temporaryId: "fpt-software", displayName: "FPT Software", legalName: null, country: "Vietnam", region: null,
+    officialDomain: "fptsoftware.com", entityType: "Subsidiary", parentTemporaryId: null,
+    relationshipToQuery: "Exact", confidence: "High", shortDescription: null,
+  }],
+  requestedHints: [], message: null, resolutionMethod: "ModelKnowledge",
+};
+
+const execution = {
+  summary: { totalWallClockDurationMs: 0, searchCalls: 0, crawlCalls: 0, aiCalls: 0, providerAttempts: 0, fallbacks: 0, inputTokens: null, outputTokens: null },
+  operations: [],
+};
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
@@ -76,6 +93,8 @@ it("offers an explicit reuse-or-create decision for a likely duplicate", async (
   const user = userEvent.setup();
   const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
+    if (url.endsWith("/execution")) return jsonResponse(execution);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
     if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
     if (url.endsWith("/api/companies/matches")) return jsonResponse([
       { company, matchStrength: "Exact", matchReason: "The registration number matches." },
@@ -99,6 +118,8 @@ it("preselects recommendations and rejects an empty acquisition selection", asyn
   const user = userEvent.setup();
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
+    if (url.endsWith("/execution")) return jsonResponse(execution);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
     if (url.endsWith("/research/start")) return jsonResponse(run);
@@ -125,6 +146,8 @@ it("shows truthful discovery activity while the discovery request is pending", a
   const discoverResponse = new Promise<Response>((resolve) => { resolveDiscover = resolve; });
   vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
+    if (url.endsWith("/execution")) return Promise.resolve(jsonResponse(execution));
+    if (url.endsWith("/api/research/identity/resolve")) return Promise.resolve(jsonResponse(resolvedIdentity));
     if (url.endsWith("/api/companies/matches")) return Promise.resolve(jsonResponse([]));
     if (url.endsWith("/api/companies") && init?.method === "POST") return Promise.resolve(jsonResponse(company, 201));
     if (url.endsWith("/research/start")) return Promise.resolve(jsonResponse({ ...run, stage: "Discovering", status: "Searching" }));
@@ -147,32 +170,23 @@ it("shows truthful discovery activity while the discovery request is pending", a
 it("shows ambiguous grounded targets and resumes targeted discovery after selection", async () => {
   const user = userEvent.setup();
   const identityCandidate = {
-    id: "44444444-4444-4444-4444-444444444444",
-    researchRunId: run.id,
     temporaryId: "fpt-software",
     displayName: "FPT Software",
     legalName: "FPT Software Company Limited",
     country: "Vietnam",
-    website: "https://fptsoftware.com",
     officialDomain: "fptsoftware.com",
     entityType: "Subsidiary",
-    relationshipHint: "Technology services subsidiary of FPT Corporation",
+    relationshipToQuery: "Subsidiary",
     confidence: "High",
-    rationale: "The official domain and Vietnam signal match the selected technology subsidiary.",
-    supportingCandidateIds: [candidate.id],
-    recommended: true,
-    selected: false,
-    createdAt: "2026-09-10T00:00:00Z",
+    shortDescription: "Technology services subsidiary of FPT Corporation",
   };
-  const targetedRun = { ...run, stage: "AwaitingSourceSelection" };
   const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
+    if (url.endsWith("/execution")) return jsonResponse(execution);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse({ status: "Ambiguous", ambiguityType: "CorporateFamily", recommendedEntityId: null, entities: [{ ...identityCandidate, entityType: "Subsidiary", parentTemporaryId: "fpt" }, { temporaryId: "fpt", displayName: "FPT Corporation", legalName: null, country: "Vietnam", region: null, officialDomain: "fpt.com.vn", entityType: "ParentGroup", parentTemporaryId: null, relationshipToQuery: "Exact", confidence: "High", shortDescription: "Parent group" }], requestedHints: [], message: "Several organizations could match.", resolutionMethod: "ModelKnowledge" });
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
-    if (url.endsWith("/research/start")) return jsonResponse({ ...run, stage: "AwaitingIdentitySelection" });
-    if (url.match(/\/api\/research-runs\/[^/]+$/)) return jsonResponse({ ...run, stage: "AwaitingIdentitySelection" });
-    if (url.endsWith("/identity-candidates")) return jsonResponse([identityCandidate]);
-    if (url.endsWith("/identity/select")) return jsonResponse(targetedRun);
+    if (url.endsWith("/research/start")) return jsonResponse(run);
     if (url.endsWith("/candidates")) return jsonResponse([candidate]);
     return jsonResponse([]);
   });
@@ -181,18 +195,21 @@ it("shows ambiguous grounded targets and resumes targeted discovery after select
   await user.type(screen.getByLabelText(/Company name/), "FPT");
   await user.click(screen.getByRole("button", { name: "Research public sources" }));
 
-  expect((await screen.findAllByRole("heading", { name: "Resolve research target" })).length).toBeGreaterThanOrEqual(1);
-  expect(screen.getByText("The official domain and Vietnam signal match the selected technology subsidiary.")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Research selected company" }));
+  expect(await screen.findByRole("heading", { name: "Which organization do you mean?" })).toBeInTheDocument();
+  expect(screen.getByText("Technology services subsidiary of FPT Corporation")).toBeInTheDocument();
+  await user.click(screen.getByRole("radio", { name: /FPT Software/ }));
+  await user.click(screen.getByRole("button", { name: "Continue with selected organization" }));
 
   await waitFor(() => expect(screen.getByRole("heading", { name: "Review source candidates" })).toBeInTheDocument());
-  expect(fetchMock).toHaveBeenCalledWith(`/api/research-runs/${run.id}/identity/select`, expect.objectContaining({ method: "POST", body: JSON.stringify({ candidateId: identityCandidate.id }) }));
+  expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/identity/select"), expect.anything());
 });
 
-it("sends an explicit one-run grounding override while keeping the default visible", async () => {
+it("sends an explicit one-run identity-resolution preference while keeping the default visible", async () => {
   const user = userEvent.setup();
   const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
+    if (url.endsWith("/execution")) return jsonResponse(execution);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
     if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
     if (url.endsWith("/research/start")) return jsonResponse(run);

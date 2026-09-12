@@ -1,5 +1,7 @@
 export type ResearchRunStatus = "Searching" | "Crawling" | "Completed" | "Cancelled" | "Failed";
 
+import type { ResolvedIdentitySnapshot } from "./identity";
+
 export type GroundingMode = "Auto" | "Always" | "Off";
 
 export type ResearchStage =
@@ -73,6 +75,7 @@ export interface ResearchRun {
   mode?: ResearchMode;
   baseProfileVersionId?: string | null;
   targets?: ResearchTarget[] | null;
+  resolvedIdentity?: ResolvedIdentitySnapshot | null;
 }
 
 export interface ActiveResearchRun {
