@@ -40,6 +40,44 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 - A Saved Investigation is not accepted Company Profile truth. Ask RAVEN, Deep Research, Investigations, and Monitoring are distinct product surfaces.
 - Hung owns the Ask RAVEN backend, conversation persistence, Quick Ask orchestration, and prompt/context contracts. Frontend work must consume that contract or remain behind an adapter boundary; never fabricate chat answers.
 
+## Performance and orchestration
+
+- Spend complexity only when uncertainty justifies it. Avoid repeated Search → LLM → Search → LLM loops by default, and keep external I/O bounded.
+- Independent external requests may use bounded concurrency when safe. Persist meaningful workflow state rather than every heartbeat.
+- Observability must not materially dominate workflow latency. Settings that define one ResearchRun should normally be snapshotted for that run.
+
+## Observability
+
+- User-visible Research Activity is distinct from developer Execution Telemetry. Activity is product UX; telemetry is bounded operational detail.
+- One logical external operation should normally map to one execution record/lifecycle. Category, Operation, and Status are separate concepts.
+- Provider, AI, and tool instrumentation belongs at focused boundaries rather than being manually scattered through coordinators.
+- Never log provider secrets, authorization headers, hidden chain-of-thought, full prompts, or giant raw provider responses. SourceDocument is evidence storage, not a telemetry substitute.
+- Run summaries aggregate calls, latency, token usage, fallbacks, and failures. Telemetry failure must not make normal research fail.
+
+## Provider presets
+
+- RAVEN Resilient means ordered provider fallback, not load balancing or parallel racing. The preferred provider runs first; compatible fallbacks run only after eligible failure.
+- Domain, backend, frontend, and documentation terminology must use Resilient.
+
+## Maintainability
+
+- Do not grow an orchestration or page file merely because it is convenient. Around 500–700 lines, review whether a production source has multiple responsibilities; files above roughly 800 lines require justification or a decomposition plan.
+- Generated EF migrations, designers, and snapshots are exempt. Split by cohesive responsibility, not arbitrary line count, and do not create a swarm of tiny Manager/Helper/Processor classes.
+- React pages coordinate page-level behavior; reusable workflow stages belong in components or hooks. Backend coordinators orchestrate; discovery, acquisition, telemetry, parsing, ranking, and persistence policy belong in focused boundaries.
+
+## Identity — Day-6 direction
+
+These are future architecture principles; Day 5.5 does not implement them.
+
+- Resolve who the user means before expensive public-source research. Explicit identifiers (official domain, tax/registration ID) outweigh probabilistic inference.
+- Model prior knowledge may assist identity resolution but is not accepted Company Profile evidence. Public sources support profile facts; RAVEN may return Resolved, Ambiguous, NeedsMoreInfo, or Unknown.
+- When uncertain, request the minimum useful clarification: country, website, legal name, tax/registration ID, or useful headquarters/region. Distinguish corporate-family ambiguity from unrelated similar names; present a confidently known parent above subsidiaries.
+- Trust an accepted identity during targeted enrichment unless identity itself is under review. Unsupported identity claims must never silently become accepted profile truth.
+
+## Team ownership
+
+- Hung owns Ask RAVEN backend. Huy-side workspace code may integrate against Hung's published contract but must not duplicate that backend.
+
 ## Scope discipline
 
 This is a two-person, approximately 20-working-day project. Prefer working, testable vertical slices. Do not add major infrastructure or abstractions without a current feature need, including microservices, Kafka, Redis, Kubernetes, multi-agent swarms, or speculative enterprise patterns.

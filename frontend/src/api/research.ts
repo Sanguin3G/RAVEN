@@ -8,6 +8,7 @@ import type {
   ResearchTarget,
   ResearchRun,
   ActiveResearchRun,
+  ResearchExecution,
   SourceDocument,
 } from "../types/research";
 
@@ -96,6 +97,10 @@ export function selectResearchIdentityCandidate(researchRunId: string, candidate
 
 export function getResearchRun(researchRunId: string) {
   return request<ResearchRun>(`/api/research-runs/${encodeURIComponent(researchRunId)}`);
+}
+
+export function getResearchExecution(researchRunId: string) {
+  return request<ResearchExecution>(`/api/research-runs/${encodeURIComponent(researchRunId)}/execution`);
 }
 
 export function getResearchCandidates(researchRunId: string) {

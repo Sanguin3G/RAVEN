@@ -39,14 +39,14 @@ const groundingChoices: Array<{ value: GroundingMode; title: string; description
 ];
 
 const presetChoices: Array<{ value: ProviderPreset; title: string; description: string }> = [
-  { value: "Balanced", title: "RAVEN Resilient", description: "Use Brave and local Crawl4AI first, then retry with Exa or Firecrawl when a provider fails." },
+  { value: "Resilient", title: "RAVEN Resilient", description: "Use Brave and local Crawl4AI first, then retry with Exa or Firecrawl when a provider fails." },
   { value: "LocalFirst", title: "RAVEN Local First", description: "Use Brave Search and local Crawl4AI only for the lowest-cost, local-first route." },
   { value: "Cloud", title: "RAVEN Cloud", description: "Use Exa first, then Firecrawl, for both search and cloud retrieval." },
   { value: "Custom", title: "Custom", description: "Manually choose which providers are enabled and set their exact order below." },
 ];
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
-  Balanced: {
+  Resilient: {
     searchProviderPriority: ["brave", "exa", "firecrawl-search"],
     crawlerProviderPriority: ["crawl4ai-local", "exa", "firecrawl"],
   },
@@ -76,7 +76,7 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
     || typeof candidate.groundingModel !== "string"
     || typeof candidate.deepResearchModel !== "string"
     || typeof candidate.aiSourceRerankingEnabled !== "boolean"
-    || (candidate.providerPreset !== "Balanced" && candidate.providerPreset !== "LocalFirst" && candidate.providerPreset !== "Cloud" && candidate.providerPreset !== "Custom")
+    || (candidate.providerPreset !== "Resilient" && candidate.providerPreset !== "LocalFirst" && candidate.providerPreset !== "Cloud" && candidate.providerPreset !== "Custom")
     || !Array.isArray(candidate.searchProviderPriority)
     || !Array.isArray(candidate.crawlerProviderPriority)
   ) return null;

@@ -112,3 +112,24 @@ it("uses the custom editors as the single priority view", async () => {
   expect(screen.getByText("Crawler order")).toBeInTheDocument();
   expect(screen.getAllByText("Firecrawl Search")).toHaveLength(2);
 });
+
+it("uses Resilient as the ordered fallback preset", async () => {
+  const user = userEvent.setup();
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/settings/research")) return jsonResponse(settings);
+    if (url.endsWith("/api/system/provider-status")) return jsonResponse(providerStatus);
+    return jsonResponse({}, 404);
+  });
+
+  renderWithRouter(<SettingsPage />, "/settings");
+  await screen.findByRole("heading", { name: "Research intelligence" });
+
+  await user.click(screen.getByRole("radio", { name: /RAVEN Resilient/ }));
+
+  expect(screen.getByRole("radio", { name: /RAVEN Resilient/ })).toBeChecked();
+  expect(screen.getByLabelText("Search provider priority")).toHaveTextContent("Brave Search");
+  expect(screen.getByLabelText("Search provider priority")).toHaveTextContent("Exa Search & Contents");
+  expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Crawl4AI Local");
+  expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Firecrawl");
+});

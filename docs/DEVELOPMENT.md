@@ -108,7 +108,7 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
 
-Research Settings persist safe model roles, grounding/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Balanced and Cloud presets can route retrieval through Exa Contents and Firecrawl after retryable failures. Authentication, configuration, and invalid-request errors never silently fall back.
+Research Settings persist safe model roles, grounding/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets can route retrieval through Exa Contents and Firecrawl after retryable failures. Authentication, configuration, and invalid-request errors never silently fall back.
 
 ## Docker
 

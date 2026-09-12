@@ -149,7 +149,17 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(settings => settings.ProfileModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.GroundingModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.DeepResearchModel).HasMaxLength(200).IsRequired();
-            entity.Property(settings => settings.ProviderPreset).HasConversion<string>().HasMaxLength(32).IsRequired();
+            // The Day-5.5 migration rewrites the persisted legacy value, but
+            // accepting it at the model boundary keeps an interrupted upgrade
+            // readable instead of resetting a user's provider priorities.
+            entity.Property(settings => settings.ProviderPreset)
+                .HasConversion(
+                    preset => preset.ToString(),
+                    value => string.Equals(value, "Balanced", StringComparison.OrdinalIgnoreCase)
+                        ? ProviderPreset.Resilient
+                        : Enum.Parse<ProviderPreset>(value, ignoreCase: true))
+                .HasMaxLength(32)
+                .IsRequired();
             entity.PrimitiveCollection(settings => settings.SearchProviderPriority).HasMaxLength(100);
             entity.PrimitiveCollection(settings => settings.CrawlerProviderPriority).HasMaxLength(100);
         });
@@ -191,6 +201,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasKey(researchEvent => researchEvent.Id);
             entity.Property(researchEvent => researchEvent.Stage).HasConversion<string>().HasMaxLength(48);
             entity.Property(researchEvent => researchEvent.Category).HasConversion<string>().HasMaxLength(48).IsRequired();
+            entity.Property(researchEvent => researchEvent.Operation).HasMaxLength(100).HasDefaultValue(ResearchEvent.LegacyOperation).IsRequired();
             entity.Property(researchEvent => researchEvent.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(researchEvent => researchEvent.Provider).HasMaxLength(100);
             entity.Property(researchEvent => researchEvent.Model).HasMaxLength(200);

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Raven.Api.Features.Research.Events;
 
 namespace Raven.Api.Features.Research;
 
@@ -33,6 +34,13 @@ public static class ResearchEndpoints
             .WithTags("Research")
             .WithName("GetResearchRun")
             .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/research-runs/{researchRunId:guid}/execution", GetResearchExecutionAsync)
+            .WithTags("Research")
+            .WithName("GetResearchExecution")
+            .WithSummary("Get developer-facing execution telemetry and run summary")
+            .Produces<ResearchExecutionResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
         app.MapPost("/api/research-runs/{researchRunId:guid}/cancel", CancelResearchAsync)
@@ -169,6 +177,15 @@ public static class ResearchEndpoints
     {
         var run = await research.GetRunAsync(researchRunId, cancellationToken);
         return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+    }
+
+    private static async Task<Results<Ok<ResearchExecutionResponse>, NotFound>> GetResearchExecutionAsync(
+        Guid researchRunId,
+        IResearchExecutionService execution,
+        CancellationToken cancellationToken)
+    {
+        var result = await execution.GetAsync(researchRunId, cancellationToken);
+        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
     }
 
     private static async Task<Ok<ResearchRunResponse[]>> ListResearchRunsAsync(

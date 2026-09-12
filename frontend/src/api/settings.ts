@@ -1,7 +1,7 @@
 import { request } from "./client";
 
 export type GroundingMode = "Auto" | "Always" | "Off";
-export type ProviderPreset = "Balanced" | "LocalFirst" | "Cloud" | "Custom";
+export type ProviderPreset = "Resilient" | "LocalFirst" | "Cloud" | "Custom";
 
 export interface ResearchSettings {
   groundingMode: GroundingMode;

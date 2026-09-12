@@ -80,6 +80,18 @@ export interface ActiveResearchRun {
   companyName: string;
 }
 
+export interface ResearchExecutionSummary {
+  totalWallClockDurationMs: number; searchCalls: number; providerAttempts: number; fallbacks: number;
+  crawlCalls: number; successfulCrawls: number; failedCrawls: number; aiCalls: number;
+  inputTokens?: number | null; outputTokens?: number | null; failures: number; documentsAcquired: number;
+}
+export interface ResearchExecutionOperation {
+  id: string; category: string; operation: string; status: string; provider?: string | null;
+  model?: string | null; durationMs?: number | null; inputTokens?: number | null; outputTokens?: number | null;
+  inputSummary?: string | null; outputSummary?: string | null;
+}
+export interface ResearchExecution { researchRunId: string; summary: ResearchExecutionSummary; operations: ResearchExecutionOperation[]; }
+
 export type GroundedEntityType = "ParentGroup" | "Company" | "Subsidiary" | "Affiliate" | "Brand" | "Unknown";
 export type GroundingConfidence = "Low" | "Medium" | "High";
 

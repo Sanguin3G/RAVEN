@@ -25,6 +25,7 @@ public static partial class ResearchEventSanitizer
 
         return researchEvent with
         {
+            Operation = ResearchEventSemantics.NormalizeOperation(researchEvent.Operation),
             Provider = SanitizeIdentifier(researchEvent.Provider),
             Model = SanitizeIdentifier(researchEvent.Model),
             ToolName = SanitizeIdentifier(researchEvent.ToolName),
@@ -48,6 +49,7 @@ public static partial class ResearchEventSanitizer
 
         return draft with
         {
+            Operation = ResearchEventSemantics.NormalizeOperation(draft.Operation),
             Provider = SanitizeIdentifier(draft.Provider),
             Model = SanitizeIdentifier(draft.Model),
             ToolName = SanitizeIdentifier(draft.ToolName),
@@ -80,6 +82,7 @@ public static partial class ResearchEventSanitizer
             DurationMs = safeDraft.DurationMs,
             Stage = safeDraft.Stage,
             Category = safeDraft.Category,
+            Operation = safeDraft.Operation,
             Status = safeDraft.Status,
             Provider = safeDraft.Provider,
             Model = safeDraft.Model,
@@ -91,6 +94,7 @@ public static partial class ResearchEventSanitizer
             InputTokens = safeDraft.InputTokens,
             OutputTokens = safeDraft.OutputTokens,
             CachedTokens = safeDraft.CachedTokens,
+            ThinkingTokens = safeDraft.ThinkingTokens,
             EstimatedCost = safeDraft.EstimatedCost,
             PromptTemplateVersion = safeDraft.PromptTemplateVersion,
             InputHash = safeDraft.InputHash,

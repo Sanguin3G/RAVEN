@@ -88,8 +88,17 @@ public static class ResearchDiscoveryServiceCollectionExtensions
             serviceProvider.GetRequiredService<FirecrawlCrawlerProvider>(),
             serviceProvider.GetRequiredService<ExaCrawlerProvider>()
         ]));
-        services.AddScoped<ISearchProvider, RoutingSearchProvider>();
-        services.AddScoped<ICrawlerProvider, RoutingCrawlerProvider>();
+        services.AddScoped<IResearchExecutionContext, ResearchExecutionContext>();
+        services.AddScoped<RoutingSearchProvider>();
+        services.AddScoped<ISearchProvider>(serviceProvider => new InstrumentedSearchProvider(
+            serviceProvider.GetRequiredService<RoutingSearchProvider>(),
+            serviceProvider.GetRequiredService<IResearchEventWriter>(),
+            serviceProvider.GetRequiredService<IResearchExecutionContext>()));
+        services.AddScoped<RoutingCrawlerProvider>();
+        services.AddScoped<ICrawlerProvider>(serviceProvider => new InstrumentedCrawlerProvider(
+            serviceProvider.GetRequiredService<RoutingCrawlerProvider>(),
+            serviceProvider.GetRequiredService<IResearchEventWriter>(),
+            serviceProvider.GetRequiredService<IResearchExecutionContext>()));
         services.AddSingleton<SourceUrlNormalizer>();
         services.AddSingleton<SourceCandidateSelector>();
         services.AddSingleton<ISourceClassifier, SourceClassifier>();
@@ -101,6 +110,7 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddSingleton<CorporateFamilyDiscoveryPlanner>();
         services.AddSingleton<DeterministicIdentityFamilyBuilder>();
         services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
+        services.AddScoped<IResearchExecutionService, ResearchExecutionService>();
         services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(
             serviceProvider.GetRequiredService<IAiModelProvider>(),
             researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));

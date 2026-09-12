@@ -34,7 +34,7 @@ function routeLabel(providers: string[] | undefined, fallback: string) {
 }
 
 function presetLabel(preset: ResearchSettings["providerPreset"]) {
-  return preset === "Balanced" ? "RAVEN Resilient" : preset === "LocalFirst" ? "RAVEN Local First" : preset === "Cloud" ? "RAVEN Cloud" : "Custom";
+  return preset === "Resilient" ? "RAVEN Resilient" : preset === "LocalFirst" ? "RAVEN Local First" : preset === "Cloud" ? "RAVEN Cloud" : "Custom";
 }
 
 export function StatusPage() {
