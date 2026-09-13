@@ -12,6 +12,7 @@ import { getCompanyMonitoring, updateCompanyMonitoring, type CompanyMonitoring, 
 import type { Company } from "../types/company";
 import type { CompanyProfileVersion } from "../types/profile";
 import type { ResearchTarget } from "../api/coverage";
+import type { DossierTab } from "../components/dossier/dossierTypes";
 
 const validResearchTargets: ResearchTarget[] = ["LegalIdentity", "TaxRegistration", "FoundedHistory", "Industry", "EmployeeScale", "ProductsServices", "Markets", "Leadership", "Locations"];
 
@@ -20,8 +21,35 @@ function parseResearchTargets(value: string | null): ResearchTarget[] {
   return value.split(",").map((item) => item.trim()).filter((item): item is ResearchTarget => validResearchTargets.includes(item as ResearchTarget));
 }
 
+const validDossierTabs: DossierTab[] = ["overview", "sources", "investigations", "changes", "monitoring"];
+
+function parseDossierTab(value: string | null): DossierTab | undefined {
+  return value && validDossierTabs.includes(value as DossierTab) ? value as DossierTab : undefined;
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(value));
+}
+
+function SparseProfileGuidance({ companyId, mode }: { companyId: string; mode?: "improve" | "monitoring" }) {
+  const heading = mode === "monitoring"
+    ? "Monitoring needs an accepted profile"
+    : mode === "improve"
+      ? "This profile is not ready to improve"
+      : "Build a profile before using workspace actions";
+
+  return (
+    <Panel className="narrow-page sparse-profile-guidance" title={heading} eyebrow="PROFILE NEEDS EVIDENCE">
+      <p>
+        RAVEN does not have an accepted Company Profile for this record yet, so targeted improvement and monitoring are not available.
+        Refresh public-source research first, then review the resulting evidence before using either workspace action.
+      </p>
+      <div className="modal-actions">
+        <Link className="button" to={`/companies/new?refreshCompanyId=${encodeURIComponent(companyId)}`}>Refresh research</Link>
+        <Link className="button button--secondary" to="/companies?review=true">Review workspace</Link>
+      </div>
+    </Panel>
+  );
 }
 
 export function CompanyDetailPage() {
@@ -49,6 +77,7 @@ export function CompanyDetailPage() {
   const researchRunId = searchParams.get("researchRun");
   const improveRequested = searchParams.get("improve") === "true";
   const improveTargets = parseResearchTargets(searchParams.get("targets"));
+  const requestedTab = parseDossierTab(searchParams.get("tab"));
 
   useEffect(() => {
     if (!id) {
@@ -170,6 +199,19 @@ export function CompanyDetailPage() {
     return <Panel className="narrow-page empty-state" title="Company not found" eyebrow="MISSING RECORD"><p>{error || "RAVEN could not find that company record."}</p><Link className="button button--secondary" to="/companies">Return to Company List</Link></Panel>;
   }
 
+  function handleDossierTabChange(tab: DossierTab) {
+    if (!id) return;
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === "overview") nextParams.delete("tab");
+    else nextParams.set("tab", tab);
+    // A tab interaction is a new intent. Do not keep reopening the enrichment
+    // dialog after the user has moved to another dossier section.
+    nextParams.delete("improve");
+    nextParams.delete("targets");
+    const query = nextParams.toString();
+    navigate(`/companies/${encodeURIComponent(id)}${query ? `?${query}` : ""}`, { replace: true });
+  }
+
   if (profile) {
     return <CompanyDossier
       company={{ id: company.id, displayName: company.name, legalName: company.legalName, registrationNumber: company.registrationNumber, website: company.website, country: company.country, headquarters: company.headquarters, industry: profile.primaryIndustry, lastResearchedAt: company.lastResearchedAt }}
@@ -194,6 +236,8 @@ export function CompanyDetailPage() {
       coverage={{ response: coverage, isLoading: coverageLoading, error: coverageError }}
       openEnrichment={improveRequested}
       initialEnrichmentTargets={improveTargets}
+      activeTab={requestedTab ?? "overview"}
+      onTabChange={handleDossierTabChange}
       onProfileConfirmed={(nextProfile) => { void handleProfileConfirmed(nextProfile); }}
     />;
   }
@@ -204,6 +248,7 @@ export function CompanyDetailPage() {
       <Link className="back-link" to="/companies">← Back to Company List</Link>
       {researchRun ? <div className={`success-banner research-banner research-banner--${researchStatus}`} role="status"><strong>Research {researchRun.status.toLowerCase()}.</strong> {researchRun.status === "Completed" ? `${researchRun.sourcesCrawled} public source${researchRun.sourcesCrawled === 1 ? " was" : "s were"} acquired.` : researchRun.error || "RAVEN is processing public sources."}</div> : null}
       {researchError ? <div className="form-error" role="alert">{researchError}</div> : null}
+      <SparseProfileGuidance companyId={company.id} mode={requestedTab === "monitoring" ? "monitoring" : improveRequested ? "improve" : undefined} />
       <article className="company-detail-card">
         <header className="company-detail-header"><div className="company-detail-heading"><span className="company-avatar company-avatar--large" aria-hidden="true">{company.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">COMPANY IDENTITY</p><h1>{company.name}</h1><p className="company-detail-subtitle">{company.country || "Country not provided"}</p></div></div></header>
         <div className="company-detail-body"><Panel title="Company overview" eyebrow="STABLE IDENTITY"><div className="detail-grid"><div><span>Country</span><strong>{company.country || "Not provided"}</strong></div><div><span>Website</span><strong>{company.website || "Not provided"}</strong></div><div><span>Created</span><strong>{formatDate(company.createdAt)}</strong></div><div><span>Last updated</span><strong>{formatDate(company.updatedAt)}</strong></div></div></Panel><Panel title="Identifiers" eyebrow="VERIFICATION"><dl className="definition-list"><div><dt>Website</dt><dd>{company.website ? <a href={company.website} target="_blank" rel="noreferrer">{company.website} ↗</a> : "Not provided"}</dd></div><div><dt>Company ID</dt><dd>{company.id}</dd></div><div><dt>Last updated</dt><dd>{formatDate(company.updatedAt)}</dd></div></dl></Panel></div>

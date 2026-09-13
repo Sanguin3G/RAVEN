@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getApiErrorMessage } from "../../api/client";
+import { ApiError, getApiErrorMessage } from "../../api/client";
 import { getCompanyProfileCandidate, generateCompanyProfile, confirmCompanyProfile } from "../../api/profiles";
 import { createCompany, findCompanyMatches, getCompany } from "../../api/companies";
 import {
@@ -20,7 +20,7 @@ import type { Company, CompanyMatchResponse, CreateCompanyRequest } from "../../
 import type { GroundingMode, ResearchCandidate, ResearchIdentityCandidate, ResearchRun, ResearchTarget, SourceDocument } from "../../types/research";
 import type { CompanyProfileCandidate } from "../../types/profile";
 import type { IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
-import { canPauseResearchStage, researchProgressLabel } from "../../utils/researchProgress";
+import { canPauseResearchStage, isRestorableResearch, researchProgressLabel } from "../../utils/researchProgress";
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused } from "../../utils/researchSession";
 import type { CompanyResearchWorkflow, GroundingOverride, IdentityForm, WorkspaceView } from "./types";
 
@@ -159,6 +159,11 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setError(null);
     try {
       let restoredRun = await getResearchRun(researchRunId);
+      if (!isRestorableResearch(restoredRun)) {
+        clearCurrentResearch(restoredRun.id);
+        resetResearchState();
+        return;
+      }
       const existingCompany = await getCompany(restoredRun.companyId);
       const savedSession = readCurrentResearch();
       const paused = savedSession?.runId === restoredRun.id && savedSession.paused && canPauseResearchStage(restoredRun.stage);
@@ -186,12 +191,6 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
       }
 
       setRun(restoredRun);
-      if (restoredRun.stage === "Completed" || restoredRun.stage === "Cancelled") {
-        clearCurrentResearch(restoredRun.id);
-        setIsPaused(false);
-        setView("identify");
-        return;
-      }
       if (restoredRun.stage === "Failed") {
         setError(restoredRun.error || "RAVEN could not complete this research run.");
         setView("failed");
@@ -234,6 +233,15 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
           break;
       }
     } catch (reason: unknown) {
+      // A session can outlive a temporary/dev database. A missing run (or its
+      // deleted company) is stale session state, not a research failure that
+      // should strand the next visit on an error panel. Preserve the session
+      // on transient/API failures so a valid active run remains recoverable.
+      if (reason instanceof ApiError && reason.status === 404) {
+        clearCurrentResearch(researchRunId);
+        resetResearchState();
+        return;
+      }
       setError(getApiErrorMessage(reason, "RAVEN could not restore this research run."));
       setView("failed");
     } finally {
@@ -408,8 +416,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setIdentityGuidanceOpen(false);
   }
 
-  function resetResearchForm() {
-    clearCurrentResearch(run?.id);
+  function resetResearchState() {
     setForm(initialForm);
     setGroundingOverride("default");
     setView("identify");
@@ -434,6 +441,11 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setError(null);
     setLoading(false);
     setIsPaused(false);
+  }
+
+  function resetResearchForm() {
+    clearCurrentResearch(run?.id);
+    resetResearchState();
   }
 
   async function retryPreflightIdentity() {
@@ -583,11 +595,9 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     if (!run) return;
     setLoading(true);
     try {
-      const cancelled = await cancelResearchRun(run.id);
-      setRun(cancelled);
+      await cancelResearchRun(run.id);
       clearCurrentResearch(run.id);
-      setIsPaused(false);
-      setView("cancelled");
+      resetResearchState();
     } catch (reason: unknown) {
       setError(getApiErrorMessage(reason, "RAVEN could not cancel this research run."));
     } finally {
@@ -737,16 +747,8 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   }
 
   function resetAfterFailure() {
-    setView("identify");
-    setError(null);
-    setMatches([]);
-    setCompany(null);
-    setRun(null);
-    setIdentityGuidance(null);
-    setIdentityGuidanceOpen(false);
-    setCandidates([]);
-    setSources([]);
-    setProfileCandidate(null);
+    clearCurrentResearch(run?.id);
+    resetResearchState();
   }
 
   return {

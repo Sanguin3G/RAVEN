@@ -57,6 +57,8 @@ Delivered scope is coverage-aware source-root selection, generic corporate-famil
 
 Delivered scope is a Company-independent identity preflight endpoint, explicit website/registration fast paths, one bounded Gemini topology call for weak inputs, deterministic derivation of `Resolved`, `Ambiguous`, `NeedsMoreInfo`, or `Unknown`, distinct family/name-collision handling, parent-first identity choices, and a deliberate exact-name override for obscure companies. The frontend keeps the original research form as the single edit surface and presents guided clarification in a compact, dismissible modal. Identity options and model-provided domains/legal names remain navigation hints, not accepted profile evidence. Duplicate matching runs only after resolution, and a bounded resolved-identity snapshot is carried into each new ResearchRun.
 
+Stabilization closes the Day-6 browser/session and workspace seams: only resumable research runs restore after reload; cancel returns to a blank research form; merged profile history remains hydrated and ordered; and Company List actions address Monitoring and targeted enrichment directly, with honest guidance when no accepted profile exists.
+
 Day 7 owns deletion of obsolete candidate-driven family discovery from normal new research and simplification of downstream Search, reranking, and acquisition work below the resolved-identity boundary.
 
 ## Stabilization principles

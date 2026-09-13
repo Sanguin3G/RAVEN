@@ -335,3 +335,80 @@ it("sends an explicit one-run identity-resolution preference while keeping the d
   await waitFor(() => expect(screen.getByRole("heading", { name: "Review source candidates" })).toBeInTheDocument());
   expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}/research/start`, expect.objectContaining({ body: expect.stringContaining('"groundingMode":"Always"') }));
 });
+
+it("drops a stale terminal research session and opens a blank form", async () => {
+  const staleRun = { ...run, status: "Failed", stage: "Failed", error: "The old identity lookup is no longer available." };
+  sessionStorage.setItem("raven-current-research", JSON.stringify({
+    runId: staleRun.id,
+    companyId: staleRun.companyId,
+    companyName: company.name,
+    paused: false,
+  }));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
+    if (url.endsWith(`/api/research-runs/${staleRun.id}`)) return jsonResponse(staleRun);
+    if (url.endsWith(`/api/companies/${company.id}`)) return jsonResponse(company);
+    if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
+    return jsonResponse([]);
+  });
+
+  renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
+
+  await waitFor(() => expect(screen.getByRole("textbox", { name: "Company name" })).toHaveValue(""));
+  expect(screen.queryByRole("heading", { name: "Research needs attention" })).not.toBeInTheDocument();
+  expect(sessionStorage.getItem("raven-current-research")).toBeNull();
+});
+
+it("drops a missing saved run instead of showing a stale restore error", async () => {
+  const savedRunId = "99999999-9999-9999-9999-999999999999";
+  sessionStorage.setItem("raven-current-research", JSON.stringify({
+    runId: savedRunId,
+    companyId: company.id,
+    companyName: company.name,
+    paused: false,
+  }));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith(`/api/research-runs/${savedRunId}`)) return jsonResponse({ message: "Not found" }, 404);
+    if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
+    return jsonResponse([]);
+  });
+
+  renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
+
+  await waitFor(() => expect(screen.getByRole("textbox", { name: "Company name" })).toHaveValue(""));
+  expect(screen.queryByRole("heading", { name: "Research needs attention" })).not.toBeInTheDocument();
+  expect(sessionStorage.getItem("raven-current-research")).toBeNull();
+});
+
+it("returns to the blank research form after cancelling a run", async () => {
+  const user = userEvent.setup();
+  const activeRun = { ...run, status: "Searching", stage: "AwaitingSourceSelection" };
+  const cancelledRun = { ...activeRun, status: "Cancelled", stage: "Cancelled" };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/execution")) return jsonResponse(execution);
+    if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
+    if (url.endsWith("/api/companies/matches")) return jsonResponse([]);
+    if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
+    if (url.endsWith("/research/start")) return jsonResponse(activeRun);
+    if (url.endsWith("/cancel")) return jsonResponse(cancelledRun);
+    if (url.endsWith(`/api/research-runs/${activeRun.id}`)) return jsonResponse(activeRun);
+    if (url.endsWith("/candidates")) return jsonResponse([candidate]);
+    if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
+    return jsonResponse([]);
+  });
+
+  renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
+  await user.type(screen.getByRole("textbox", { name: "Company name" }), "FPT Software");
+  await user.click(screen.getByRole("button", { name: "Research public sources" }));
+  await screen.findByRole("heading", { name: "Review source candidates" });
+
+  await user.click(screen.getByRole("button", { name: "Cancel research" }));
+
+  await waitFor(() => expect(screen.getByRole("textbox", { name: "Company name" })).toHaveValue(""));
+  expect(screen.getByRole("radio", { name: /Use default/ })).toBeChecked();
+  expect(screen.queryByRole("button", { name: "Cancel research" })).not.toBeInTheDocument();
+  expect(sessionStorage.getItem("raven-current-research")).toBeNull();
+});

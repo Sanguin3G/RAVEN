@@ -6,7 +6,7 @@ RAVEN is an AI-assisted Company Intelligence Platform. It discovers public compa
 
 ## Current milestone
 
-Day 5 extends the working research slice with evidence coverage and workspace quality:
+Day 6 adds identity resolution and stabilizes the working research slice:
 
 ```text
 Company identity → duplicate check → optional AI grounding → source review
@@ -14,7 +14,7 @@ Company identity → duplicate check → optional AI grounding → source review
 → human confirmation → versioned profile/history/changes
 ```
 
-It also adds persistent settings, Exa/Firecrawl provider routing, manual refresh, monitoring that produces review-ready updates, and a bounded Deep Research backend with saved investigations. Day 5 adds coverage-aware research roots, generic corporate-family discovery, bounded official-site expansion, MaSoThue directory parsing, target-scoped profile enrichment, workspace lifecycle safeguards, and a docked Ask RAVEN frontend boundary for Hung's backend.
+Identity preflight resolves explicit identifiers locally or asks one bounded topology question before public-source research. Day 6 also hardens cancellable research restoration, profile-preserving duplicate merges, direct Monitoring/enrichment workspace actions, and sparse-profile guidance. RAVEN keeps unsupported facts unknown and preserves accepted profile history.
 
 ## Stack
 
@@ -59,5 +59,5 @@ The API listens on `http://localhost:5180`; the frontend listens on `http://loca
 | Milestones | [docs/PLAN.md](docs/PLAN.md) |
 | Integrated status | [docs/STATUS.md](docs/STATUS.md) |
 | Setup and configuration | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
-| Day-5 demonstration flow | [docs/DEMO.md](docs/DEMO.md) |
+| Customer / mentor demonstration flow | [docs/DEMO.md](docs/DEMO.md) |
 | Collaboration instructions | [AGENTS.md](AGENTS.md) |

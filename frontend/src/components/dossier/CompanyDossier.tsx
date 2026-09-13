@@ -53,7 +53,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
         {tabs.map((tab, index) => {
           const tabId = `${idPrefix}-tab-${tab.id}`;
           const selected = selectedTab === tab.id;
-          return <button aria-controls={tabPanelId} aria-selected={selected} className={`${styles.tab} ${selected ? styles.tabActive : ""}`} id={tabId} key={tab.id} onClick={() => selectTab(tab.id)} onKeyDown={(event) => onTabKeyDown(event, index)} ref={(element) => { tabRefs.current[index] = element; }} role="tab" tabIndex={selected ? 0 : -1} type="button">{tab.label}</button>;
+          return <button aria-controls={`${idPrefix}-panel-${tab.id}`} aria-selected={selected} className={`${styles.tab} ${selected ? styles.tabActive : ""}`} id={tabId} key={tab.id} onClick={() => selectTab(tab.id)} onKeyDown={(event) => onTabKeyDown(event, index)} ref={(element) => { tabRefs.current[index] = element; }} role="tab" tabIndex={selected ? 0 : -1} type="button">{tab.label}</button>;
         })}
       </div>
       <div aria-labelledby={`${idPrefix}-tab-${selectedTab}`} className={styles.tabPanel} id={tabPanelId} role="tabpanel" tabIndex={0}>

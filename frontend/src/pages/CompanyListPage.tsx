@@ -6,7 +6,7 @@ import { GitMerge } from "@phosphor-icons/react/dist/csr/GitMerge";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { Sparkle } from "@phosphor-icons/react/dist/csr/Sparkle";
 import { Trash } from "@phosphor-icons/react/dist/csr/Trash";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
 import { getApiErrorMessage } from "../api/client";
 import { getCompanies } from "../api/companies";
@@ -106,6 +106,8 @@ function MergePreviewDialog({ open, preview, loading, error, busy, onClose, onCo
 
 export function CompanyListPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const reviewRequested = searchParams.get("review") === "true";
   const [companies, setCompanies] = useState<Company[]>([]);
   const [review, setReview] = useState<WorkspaceReviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export function CompanyListPage() {
   const [healthFilter, setHealthFilter] = useState("");
   const [researchedFilter, setResearchedFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(reviewRequested);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPlacement, setMenuPlacement] = useState<"up" | "down">("down");
   const [busyCompanyId, setBusyCompanyId] = useState<string | null>(null);
@@ -230,9 +232,12 @@ export function CompanyListPage() {
     setMergeBusy(true); setMergeError(null);
     try {
       const result = await confirmCompanyMerge(mergePair.canonicalId, mergePair.duplicateId);
+      const canonicalId = result.canonicalCompany.id;
       setCompanies((current) => current.filter((company) => company.id !== mergePair.duplicateId).map((company) => company.id === result.canonicalCompany.id ? result.canonicalCompany : company));
       setMergePair(null); setMergePreview(null);
-      await loadWorkspace(showArchived);
+      // A successful merge has a useful destination: hand the user to the
+      // canonical dossier so they can verify the retained profile/evidence.
+      navigate(`/companies/${encodeURIComponent(canonicalId)}`);
     } catch (reason) {
       setMergeError(getApiErrorMessage(reason, "Could not merge these companies."));
     } finally { setMergeBusy(false); }

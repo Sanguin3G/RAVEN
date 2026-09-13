@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
@@ -5,6 +6,7 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.Profiles;
+using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Events;
@@ -255,6 +257,8 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         var mergedProfile = await dbContext.CompanyProfileVersions.AsNoTracking().SingleAsync(item => item.Id == duplicateProfile.Id);
         Assert.Equal(canonical.Id, mergedProfile.CompanyId);
         Assert.Equal(2, mergedProfile.Version);
+        var retainedProfile = await dbContext.CompanyProfileVersions.AsNoTracking().SingleAsync(item => item.Id == canonicalProfile.Id);
+        Assert.Equal(1, retainedProfile.Version);
         Assert.Equal(2, await dbContext.CompanyProfileVersions.CountAsync(item => item.CompanyId == canonical.Id));
         Assert.Equal(2, await dbContext.SourceDocuments.CountAsync(item => item.CompanyId == canonical.Id));
         Assert.Null(await dbContext.SourceDocuments.AsNoTracking().SingleOrDefaultAsync(item => item.Id == duplicateSource.Id));
@@ -268,6 +272,93 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         Assert.DoesNotContain(duplicateSource.Id.ToString(), rewrittenArtifact.SourceDocumentIdsJson);
     }
 
+    [Fact]
+    public async Task Merge_preserves_canonical_current_profile_and_hydrates_moved_payloads_with_merged_identity()
+    {
+        var canonical = NewCompany("Selected company");
+        canonical.Website = null;
+        canonical.LegalName = null;
+        var duplicate = NewCompany("Richer company");
+        duplicate.Website = "https://richer.example";
+        duplicate.LegalName = "Richer Company Ltd";
+        duplicate.RegistrationNumber = "VN-123";
+        duplicate.Headquarters = "Hanoi";
+        var canonicalRun = NewResearchRun(canonical);
+        var duplicateRun = NewResearchRun(duplicate);
+        var canonicalProfile = new CompanyProfileVersion
+        {
+            CompanyId = canonical.Id,
+            ResearchRunId = canonicalRun.Id,
+            Version = 1,
+            GeneratedAt = DateTimeOffset.UtcNow.AddMinutes(-4),
+            ConfirmedAt = DateTimeOffset.UtcNow.AddMinutes(-3),
+            DisplayName = canonical.Name,
+            Summary = "Selected profile"
+        };
+        canonicalProfile.ProfileJson = JsonSerializer.Serialize(canonicalProfile, JsonOptions);
+        var duplicateProfile = new CompanyProfileVersion
+        {
+            CompanyId = duplicate.Id,
+            ResearchRunId = duplicateRun.Id,
+            Version = 1,
+            GeneratedAt = DateTimeOffset.UtcNow.AddMinutes(-2),
+            ConfirmedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            DisplayName = duplicate.Name,
+            Summary = "Richer profile",
+            PrimaryIndustry = "Software"
+        };
+        duplicateProfile.ProductsServices.Add(new ProfileProductService("Platform", "Product"));
+        duplicateProfile.ProfileJson = JsonSerializer.Serialize(duplicateProfile, JsonOptions);
+        var duplicateCandidate = new CompanyProfileCandidate
+        {
+            CompanyId = duplicate.Id,
+            ResearchRunId = duplicateRun.Id,
+            GeneratedAt = DateTimeOffset.UtcNow,
+            DisplayName = duplicate.Name,
+            Summary = "Richer candidate"
+        };
+        duplicateCandidate.CandidateJson = JsonSerializer.Serialize(duplicateCandidate, JsonOptions);
+
+        dbContext.Companies.AddRange(canonical, duplicate);
+        dbContext.ResearchRuns.AddRange(canonicalRun, duplicateRun);
+        dbContext.CompanyProfileVersions.AddRange(canonicalProfile, duplicateProfile);
+        dbContext.CompanyProfileCandidates.Add(duplicateCandidate);
+        await dbContext.SaveChangesAsync();
+
+        var service = new CompanyLifecycleService(dbContext);
+        var result = await service.ConfirmMergeAsync(
+            new CompanyMergeConfirmRequest(canonical.Id, duplicate.Id, Confirm: true),
+            CancellationToken.None);
+
+        Assert.Equal(CompanyMergeOutcome.Merged, result.Outcome);
+        Assert.NotNull(result.CanonicalCompany);
+        Assert.Equal("https://richer.example", result.CanonicalCompany!.Website);
+        Assert.Equal("Richer Company Ltd", result.CanonicalCompany.LegalName);
+        Assert.Equal("VN-123", result.CanonicalCompany.RegistrationNumber);
+        Assert.Equal("Hanoi", result.CanonicalCompany.Headquarters);
+
+        dbContext.ChangeTracker.Clear();
+        var persistence = new CompanyProfilePersistenceService(dbContext);
+        var current = await persistence.GetCurrentProfileAsync(canonical.Id, CancellationToken.None);
+        Assert.NotNull(current);
+        Assert.Equal(duplicateProfile.Id, current!.Id);
+        Assert.Equal(duplicate.Name, current.DisplayName);
+        Assert.Equal(2, current.Version);
+        Assert.Equal("Richer profile", current.Summary);
+        Assert.Equal("Software", current.PrimaryIndustry);
+        Assert.Contains(current.ProductsServices, product => product.Name == "Platform");
+
+        var moved = await persistence.GetProfileVersionAsync(canonical.Id, 1, CancellationToken.None);
+        Assert.NotNull(moved);
+        Assert.Equal(canonicalProfile.Id, moved!.Id);
+        Assert.Equal("Selected profile", moved.Summary);
+
+        var movedCandidate = await persistence.GetCandidateAsync(duplicateCandidate.Id, CancellationToken.None);
+        Assert.NotNull(movedCandidate);
+        Assert.Equal(canonical.Id, movedCandidate!.CompanyId);
+        Assert.Equal("Richer candidate", movedCandidate.Summary);
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();
@@ -278,6 +369,8 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         new(new DbContextOptionsBuilder<RavenDbContext>()
             .UseSqlite(connection)
             .Options);
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private static Company NewCompany(string name) => new()
     {

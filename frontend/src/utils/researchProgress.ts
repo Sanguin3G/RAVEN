@@ -7,12 +7,33 @@ const pauseableStages: ResearchStage[] = [
   "AwaitingProfileConfirmation",
 ];
 
+const restorableStages: ResearchStage[] = [
+  "Identifying",
+  "Discovering",
+  "Grounding",
+  "AwaitingIdentitySelection",
+  "AwaitingSourceSelection",
+  "Acquiring",
+  "EvidenceReady",
+  "GeneratingProfile",
+  "AwaitingProfileConfirmation",
+];
+
 export function canPauseResearchStage(stage: ResearchStage) {
   return pauseableStages.includes(stage);
 }
 
 export function isFinishedResearch(run: ResearchRun) {
-  return run.stage === "Completed" || run.stage === "Cancelled";
+  return run.stage === "Completed" || run.stage === "Cancelled" || run.stage === "Failed";
+}
+
+/**
+ * Saved research is resumable only at a known user-facing workflow stage.
+ * Treat unknown/legacy stages as stale instead of rendering a state the
+ * current client cannot advance from (for example an old identity result).
+ */
+export function isRestorableResearch(run: ResearchRun) {
+  return restorableStages.includes(run.stage) && run.status !== "Failed" && run.status !== "Cancelled";
 }
 
 export function researchProgressLabel(run: ResearchRun, paused = false): string {

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
 using Raven.Api.Features.DeepResearch;
@@ -154,9 +155,15 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
                 .ToListAsync(cancellationToken);
             var sourceMap = BuildSourceMap(duplicateSources, canonicalSources);
 
+            var duplicateProfileCandidateIds = await dbContext.CompanyProfileCandidates
+                .AsNoTracking()
+                .Where(profile => profile.CompanyId == duplicate.Id)
+                .Select(profile => profile.Id)
+                .ToArrayAsync(cancellationToken);
+
             await RewriteSourceReferencesAsync(sourceMap, cancellationToken);
             await ReconcileMonitoringAsync(canonical.Id, duplicate.Id, cancellationToken);
-            await PrepareProfileVersionMergeAsync(canonical.Id, duplicate.Id, cancellationToken);
+            var profileVersionMerge = await PrepareProfileVersionMergeAsync(canonical.Id, duplicate.Id, cancellationToken);
 
             await ReassignCompanyAsync(dbContext.ResearchRuns, run => run.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.SourceDocuments, source => source.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
@@ -165,6 +172,11 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             await ReassignCompanyAsync(dbContext.ProfileChanges, change => change.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.DeepResearchRuns, run => run.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.SavedResearchArtifacts, artifact => artifact.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await RewriteMovedProfilePayloadsAsync(
+                canonical.Id,
+                duplicateProfileCandidateIds,
+                profileVersionMerge,
+                cancellationToken);
 
             var sourceIdsToDelete = sourceMap.Keys.ToArray();
             if (sourceIdsToDelete.Length > 0)
@@ -175,9 +187,25 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             }
 
             var mergedAt = DateTimeOffset.UtcNow;
+            var mergedWebsite = PreferCanonicalValue(canonical.Website, duplicate.Website);
+            var mergedCountry = PreferCanonicalValue(canonical.Country, duplicate.Country);
+            var mergedLegalName = PreferCanonicalValue(canonical.LegalName, duplicate.LegalName);
+            var mergedRegistrationNumber = PreferCanonicalValue(canonical.RegistrationNumber, duplicate.RegistrationNumber);
+            var mergedHeadquarters = PreferCanonicalValue(canonical.Headquarters, duplicate.Headquarters);
+            var mergedLastResearchedAt = canonical.LastResearchedAt is null
+                ? duplicate.LastResearchedAt
+                : duplicate.LastResearchedAt is null || canonical.LastResearchedAt >= duplicate.LastResearchedAt
+                    ? canonical.LastResearchedAt
+                    : duplicate.LastResearchedAt;
             await dbContext.Companies
                 .Where(company => company.Id == canonical.Id)
                 .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(company => company.Website, mergedWebsite)
+                    .SetProperty(company => company.Country, mergedCountry)
+                    .SetProperty(company => company.LegalName, mergedLegalName)
+                    .SetProperty(company => company.RegistrationNumber, mergedRegistrationNumber)
+                    .SetProperty(company => company.Headquarters, mergedHeadquarters)
+                    .SetProperty(company => company.LastResearchedAt, mergedLastResearchedAt)
                     .SetProperty(company => company.UpdatedAt, mergedAt), cancellationToken);
             await dbContext.Companies
                 .Where(company => company.Id == duplicate.Id)
@@ -185,6 +213,12 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            canonical.Website = mergedWebsite;
+            canonical.Country = mergedCountry;
+            canonical.LegalName = mergedLegalName;
+            canonical.RegistrationNumber = mergedRegistrationNumber;
+            canonical.Headquarters = mergedHeadquarters;
+            canonical.LastResearchedAt = mergedLastResearchedAt;
             canonical.UpdatedAt = mergedAt;
             return new CompanyMergeResult(
                 CompanyMergeOutcome.Merged,
@@ -377,32 +411,38 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             .ExecuteDeleteAsync(cancellationToken);
     }
 
-    private async Task PrepareProfileVersionMergeAsync(
+    private async Task<ProfileVersionMergePlan> PrepareProfileVersionMergeAsync(
         Guid canonicalCompanyId,
         Guid duplicateCompanyId,
         CancellationToken cancellationToken)
     {
+        var canonicalProfiles = await dbContext.CompanyProfileVersions
+            .AsNoTracking()
+            .Where(profile => profile.CompanyId == canonicalCompanyId)
+            .OrderBy(profile => profile.Version)
+            .ThenBy(profile => profile.Id)
+            .Select(profile => new { profile.Id, profile.Version, profile.ConfirmedAt, profile.GeneratedAt })
+            .ToListAsync(cancellationToken);
         var duplicateProfiles = await dbContext.CompanyProfileVersions
             .AsNoTracking()
             .Where(profile => profile.CompanyId == duplicateCompanyId)
             .OrderBy(profile => profile.Version)
             .ThenBy(profile => profile.Id)
-            .Select(profile => new { profile.Id, profile.Version })
+            .Select(profile => new { profile.Id, profile.Version, profile.ConfirmedAt, profile.GeneratedAt })
             .ToListAsync(cancellationToken);
         if (duplicateProfiles.Count == 0)
         {
-            return;
+            return new ProfileVersionMergePlan(
+                new Dictionary<Guid, int>(),
+                new HashSet<Guid>());
         }
 
-        var canonicalMaxVersion = await dbContext.CompanyProfileVersions
-            .Where(profile => profile.CompanyId == canonicalCompanyId)
-            .Select(profile => (int?)profile.Version)
-            .MaxAsync(cancellationToken) ?? 0;
-
-        // Move the duplicate rows out of both companies' version-number range
-        // before changing CompanyId. This avoids a transient unique-index
-        // collision when both companies have a v1, while retaining every
-        // immutable snapshot and its original ID/evidence relationships.
+        // Move both sets out of the positive version range before assigning the
+        // merged history. Version order follows the original accepted snapshot
+        // timestamps, not which record happened to be selected as canonical, so
+        // a richer/newer duplicate profile cannot be hidden by an older sparse
+        // profile. Every changed version is mirrored in ProfileJson because
+        // hydration validates the serialized snapshot metadata.
         var temporaryVersion = -1;
         foreach (var profile in duplicateProfiles)
         {
@@ -410,16 +450,114 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
                 .Where(item => item.Id == profile.Id)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Version, temporaryVersion--), cancellationToken);
         }
+        foreach (var profile in canonicalProfiles)
+        {
+            await dbContext.CompanyProfileVersions
+                .Where(item => item.Id == profile.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Version, temporaryVersion--), cancellationToken);
+        }
 
-        var nextVersion = canonicalMaxVersion + 1;
-        foreach (var profile in duplicateProfiles)
+        var nextVersion = 1;
+        var assignedVersions = new Dictionary<Guid, int>(duplicateProfiles.Count + canonicalProfiles.Count);
+        foreach (var profile in canonicalProfiles
+                     .Concat(duplicateProfiles)
+                     .OrderBy(profile => profile.ConfirmedAt)
+                     .ThenBy(profile => profile.GeneratedAt)
+                     .ThenBy(profile => profile.Id))
         {
             var assignedVersion = nextVersion++;
+            assignedVersions[profile.Id] = assignedVersion;
             await dbContext.CompanyProfileVersions
                 .Where(item => item.Id == profile.Id)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Version, assignedVersion), cancellationToken);
         }
+
+        return new ProfileVersionMergePlan(
+            assignedVersions,
+            duplicateProfiles.Select(profile => profile.Id).ToHashSet());
     }
+
+    private async Task RewriteMovedProfilePayloadsAsync(
+        Guid canonicalCompanyId,
+        IReadOnlyCollection<Guid> movedProfileCandidateIds,
+        ProfileVersionMergePlan profileVersionMerge,
+        CancellationToken cancellationToken)
+    {
+        if (movedProfileCandidateIds.Count > 0)
+        {
+            var candidates = await dbContext.CompanyProfileCandidates
+                .Where(profile => movedProfileCandidateIds.Contains(profile.Id))
+                .ToListAsync(cancellationToken);
+            foreach (var candidate in candidates)
+            {
+                var rewritten = RewritePayloadReference(candidate.CandidateJson, "companyId", canonicalCompanyId);
+                if (rewritten is not null)
+                {
+                    candidate.CandidateJson = rewritten;
+                }
+            }
+        }
+
+        if (profileVersionMerge.AssignedVersions.Count == 0)
+        {
+            return;
+        }
+
+        var profiles = await dbContext.CompanyProfileVersions
+            .Where(profile => profileVersionMerge.AssignedVersions.Keys.Contains(profile.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var profile in profiles)
+        {
+            var rewritten = profileVersionMerge.MovedProfileIds.Contains(profile.Id)
+                ? RewritePayloadReference(profile.ProfileJson, "companyId", canonicalCompanyId)
+                : null;
+            rewritten = RewritePayloadReference(
+                rewritten ?? profile.ProfileJson,
+                "version",
+                profileVersionMerge.AssignedVersions[profile.Id]);
+            if (rewritten is not null)
+            {
+                profile.ProfileJson = rewritten;
+            }
+        }
+    }
+
+    private static string? RewritePayloadReference<TValue>(
+        string? json,
+        string propertyName,
+        TValue value)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonObject payload)
+            {
+                return null;
+            }
+
+            var property = payload.FirstOrDefault(item =>
+                string.Equals(item.Key, propertyName, StringComparison.OrdinalIgnoreCase)).Key;
+            payload[property ?? propertyName] = JsonValue.Create(value);
+            return payload.ToJsonString();
+        }
+        catch (JsonException)
+        {
+            // Keep the original payload intact. Hydration already rejects a
+            // malformed snapshot, and replacing it would lose user evidence.
+            return null;
+        }
+    }
+
+    private static string? PreferCanonicalValue(string? canonicalValue, string? duplicateValue) =>
+        !string.IsNullOrWhiteSpace(canonicalValue) ? canonicalValue : duplicateValue;
+
+    private sealed record ProfileVersionMergePlan(
+        IReadOnlyDictionary<Guid, int> AssignedVersions,
+        IReadOnlySet<Guid> MovedProfileIds);
 
     private async Task RewriteSourceReferencesAsync(
         IReadOnlyDictionary<Guid, Guid> sourceMap,

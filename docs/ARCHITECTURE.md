@@ -17,7 +17,7 @@ Identity preflight
 → immutable CompanyProfileVersion + ProfileEvidence
 ```
 
-Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress. An in-process channel-backed worker may run discovery after a `202 Accepted` start request; it supports cancellation and active-run visibility, but is intentionally non-durable, so queued work does not survive an API restart.
+Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress. An in-process channel-backed worker may run discovery after a `202 Accepted` start request; it supports cancellation and active-run visibility, but is intentionally non-durable, so queued work does not survive an API restart. Client session restoration is intentionally narrower: only known active/user-actionable stages are restored. Missing, cancelled, completed, failed, or legacy-unrestorable runs are cleared back to a blank research form rather than rendered as a stale company error.
 
 ## Technology stack
 
@@ -81,7 +81,7 @@ Gemini configuration establishes startup defaults. The local Settings page may s
 
 The React application uses a fixed, collapsible desktop sidebar and a mobile drawer, contextual top bar, System Status route, reusable source cards/icons, and Settings. Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. A desktop Ask RAVEN dock reflows the dossier rather than overlaying it; on mobile it becomes a drawer. The frontend may render company context and composer modes, but Hung owns the Ask RAVEN backend/conversation contract. Source icons use safe domain favicon resolution with provider-aware and Phosphor fallbacks.
 
-`CompanyLifecycleService` is the mutation boundary for archive, restore, permanent deletion, and user-confirmed merge. Merge is transactional and retains compatible research, source, profile, provenance, monitoring, Deep Research, and saved-investigation relationships. `CompanyWorkspaceReviewService` is read-only: it evaluates deterministic health and duplicate groups, and its optional AI seam can only return recommendations.
+`CompanyLifecycleService` is the mutation boundary for archive, restore, permanent deletion, and user-confirmed merge. Merge is transactional and retains compatible research, source, profile, provenance, monitoring, Deep Research, and saved-investigation relationships. It rewrites moved serialized profile/candidate identity references and reorders the combined immutable profile history by confirmation time, so the current accepted profile remains a valid, hydrated snapshot rather than being masked by a sparse retained Company row. Missing stable Company identity values are filled from the merged record; existing canonical values remain authoritative. `CompanyWorkspaceReviewService` is read-only: it evaluates deterministic health and duplicate groups, and its optional AI seam can only return recommendations.
 
 ## Future seams
 

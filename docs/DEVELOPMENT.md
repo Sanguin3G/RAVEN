@@ -168,6 +168,14 @@ Monitoring and Deep Research use in-process `BackgroundService` workers. They ex
 
 The background research start endpoint also uses an in-process channel-backed worker. It returns `202 Accepted`, exposes active runs, and supports cancellation. It is not a durable job queue: a process restart drops queued work, by design for this MVP.
 
+The frontend persists only an active, resumable research session for handoff across navigation/reload. Cancelling a run clears that session and resets the research screen to its blank default state. A restored session whose run/company no longer exists, is terminal, or uses a legacy-unrestorable stage is also discarded locally; this is intentional recovery behavior, not an API failure.
+
+## Workspace lifecycle behavior
+
+`POST /api/companies/merge/confirm` is a user-confirmed, transactional merge. It preserves compatible dependent records and profile history; moved serialized profile and candidate payloads are rewritten to the canonical company and combined profile versions are re-numbered in confirmation-time order. The frontend routes a completed merge to the canonical dossier.
+
+Company List actions are addressable: **Monitor company** opens the Monitoring tab and **Improve profile** opens the targeted enrichment dialog. Both require an accepted profile. When one is unavailable, the company page explains the constraint and links to refresh research or Workspace Review instead of presenting an empty action.
+
 Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
 
 ## Git workflow
