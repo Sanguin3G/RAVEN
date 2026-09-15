@@ -16,14 +16,14 @@ public sealed class BadRequestExceptionHandler : IExceptionHandler
         }
 
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await httpContext.Response.WriteAsJsonAsync(
-            new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Invalid request",
-                Instance = httpContext.Request.Path
-            },
-            cancellationToken);
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Invalid request",
+            Instance = httpContext.Request.Path
+        };
+        problem.Extensions["code"] = "invalid_request";
+        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
         return true;
     }
 }

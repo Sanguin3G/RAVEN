@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -127,6 +128,20 @@ public sealed class GeminiProvider(HttpClient httpClient, IOptions<GeminiOptions
                 request.Model,
                 stopwatch,
                 new AiFailure("unavailable", "Gemini could not be reached.", true));
+        }
+        catch (SocketException)
+        {
+            return Failure(
+                request.Model,
+                stopwatch,
+                new AiFailure("unavailable", "Gemini could not be reached because the network connection failed.", true));
+        }
+        catch (IOException)
+        {
+            return Failure(
+                request.Model,
+                stopwatch,
+                new AiFailure("unavailable", "Gemini could not be reached because the network or TLS connection failed.", true));
         }
         catch (JsonException)
         {

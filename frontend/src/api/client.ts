@@ -1,10 +1,25 @@
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 const apiBaseUrl = configuredApiBaseUrl ? configuredApiBaseUrl.replace(/\/$/, "") : "";
 
+export interface ProblemDetails {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  instance?: string;
+  code?: string;
+  errors?: Record<string, string[]>;
+}
+
 export class ApiError extends Error {
-  constructor(public readonly status?: number) {
-    super(status ? `RAVEN API request failed with status ${status}.` : "RAVEN API is unavailable.");
+  public readonly code?: string;
+  public readonly problem?: ProblemDetails;
+
+  constructor(public readonly status?: number, problem?: ProblemDetails) {
+    super(problem?.detail || problem?.title || (status ? `RAVEN API request failed with status ${status}.` : "RAVEN API is unavailable."));
     this.name = "ApiError";
+    this.code = problem?.code;
+    this.problem = problem;
   }
 }
 
@@ -28,7 +43,13 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status);
+    let problem: ProblemDetails | undefined;
+    try {
+      problem = await response.json() as ProblemDetails;
+    } catch {
+      problem = undefined;
+    }
+    throw new ApiError(response.status, problem);
   }
 
   // DELETE lifecycle endpoints intentionally return 204 with no JSON body.
@@ -47,6 +68,14 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) {
+    if (error.code === "profile_required") {
+      return "Accept a company profile before asking RAVEN a question.";
+    }
+
+    if (error.problem?.detail) {
+      return error.problem.detail;
+    }
+
     if (error.status === 404) {
       return "RAVEN could not find that company.";
     }

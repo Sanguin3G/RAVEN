@@ -1183,6 +1183,14 @@
 .chatEmptyState p { margin: 0; }
 .chatEmptyMark { color: var(--ai); font-size: 1.45rem; line-height: 1; }
 .chatSystemMessage { background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised)); border-left: 3px solid var(--warning); color: var(--text-muted); font-size: 0.74rem; line-height: 1.45; margin-top: auto; padding: 0.55rem 0.6rem; }
+.chatMessage { border: 1px solid var(--border); border-radius: 0.65rem; display: grid; gap: 0.22rem; max-inline-size: 92%; padding: 0.62rem 0.7rem; }
+.chatMessageUser { align-self: end; background: color-mix(in srgb, var(--primary) 9%, var(--surface-raised)); }
+.chatMessageAssistant { align-self: start; background: var(--surface-raised); }
+.chatMessageRole, .chatMessageStatus { color: var(--text-muted); font-size: 0.64rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }
+.chatMessage p { color: var(--text); font-size: 0.8rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+.chatFollowUp { border-left: 2px solid var(--ai); color: var(--text-muted) !important; padding-left: 0.45rem; }
+.chatCitations { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
+.chatCitation { color: var(--primary); font-size: 0.68rem; overflow-wrap: anywhere; }
 .assistantComposer { background: var(--surface-raised); border-radius: 0.7rem; gap: 0.35rem; margin-top: 0; padding: 0.55rem 0.6rem; }
 .assistantComposer textarea { background: transparent; border: 0; border-radius: 0; min-block-size: 3.75rem; padding: 0.3rem 0; resize: vertical; }
 .assistantComposer textarea:focus-visible { outline-offset: 2px; }

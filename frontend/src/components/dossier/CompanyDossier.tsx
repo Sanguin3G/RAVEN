@@ -69,7 +69,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
         {assistantCollapsed ? <ChatCircleDots size={18} weight="fill" aria-hidden="true" /> : <Sparkle size={17} weight="fill" aria-hidden="true" />}
         <span>{assistantCollapsed ? "Ask RAVEN" : "Collapse assistant"}</span>
       </button>
-      {!assistantCollapsed && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
+      {!assistantCollapsed && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} profileVersionId={profile?.id} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} />}
     </aside>
     </div>
   );

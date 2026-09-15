@@ -12,6 +12,7 @@ using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
 using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Chat;
 
 namespace Raven.Api.Data;
 
@@ -32,6 +33,10 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<DeepResearchRun> DeepResearchRuns => Set<DeepResearchRun>();
     public DbSet<DeepResearchActivityRecord> DeepResearchActivities => Set<DeepResearchActivityRecord>();
     public DbSet<SavedResearchArtifact> SavedResearchArtifacts => Set<SavedResearchArtifact>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatCitation> ChatCitations => Set<ChatCitation>();
+    public DbSet<ChatToolExecution> ChatToolExecutions => Set<ChatToolExecution>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -317,6 +322,76 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasOne(sourceDocument => sourceDocument.ResearchRun)
                 .WithMany(researchRun => researchRun.SourceDocuments)
                 .HasForeignKey(sourceDocument => sourceDocument.ResearchRunId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ChatConversation>(entity =>
+        {
+            entity.HasKey(conversation => conversation.Id);
+            entity.Property(conversation => conversation.Title).HasMaxLength(200);
+            entity.HasIndex(conversation => new { conversation.CompanyId, conversation.UpdatedAt });
+            entity.HasOne(conversation => conversation.Company)
+                .WithMany()
+                .HasForeignKey(conversation => conversation.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(conversation => conversation.ProfileVersion)
+                .WithMany()
+                .HasForeignKey(conversation => conversation.ProfileVersionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasKey(message => message.Id);
+            entity.Property(message => message.Role).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(message => message.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(message => message.WebLookupIncomplete).HasColumnName("WebLookupIncomplete");
+            entity.Property(message => message.AnswerStatus).HasConversion<string>().HasMaxLength(32);
+            entity.Property(message => message.Content).HasMaxLength(20_000).IsRequired();
+            entity.Property(message => message.FollowUpQuestion).HasMaxLength(1_000);
+            entity.Property(message => message.AiProvider).HasMaxLength(100);
+            entity.Property(message => message.AiModel).HasMaxLength(200);
+            entity.HasIndex(message => new { message.ConversationId, message.CreatedAt });
+            entity.HasOne(message => message.Conversation)
+                .WithMany(conversation => conversation.Messages)
+                .HasForeignKey(message => message.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ChatCitation>(entity =>
+        {
+            entity.HasKey(citation => citation.Id);
+            entity.Property(citation => citation.Origin).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(citation => citation.FieldPath).HasMaxLength(300);
+            entity.Property(citation => citation.Excerpt).HasMaxLength(1_000);
+            entity.HasIndex(citation => new { citation.ChatMessageId, citation.SourceDocumentId }).IsUnique();
+            entity.HasOne(citation => citation.ChatMessage)
+                .WithMany(message => message.Citations)
+                .HasForeignKey(citation => citation.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(citation => citation.SourceDocument)
+                .WithMany()
+                .HasForeignKey(citation => citation.SourceDocumentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ChatToolExecution>(entity =>
+        {
+            entity.HasKey(execution => execution.Id);
+            entity.Property(execution => execution.Tool).HasMaxLength(200).IsRequired();
+            entity.Property(execution => execution.Provider).HasMaxLength(100).IsRequired();
+            entity.Property(execution => execution.Status).HasMaxLength(32).IsRequired();
+            entity.Property(execution => execution.InputSummary).HasMaxLength(2_000);
+            entity.Property(execution => execution.OutputSummary).HasMaxLength(2_000);
+            entity.Property(execution => execution.ErrorCode).HasMaxLength(100);
+            entity.HasIndex(execution => new { execution.ChatMessageId, execution.CreatedAt });
+            entity.HasOne(execution => execution.ChatMessage)
+                .WithMany(message => message.ToolExecutions)
+                .HasForeignKey(execution => execution.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(execution => execution.ResearchRun)
+                .WithMany()
+                .HasForeignKey(execution => execution.ResearchRunId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

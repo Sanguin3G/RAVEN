@@ -1,47 +1,57 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createChatConversation, sendChatMessage } from "../../api/chat";
 import { AskRavenHandoff } from "./AskRavenHandoff";
 
-describe("AskRavenHandoff", () => {
-  const props = {
-    companyId: "company-1",
-    companyName: "FPT Smart Cloud",
-    profileVersion: 2,
-    sourceCount: 17,
-    lastResearchedAt: "2026-09-11T09:00:00Z",
-  };
+vi.mock("../../api/chat", () => ({
+  createChatConversation: vi.fn(),
+  sendChatMessage: vi.fn(),
+}));
 
-  it("keeps company context compact and reserves a real conversation viewport", () => {
+const props = {
+  companyId: "company-1",
+  companyName: "FPT Smart Cloud",
+  profileVersion: 2,
+  profileVersionId: "profile-2",
+  sourceCount: 17,
+  lastResearchedAt: "2026-09-11T09:00:00Z",
+};
+
+describe("AskRavenHandoff", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("renders the profile-only boundary", () => {
     render(<AskRavenHandoff {...props} />);
 
     expect(screen.getByRole("heading", { name: "Ask RAVEN" })).toBeInTheDocument();
     expect(screen.getByText(/FPT Smart Cloud.*v2.*17 sources/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Ask RAVEN conversation")).toBeInTheDocument();
-    expect(screen.getByText("Ask about this company")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ask RAVEN mode")).toHaveValue("quick");
-    expect(screen.queryByRole("button", { name: "Send question" })).not.toBeInTheDocument();
+    expect(screen.getByText("Profile only")).toBeInTheDocument();
+    expect(screen.getByText(/no web search in this version/)).toBeInTheDocument();
   });
 
-  it("switches to Deep presentation without creating a fake answer", () => {
-    render(<AskRavenHandoff {...props} />);
+  it("requires an accepted profile before enabling the composer", () => {
+    render(<AskRavenHandoff {...props} profileVersion={null} profileVersionId={null} />);
 
-    fireEvent.change(screen.getByLabelText("Ask RAVEN mode"), { target: { value: "deep" } });
-
-    expect(screen.getByLabelText("What should RAVEN investigate?")).toBeInTheDocument();
-    expect(screen.getByText("Deep Research is ready")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Start Deep Research" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Preparing answer|Found .* candidates/)).not.toBeInTheDocument();
+    expect(screen.getByText("Profile required")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Accept a profile to ask questions…")).toBeDisabled();
   });
 
-  it("does not submit an invented response", () => {
+  it("creates a conversation and renders the structured answer", async () => {
+    vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
+    vi.mocked(sendChatMessage).mockResolvedValue({
+      messageId: "message-1",
+      answer: "FPT Smart Cloud operates in cloud services.",
+      status: "answered",
+      citations: [],
+      toolExecutions: [],
+    } as never);
     render(<AskRavenHandoff {...props} />);
-    const composer = screen.getByLabelText("Ask about FPT Smart Cloud");
 
-    fireEvent.change(composer, { target: { value: "Who leads this company?" } });
+    fireEvent.change(screen.getByLabelText("Ask about FPT Smart Cloud"), { target: { value: "What does it do?" } });
     fireEvent.click(screen.getByRole("button", { name: "Send question" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent("Your question was not sent");
-    expect(screen.queryByText("Nguyen Van A")).not.toBeInTheDocument();
-    expect(screen.queryByText("Found 12 candidates")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("FPT Smart Cloud operates in cloud services.")).toBeInTheDocument());
+    expect(createChatConversation).toHaveBeenCalledWith("company-1");
+    expect(sendChatMessage).toHaveBeenCalledWith("company-1", "conversation-1", { question: "What does it do?" });
   });
 });
