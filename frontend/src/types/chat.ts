@@ -1,9 +1,9 @@
-export type ChatAnswerStatus = "answered" | "clarificationRequired" | "insufficientEvidence" | "unsupportedScope";
-export type ChatMessageRole = "user" | "assistant";
-export type ChatMessageStatus = "pending" | "completed" | "failed";
+export type ChatAnswerStatus = "Answered" | "ClarificationRequired" | "InsufficientEvidence" | "UnsupportedScope";
+export type ChatMessageRole = "User" | "Assistant";
+export type ChatMessageStatus = "Pending" | "Completed" | "Failed";
 
 export interface ChatCitation {
-  origin: "profile";
+  origin: "Profile";
   sourceDocumentId: string;
   fieldPath?: string | null;
   title?: string | null;

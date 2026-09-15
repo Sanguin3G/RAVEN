@@ -1133,6 +1133,36 @@
   min-width: 0;
 }
 
+.webSearchToggle {
+  align-items: center;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.webSearchToggle input {
+  accent-color: var(--primary);
+  block-size: 0.9rem;
+  inline-size: 0.9rem;
+  margin: 0;
+}
+
+.webSearchToggle small {
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.assistantProfileBoundary {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
 .assistantSubmit {
   background: var(--primary);
   border: 1px solid var(--primary);

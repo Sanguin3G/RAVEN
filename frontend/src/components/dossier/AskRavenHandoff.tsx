@@ -20,16 +20,17 @@ function formatDate(value?: string | null): string | null {
 }
 
 const statusLabels: Record<ChatAnswerStatus, string> = {
-  answered: "Answered",
-  clarificationRequired: "Clarification needed",
-  insufficientEvidence: "Insufficient profile evidence",
-  unsupportedScope: "Outside current company scope",
+  Answered: "Answered",
+  ClarificationRequired: "Clarification needed",
+  InsufficientEvidence: "Insufficient profile evidence",
+  UnsupportedScope: "Outside current company scope",
 };
 
 export function AskRavenHandoff({ companyId, companyName, profileVersion, profileVersionId, sourceCount, lastResearchedAt }: AskRavenHandoffProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const researched = formatDate(lastResearchedAt);
@@ -43,9 +44,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     setError(null);
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
-      role: "user",
+      role: "User",
       content: trimmed,
-      status: "completed",
+      status: "Completed",
       citations: [],
       toolExecutions: [],
       createdAt: new Date().toISOString(),
@@ -59,9 +60,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
       const response = await sendChatMessage(companyId, activeConversationId, { question: trimmed });
       setMessages((current) => [...current, {
         id: response.messageId,
-        role: "assistant",
+        role: "Assistant",
         content: response.answer,
-        status: "completed",
+        status: "Completed",
         answerStatus: response.status,
         followUpQuestion: response.followUpQuestion,
         citations: response.citations,
@@ -92,8 +93,8 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <strong>{profileVersionId ? "Ask about this company" : "Accept a profile first"}</strong>
           <p>{profileVersionId ? "Answers are grounded in the accepted profile and its evidence." : "Ask RAVEN becomes available after a company profile is accepted."}</p>
         </div> : messages.map((message) => (
-          <article key={message.id} className={`${styles.chatMessage} ${message.role === "user" ? styles.chatMessageUser : styles.chatMessageAssistant}`}>
-            <span className={styles.chatMessageRole}>{message.role === "user" ? "You" : "RAVEN"}</span>
+          <article key={message.id} className={`${styles.chatMessage} ${message.role === "User" ? styles.chatMessageUser : styles.chatMessageAssistant}`}>
+            <span className={styles.chatMessageRole}>{message.role === "User" ? "You" : "RAVEN"}</span>
             <p>{message.content}</p>
             {message.answerStatus ? <span className={styles.chatMessageStatus}>{statusLabels[message.answerStatus]}</span> : null}
             {message.followUpQuestion ? <p className={styles.chatFollowUp}>{message.followUpQuestion}</p> : null}
@@ -123,7 +124,17 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           rows={2}
         />
         <div className={styles.assistantComposerFooter}>
-          <span>Profile v{profileVersion ?? "—"} · no web search in this version</span>
+          <label className={styles.webSearchToggle}>
+            <input
+              aria-label="Web search"
+              checked={webSearchEnabled}
+              onChange={(event) => setWebSearchEnabled(event.target.checked)}
+              type="checkbox"
+            />
+            <span>Web search</span>
+            <small>{webSearchEnabled ? "On · UI preview" : "Off · UI preview"}</small>
+          </label>
+          <span className={styles.assistantProfileBoundary}>Profile v{profileVersion ?? "—"} · answers use the accepted profile</span>
           <button className={styles.assistantSubmit} type="submit" disabled={!question.trim() || pending || !profileVersionId} aria-label="Send question">
             <ArrowUp size={17} weight="bold" aria-hidden="true" />
           </button>

@@ -21,8 +21,7 @@ public static class ResearchDiscoveryServiceCollectionExtensions
 {
     public static IServiceCollection AddResearchDiscovery(this IServiceCollection services, IConfiguration configuration)
     {
-        services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(
-            new JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase)));
+        services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.Configure<BraveSearchOptions>(configuration.GetSection(BraveSearchOptions.SectionName));
         services.PostConfigure<BraveSearchOptions>(options =>
         {
