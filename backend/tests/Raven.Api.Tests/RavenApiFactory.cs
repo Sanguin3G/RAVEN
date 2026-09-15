@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Logging;
 
 namespace Raven.Api.Tests;
 
@@ -11,6 +12,7 @@ public sealed class RavenApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Raven", $"Data Source={databasePath};Pooling=False");
+        builder.ConfigureLogging(logging => logging.ClearProviders().AddDebug());
     }
 
     protected override void Dispose(bool disposing)
@@ -21,5 +23,6 @@ public sealed class RavenApiFactory : WebApplicationFactory<Program>
         {
             File.Delete(databasePath);
         }
+
     }
 }

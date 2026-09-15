@@ -1,0 +1,70 @@
+using Raven.Api.Features.Companies;
+using Raven.Api.Features.Profiles;
+using Raven.Api.Features.Research;
+
+namespace Raven.Api.Features.Chat;
+
+public sealed class ChatConversation
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid CompanyId { get; init; }
+    public Company Company { get; init; } = null!;
+    public Guid ProfileVersionId { get; init; }
+    public CompanyProfileVersion ProfileVersion { get; init; } = null!;
+    public string? Title { get; set; }
+    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public ICollection<ChatMessage> Messages { get; } = new List<ChatMessage>();
+}
+
+public sealed class ChatMessage
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid ConversationId { get; init; }
+    public ChatConversation Conversation { get; init; } = null!;
+    public ChatMessageRole Role { get; init; }
+    public required string Content { get; set; }
+    public ChatMessageStatus Status { get; set; } = ChatMessageStatus.Pending;
+    /// <summary>
+    /// Compatibility column retained because databases created by the first
+    /// chatbot migration made this field non-nullable. V1 no longer exposes
+    /// web lookup, but still writes the safe default for old SQLite schemas.
+    /// </summary>
+    public bool WebLookupIncomplete { get; set; }
+    public ChatAnswerStatus? AnswerStatus { get; set; }
+    public string? FollowUpQuestion { get; set; }
+    public string? AiProvider { get; set; }
+    public string? AiModel { get; set; }
+    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+    public ICollection<ChatCitation> Citations { get; } = new List<ChatCitation>();
+    public ICollection<ChatToolExecution> ToolExecutions { get; } = new List<ChatToolExecution>();
+}
+
+public sealed class ChatCitation
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid ChatMessageId { get; init; }
+    public ChatMessage ChatMessage { get; init; } = null!;
+    public Guid SourceDocumentId { get; init; }
+    public SourceDocument SourceDocument { get; init; } = null!;
+    public string? FieldPath { get; init; }
+    public ChatCitationOrigin Origin { get; init; } = ChatCitationOrigin.Profile;
+    public string? Excerpt { get; init; }
+}
+
+public sealed class ChatToolExecution
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid ChatMessageId { get; init; }
+    public ChatMessage ChatMessage { get; init; } = null!;
+    public Guid? ResearchRunId { get; init; }
+    public required string Tool { get; init; }
+    public required string Provider { get; init; }
+    public required string Status { get; init; }
+    public long DurationMs { get; init; }
+    public string? InputSummary { get; init; }
+    public string? OutputSummary { get; init; }
+    public string? ErrorCode { get; init; }
+    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+    public ResearchRun? ResearchRun { get; init; }
+}

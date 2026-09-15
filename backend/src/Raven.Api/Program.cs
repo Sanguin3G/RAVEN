@@ -14,14 +14,25 @@ using Raven.Api.Middleware;
 using Raven.Api.Features.Profiles.Enrichment;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Companies.Workspace;
+using Raven.Api.Features.Chat;
+using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The Windows Event Log provider can throw when the local process does not
+// have permission to create/write its source. Keep application logging on the
+// providers supported by both local development and hosted environments.
+if (OperatingSystem.IsWindows())
+{
+    builder.Logging.AddFilter<EventLogLoggerProvider>(_ => false);
+}
 
 builder.Services.AddDbContext<RavenDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db"));
 builder.Services.AddHealthChecks().AddDbContextCheck<RavenDbContext>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+builder.Services.AddExceptionHandler<ChatExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", policy =>
 {
@@ -76,6 +87,7 @@ builder.Services.AddHttpClient<ICrawlerStatusProbe, Crawl4AiLocalStatusProbe>((s
 builder.Services.AddResearchDiscovery(builder.Configuration);
 builder.Services.AddGeminiAi(builder.Configuration);
 builder.Services.AddCompanyProfiles(builder.Configuration);
+builder.Services.AddCompanyChat(builder.Configuration);
 
 var app = builder.Build();
 
@@ -97,6 +109,7 @@ app.MapResearchCoverageEndpoints();
 app.MapProfileEndpoints();
 app.MapTargetedProfileUpdateEndpoints();
 app.MapDeepResearchEndpoints();
+app.MapChatEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

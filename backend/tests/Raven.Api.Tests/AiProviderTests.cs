@@ -166,6 +166,36 @@ public sealed class AiProviderTests
     }
 
     [Fact]
+    public async Task Gemini_maps_socket_and_io_failures_to_sanitized_unavailable_result()
+    {
+        using var socketClient = new HttpClient(new StubHandler(_ =>
+            throw new System.Net.Sockets.SocketException()))
+        { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
+        var socketProvider = new GeminiProvider(
+            socketClient,
+            Options.Create(new GeminiOptions { ApiKey = "key" }));
+
+        var socketResult = await socketProvider.GenerateStructuredAsync(CreateRequest());
+
+        Assert.False(socketResult.Succeeded);
+        Assert.Equal("unavailable", socketResult.Failure!.Code);
+        Assert.True(socketResult.Failure.Retryable);
+
+        using var ioClient = new HttpClient(new StubHandler(_ =>
+            throw new IOException("TLS stream closed unexpectedly")))
+        { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
+        var ioProvider = new GeminiProvider(
+            ioClient,
+            Options.Create(new GeminiOptions { ApiKey = "key" }));
+
+        var ioResult = await ioProvider.GenerateStructuredAsync(CreateRequest());
+
+        Assert.False(ioResult.Succeeded);
+        Assert.Equal("unavailable", ioResult.Failure!.Code);
+        Assert.DoesNotContain("TLS stream closed unexpectedly", ioResult.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Gemini_options_use_the_day_three_model_defaults()
     {
         var options = new GeminiOptions();

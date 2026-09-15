@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
+import { AskRavenHandoff } from "../components/dossier/AskRavenHandoff";
 import { CompanyDossier } from "../components/dossier/CompanyDossier";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
@@ -254,6 +255,7 @@ export function CompanyDetailPage() {
         <div className="company-detail-body"><Panel title="Company overview" eyebrow="STABLE IDENTITY"><div className="detail-grid"><div><span>Country</span><strong>{company.country || "Not provided"}</strong></div><div><span>Website</span><strong>{company.website || "Not provided"}</strong></div><div><span>Created</span><strong>{formatDate(company.createdAt)}</strong></div><div><span>Last updated</span><strong>{formatDate(company.updatedAt)}</strong></div></div></Panel><Panel title="Identifiers" eyebrow="VERIFICATION"><dl className="definition-list"><div><dt>Website</dt><dd>{company.website ? <a href={company.website} target="_blank" rel="noreferrer">{company.website} ↗</a> : "Not provided"}</dd></div><div><dt>Company ID</dt><dd>{company.id}</dd></div><div><dt>Last updated</dt><dd>{formatDate(company.updatedAt)}</dd></div></dl></Panel></div>
       </article>
       {researchRun ? <Panel title="Research evidence" eyebrow="BRAVE SEARCH → CRAWL4AI LOCAL"><dl className="definition-list"><div><dt>Status</dt><dd>{researchRun.status}</dd></div><div><dt>Sources found</dt><dd>{researchRun.sourcesFound}</dd></div><div><dt>Sources acquired</dt><dd>{researchRun.sourcesCrawled}</dd></div><div><dt>Search provider</dt><dd>{researchRun.actualSearchProvider || researchRun.requestedSearchProvider}</dd></div><div><dt>Crawler</dt><dd>{researchRun.actualCrawlerProvider || researchRun.requestedCrawlerProvider}</dd></div></dl>{sources.length ? <ul className="source-list">{sources.map((source) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a><small>{source.sourceDomain || source.crawlerProvider}</small><p>{source.contentPreview}</p></li>)}</ul> : <p className="state-message">No source documents were acquired for this research run.</p>}</Panel> : null}
+      <AskRavenHandoff companyId={company.id} companyName={company.name} lastResearchedAt={company.lastResearchedAt} profileVersion={null} profileVersionId={null} sourceCount={sources.length} />
     </div>
   );
 }
