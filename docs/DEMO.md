@@ -1,4 +1,4 @@
-# RAVEN Day-6 customer / mentor demonstration
+# RAVEN Day-7 customer / mentor demonstration
 
 ## Purpose
 
@@ -69,7 +69,9 @@ Optionally show archive/restore for the disposable record. Mention permanent del
 
 Open the Ask RAVEN dock.
 
-> “The UI knows the company context and offers Quick and Deep modes. The conversation backend is intentionally pending its published contract, so RAVEN does not fabricate an answer today.”
+> “Ask RAVEN is normal Chat over the accepted profile and stored evidence. A greeting or product-navigation question can be answered naturally; a factual company claim still needs a citation. Deep Research remains a separate, explicit workflow.”
+
+Send `hi`, then ask a profile-supported factual question and open its citation. Ask whether RAVEN can research further, then use **Open Investigations** from the plus menu. Point out that **Search the web** is visibly unavailable rather than pretending to work.
 
 Close with: “The value is not merely a generated company description. It is a reviewable, versioned company knowledge record whose claims can be traced back to preserved public evidence.”
 

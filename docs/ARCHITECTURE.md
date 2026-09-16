@@ -2,7 +2,7 @@
 
 ## Current implementation boundary
 
-RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Day 4 adds bounded agentic Deep Research and small in-process workers, but not RAG, MCP, distributed queues, or microservices.
+RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Bounded Deep Research and small in-process workers are implemented, but RAG, MCP, distributed queues, and microservices are not.
 
 ```text
 Identity preflight
@@ -96,4 +96,4 @@ SourceDocument → SourceChunk → embeddings → company-filtered retrieval
 
 `SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. It belongs in Investigations; it can only begin a target-scoped profile-improvement flow, not update an accepted profile directly. Ask RAVEN is persistent profile-grounded Chat: factual company answers cite accepted-profile evidence, while safe greetings and navigation guidance need not invent citations. Chat web lookup is not implemented. Deep Research remains an explicit, long-running workflow rather than a Chat mode.
 
-RAG, MCP, Crawl4AI Cloud, and full Ask RAVEN remain future work. They must preserve the same source provenance and deterministic Fast Research path.
+RAG, MCP, Crawl4AI Cloud, and web-enabled Ask RAVEN turns remain future work. They must preserve the same source provenance and deterministic Fast Research path.

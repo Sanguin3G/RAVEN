@@ -47,7 +47,7 @@ Extend the bounded Deep Research backend with RAG-first retrieval, cancellation,
 
 ## Day 5 — Evidence coverage and workspace quality
 
-**Status: implemented on `feat/day5-enrichment-workspace`; release verification remains branch-local until Microsoft Edge completion checks and review pass.**
+**Status: PASS; integrated into `main`.**
 
 Delivered scope is coverage-aware source-root selection, generic corporate-family discovery with review-only deterministic fallback, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds cancellable in-process background discovery, server-owned profile-candidate retrieval, and the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; this branch consumes no invented conversation contract.
 
@@ -59,7 +59,13 @@ Delivered scope is a Company-independent identity preflight endpoint, explicit w
 
 Stabilization closes the Day-6 browser/session and workspace seams: only resumable research runs restore after reload; cancel returns to a blank research form; merged profile history remains hydrated and ordered; and Company List actions address Monitoring and targeted enrichment directly, with honest guidance when no accepted profile exists.
 
-Day 7 owns deletion of obsolete candidate-driven family discovery from normal new research and simplification of downstream Search, reranking, and acquisition work below the resolved-identity boundary.
+## Day 7 — Execution efficiency and Chat foundation
+
+**Status: PASS; integrated into `main`.**
+
+Delivered: bounded, sanitized execution telemetry with background batch persistence, isolated EF scopes, terminal flushes, shutdown drain, and canonical external-call rows; durable Deep Research activity with database-free monotonic sequence allocation; removal of active legacy family-search/grounding orchestration from new initial research; and an Ask RAVEN conversation-first refinement. Ask RAVEN supports persisted profile-grounded conversations, citations, bounded excerpts, citation-free greeting/capability guidance, a real Investigations handoff, and a truthful disabled Web Search slot.
+
+Deferred deliberately: semantic-reranking changes and actual web-enabled Chat turns. Day 8 may add turn-scoped web lookup and richer Chat actions without turning Chat into Deep Research.
 
 ## Stabilization principles
 

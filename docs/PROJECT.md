@@ -38,6 +38,8 @@ RAVEN currently supports:
 - neutral Exa and Firecrawl provider adapters plus bounded Deep Research and saved investigation backend contracts.
 - coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
 - cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, parent-first corporate-family choices, and a guided clarification path for weak or unknown identities.
+- persistent profile-grounded Ask RAVEN conversations with stored citations and bounded source excerpts; greetings and product guidance remain conversational while company facts remain evidence-gated.
+- bounded, best-effort execution telemetry batch-persisted outside the provider-call critical path; durable Deep Research activity remains separate.
 
 ## Company Profile
 
@@ -54,19 +56,20 @@ SQLite persistence     Profile versions
 Research activity      Human review and confirmation
 ```
 
-### P1 — delivered in Days 4–6
+### P1 — delivered in Days 4–7
 
 ```text
 Identity preflight     Source relevance
 Profile refresh        Change detection
 Provider routing       Monitoring
 Bounded Deep Research  Saved investigations
+Ask RAVEN Chat         Buffered execution telemetry
 ```
 
 ### P2 — later
 
 ```text
-Source chunks / RAG                Ask RAVEN with citations
+Source chunks / RAG                Web-enabled Ask RAVEN turns
 MCP                                Crawl4AI Cloud
 Notifications                      Advanced analytics
 ```

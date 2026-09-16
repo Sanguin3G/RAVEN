@@ -1,60 +1,60 @@
 # Ask RAVEN — Profile Chat V1
 
-## Scope
+## Implemented boundary
 
-V1 trả lời câu hỏi về công ty đang mở bằng accepted `CompanyProfileVersion` đã được pin vào conversation. Profile 1–2 trang được gửi đầy đủ vào Gemini Structured Output prompt. V1 không tìm kiếm/crawl web, không Graph DB và không MCP.
-
-## Runtime flow
+Ask RAVEN is persistent, company-scoped Chat over the accepted
+`CompanyProfileVersion` pinned to each conversation. It does not search or
+crawl the web and it does not invoke Deep Research implicitly.
 
 ```text
 POST /api/companies/{companyId}/chat/conversations
-  -> kiểm tra company + accepted profile
-  -> tạo conversation, pin ProfileVersionId
+  -> verify Company and accepted profile
+  -> create conversation pinned to ProfileVersionId
 
 POST .../conversations/{conversationId}/messages
-  -> normalize + validate request
-  -> kiểm tra conversation thuộc company
-  -> load pinned profile + evidence + tối đa 10 message gần nhất
-  -> Gemini Structured Output
-       final                 -> validate answer/status/citations
-       get_source_excerpt    -> tool đọc SourceDocument đã được profile link
-       (tối đa 3 round, 2 lần đọc excerpt)
-  -> persist user/assistant message, citation, tool telemetry
-  -> trả response
+  -> validate company/conversation isolation
+  -> load pinned profile, evidence, and bounded recent history
+  -> apply safe conversational/guidance policy when applicable
+  -> otherwise use Gemini structured output with a bounded source-excerpt tool
+  -> validate citations for factual answers
+  -> persist messages, citations, and tool executions
 ```
 
-## Structured Output contract
+## Response semantics
 
-```json
-{
-  "action": "final | get_source_excerpt",
-  "status": "answered | clarification_required | insufficient_evidence | unsupported_scope",
-  "answer": "string",
-  "sourceDocumentId": "guid | null",
-  "citedSourceDocumentIds": ["guid"],
-  "followUpQuestion": "string | null"
-}
-```
+- `Answered`: factual company content; citations are required.
+- `Conversational`: greetings, thanks, and simple dialogue; no invented company facts or citations.
+- `Guidance`: product/navigation help, including the Deep Research/Investigations handoff; no invented company facts or citations.
+- `ClarificationRequired`, `InsufficientEvidence`, and `UnsupportedScope`: truthful bounded outcomes.
 
-Gemini chỉ phân tích và chọn bước tiếp theo. Backend là authority cho company isolation, profile pinning, citation whitelist, tool budget và persistence.
+The backend remains authoritative for profile pinning, Company isolation,
+citation whitelisting, excerpt-tool budget, and persistence. The model cannot
+return arbitrary navigation URLs.
 
-## Main components
+## Components
 
-- `Features/Chat/CompanyChatService.cs`: application orchestration, conversation lifecycle, validation và persistence.
-- `Features/Chat/CompanyChatAgent.cs`: Gemini structured decision loop qua `IAiModelProvider`; không phụ thuộc SDK Gemini.
-- `Features/Chat/ChatEvidenceTool.cs`: read-only excerpt tool, chỉ đọc source ID nằm trong profile evidence và cùng CompanyId.
-- `Features/Chat/ChatContracts.cs`: HTTP DTO, agent contract và trạng thái trả lời.
-- `Data/RavenDbContext.cs` + `Data/Migrations/20260915120000_AddProfileChatV1.cs`: persistence schema.
-- `frontend/src/components/dossier/AskRavenHandoff.tsx`: composer và conversation UI profile-only.
+- `Features/Chat/CompanyChatService.cs`: conversation lifecycle, validation, and persistence.
+- `Features/Chat/ChatAgent.cs`: provider-neutral structured-answer loop through `IAiModelProvider`.
+- `Features/Chat/ChatConversationPolicy.cs`: safe citation-free conversational and guidance responses.
+- `Features/Chat/ChatEvidenceTool.cs`: read-only, bounded excerpts from profile-linked `SourceDocument` records.
+- `Features/Chat/ChatContracts.cs`: HTTP DTOs and answer statuses.
+- `Data/Migrations/20260915120000_AddProfileChatV1.cs`: Chat persistence schema.
+- `frontend/src/components/dossier/AskRavenHandoff.tsx`: conversation dock and capability menu.
 
-## Implementation plan
+## Product direction
 
-1. Hoàn tất persistence: conversation pin, messages, citations, tool execution telemetry và migration.
-2. Hoàn tất agent boundary: structured schema, prompt, bounded source-excerpt loop, provider-neutral AI interface.
-3. Hoàn tất backend validation: route isolation, profile evidence whitelist, invalid-output handling, timeout và safe failed message.
-4. Hoàn tất UI/API contract: tạo conversation lazy, gửi question, hiển thị status/citations, không có mode web/deep giả.
-5. Regression: backend integration tests, frontend component test, build và migration smoke test.
+Ask RAVEN is Chat. It may use accepted-profile evidence, stored conversation
+history, and future explicitly enabled per-turn capabilities. The Day-7
+composer exposes a real **Open Investigations** handoff and a disabled
+**Search the web** slot labelled as a Day-8 capability.
 
-## V2 extension points
+Deep Research is a distinct long-running workflow with persisted progress and
+its own result/investigation surface. It is not a Chat mode. “Quick Research”
+is retired product terminology.
 
-External company lookup, Graph DB, web search/crawl và MCP chỉ thêm sau khi có scope riêng. Khi đó mở rộng bằng tool registry/policy và evidence provenance; không đưa vào profile-only agent V1.
+## Deliberately deferred
+
+- Actual web-enabled Chat turns and online-source citations.
+- Rendering or launching a Deep Research run inside the conversation.
+- Richer typed next-best actions beyond the current trusted Investigations handoff.
+- RAG, embeddings, Graph DB, MCP, and unrestricted crawler access.

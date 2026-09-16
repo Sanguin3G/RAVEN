@@ -148,7 +148,14 @@ npm run build
 
 Provider tests must use fakes, mocks, or fixtures. Normal automated tests must not require live provider credentials, paid traffic, TopCV availability, LinkedIn access, or a running crawler.
 
-Microsoft Edge completion checks use Playwright with `--browser msedge`; Chromium is not a substitute. The repository does not currently ship live-provider fixtures, so external-provider checks must be separately marked as controlled live smoke tests.
+Microsoft Edge completion checks use the explicit Playwright `msedge` project (`project.use.channel = "msedge"`):
+
+```powershell
+# from frontend
+npx playwright test --project=msedge
+```
+
+Chromium is not a substitute. The repository does not currently ship live-provider fixtures, so external-provider checks must be separately marked as controlled live smoke tests.
 
 ## Execution telemetry
 
