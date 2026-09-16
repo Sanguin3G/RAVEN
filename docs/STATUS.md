@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-13
 
-Day 7 execution efficiency: **in progress on `feat/day7-execution-efficiency`**. Execution telemetry is buffered/batched with isolated EF scopes; Deep Research activity no longer allocates sequences through `MAX(sequence)`; new discovery no longer invokes the legacy family-search/grounding expansion. Ask RAVEN's merged profile-chat backend is integrated on `main`: conversations, messages, citations, and the bounded evidence-excerpt tool are implemented. Web-enabled Chat and a rendered Deep Research handoff remain future work.
+Day 7 execution efficiency: **PASS on `feat/day7-execution-efficiency`**. Execution telemetry is bounded, buffered, and batch-persisted through isolated EF scopes; Deep Research activity no longer allocates sequences through `MAX(sequence)`; new discovery no longer invokes the legacy family-search/grounding expansion. Ask RAVEN's merged profile-chat backend is integrated: conversations, messages, citations, and the bounded evidence-excerpt tool are implemented. Greetings and application guidance are citation-free while factual company answers remain citation-gated. Web-enabled Chat remains future work; the composer offers a truthful disabled Web Search slot and a real Investigations handoff.
 
 Day-6 stabilization: **PASS — integrated into `main`**. Restored browser research state now accepts only active, known workflow stages; cancelled, terminal, missing, and legacy run sessions reset to a blank research form. User-confirmed company merges now preserve and hydrate combined profile history in confirmation-time order, retain compatible dependent evidence/workspace records, fill only missing stable canonical identity fields, and route to the canonical dossier. Company List actions now open Monitoring or targeted profile improvement directly; companies without an accepted profile receive refresh/review guidance.
 Day 6 identity preflight: **PASS — integrated into `main`** from `feat/day6-identity-resolution` on 2026-09-13. The controlled live Gemini Prep v2 asks the model only for identity topology (`SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`); deterministic RAVEN policy derives workflow state. The probe classified FPT, Viettel, and Vingroup as family shorthand, specific company inputs as specific entities, and the deliberately obscure input as unknown. The initial workflow resolves identity before duplicate matching, Company creation, and discovery; resolved identity snapshots persist with the run. Explicit identifiers and accepted targeted-enrichment identity bypass identity AI. Ambiguous and collision results use a parent-first/choice workflow, while guided refinement is a dismissible modal that requests useful additional hints without creating a second search form. The legacy candidate-driven Day-5 grounding path remains only for stored-run compatibility and is intentionally deferred to Day 7 cleanup.
@@ -39,7 +39,7 @@ The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assi
 - Background research start, cancellation, and active-run listing are available through an in-process queue; queued work is deliberately not durable across an API restart.
 - The latest server-owned profile candidate is available by research run for review without treating it as accepted profile truth.
 - Company health, deterministic duplicate review, archive/restore, permanent-delete confirmation, and transactional merge preview/confirmation.
-- Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. Ask RAVEN is a responsive right dock that remains an integration-pending frontend boundary until Hung's backend contract is published.
+- Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. Ask RAVEN is a responsive profile-grounded Chat dock using Hung's integrated backend contract.
 
 ## Verified checks
 
@@ -54,7 +54,7 @@ npm run build                         passed
 
 Microsoft Edge/Playwright verified the Day-6 identity flow with deterministic fixtures and the live Viettel ambiguity response: parent-first family choices, specific-company continuation, clarification/manual exact-name paths, duplicate review, and the responsive guided-help dialog. At 390×844 the choice card and dialog remain within the viewport; the dialog can be minimized and reopened without losing the original choices. The API smoke test applied all migrations to a temporary SQLite database, returned 200 for `/health` and OpenAPI, and correctly rejected an unknown-company Deep Research request. No paid provider call was made by automated tests. Live discovery and acquisition were previously exercised with well-known Vietnamese companies; one Crawl4AI timeout surfaced as a truthful per-source failure without failing the run.
 
-The legacy Day-5 candidate-driven family path remains available for stored-run compatibility and is not used by the new initial identity preflight. Day 7 owns its deletion and downstream search simplification.
+The legacy Day-5 candidate-driven family vocabulary remains readable for historical compatibility but is not used by the new initial identity preflight. Day 7 removed its active downstream family-search expansion.
 
 ## Provider status
 
