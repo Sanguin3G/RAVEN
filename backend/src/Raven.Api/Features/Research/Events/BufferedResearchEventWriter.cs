@@ -9,7 +9,8 @@ namespace Raven.Api.Features.Research.Events;
 /// </summary>
 public sealed class BufferedResearchEventWriter(ILogger<BufferedResearchEventWriter> logger) : IResearchEventWriter, IResearchTelemetryFlusher
 {
-    internal const int Capacity = 512;
+    public const int QueueCapacity = 512;
+    internal const int Capacity = QueueCapacity;
     internal const int BatchSize = 32;
     internal static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(250);
 
@@ -24,7 +25,8 @@ public sealed class BufferedResearchEventWriter(ILogger<BufferedResearchEventWri
     private long droppedCount;
 
     internal ChannelReader<QueueItem> Reader => queue.Reader;
-    internal long DroppedCount => Interlocked.Read(ref droppedCount);
+    /// <summary>Bounded-health diagnostic; this is never persisted as telemetry.</summary>
+    public long DroppedCount => Interlocked.Read(ref droppedCount);
 
     public Task WriteAsync(ResearchEvent researchEvent, CancellationToken cancellationToken = default)
     {

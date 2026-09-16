@@ -1,10 +1,62 @@
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Raven.Api.Data;
+using Raven.Api.Features.Companies;
 using Raven.Api.Features.DeepResearch;
 
 namespace Raven.Api.Tests;
 
 public sealed class DeepResearchDomainTests
 {
+    [Fact]
+    public async Task Ef_activity_store_uses_monotonic_sequences_without_max_query()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var commands = new CommandCaptureInterceptor();
+        var options = new DbContextOptionsBuilder<RavenDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(commands)
+            .Options;
+        var runId = Guid.NewGuid();
+
+        await using (var firstContext = new RavenDbContext(options))
+        {
+            await firstContext.Database.EnsureCreatedAsync();
+            var company = new Company { Name = "Activity test company" };
+            firstContext.Companies.Add(company);
+            firstContext.DeepResearchRuns.Add(new DeepResearchRun
+            {
+                Id = runId,
+                CompanyId = company.Id,
+                Question = "Test activity ordering",
+                Model = "test"
+            });
+            await firstContext.SaveChangesAsync();
+            var store = new EfDeepResearchActivityStore(firstContext);
+            await store.AddAsync(runId, DeepResearchActivity.RunStarted());
+            await store.AddAsync(runId, DeepResearchActivity.ToolCompleted("Searched evidence"));
+        }
+
+        await using (var secondContext = new RavenDbContext(options))
+        {
+            var store = new EfDeepResearchActivityStore(secondContext);
+            await store.AddAsync(runId, DeepResearchActivity.RunCompleted());
+            var activities = await store.ListAsync(runId);
+            Assert.Equal(3, activities.Count);
+            Assert.Equal(["Deep Research started", "Searched evidence", "Deep Research completed"], activities.Select(activity => activity.Label).ToArray());
+            var persisted = await secondContext.DeepResearchActivities
+                .Where(activity => activity.DeepResearchRunId == runId)
+                .OrderBy(activity => activity.Sequence)
+                .ToArrayAsync();
+            Assert.Equal(3, persisted.Length);
+            Assert.Equal(persisted.Select(activity => activity.Sequence).Order().ToArray(), persisted.Select(activity => activity.Sequence).ToArray());
+        }
+
+        Assert.DoesNotContain(commands.Commands, sql => sql.Contains("MAX(", StringComparison.OrdinalIgnoreCase));
+    }
     [Fact]
     public void Default_budget_is_bounded()
     {
@@ -147,5 +199,29 @@ public sealed class DeepResearchDomainTests
     private sealed class MutableProfileReadModel
     {
         public string Value { get; set; } = "original";
+    }
+
+    private sealed class CommandCaptureInterceptor : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override InterceptionResult<System.Data.Common.DbDataReader> ReaderExecuting(
+            System.Data.Common.DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<System.Data.Common.DbDataReader> result) => Capture(command, result);
+
+        public override ValueTask<InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<System.Data.Common.DbDataReader> result,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(Capture(command, result));
+
+        private InterceptionResult<System.Data.Common.DbDataReader> Capture(
+            System.Data.Common.DbCommand command,
+            InterceptionResult<System.Data.Common.DbDataReader> result)
+        {
+            Commands.Add(command.CommandText);
+            return result;
+        }
     }
 }
