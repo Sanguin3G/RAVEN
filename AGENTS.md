@@ -54,6 +54,13 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 - Never log provider secrets, authorization headers, hidden chain-of-thought, full prompts, or giant raw provider responses. SourceDocument is evidence storage, not a telemetry substitute.
 - Run summaries aggregate calls, latency, token usage, fallbacks, and failures. Telemetry failure must not make normal research fail.
 
+### Execution telemetry
+
+- Developer execution telemetry is buffered and best effort; business/product state is never lossy telemetry.
+- User-visible activity remains distinct, durable workflow state.
+- One logical Search, Crawl, or AI call normally emits one canonical execution row; active code does not emit legacy Requested/Completed pairs.
+- Buffered telemetry persistence uses an isolated EF scope. A telemetry failure or queue overflow must not fail product work.
+
 ## Provider presets
 
 - RAVEN Resilient means ordered provider fallback, not load balancing or parallel racing. The preferred provider runs first; compatible fallbacks run only after eligible failure.

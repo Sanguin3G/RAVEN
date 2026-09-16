@@ -150,6 +150,10 @@ Provider tests must use fakes, mocks, or fixtures. Normal automated tests must n
 
 Microsoft Edge completion checks use Playwright with `--browser msedge`; Chromium is not a substitute. The repository does not currently ship live-provider fixtures, so external-provider checks must be separately marked as controlled live smoke tests.
 
+## Execution telemetry
+
+Execution telemetry is diagnostic rather than product state. Search, crawl, and AI instrumentation sanitizes and enqueues canonical operation rows to a bounded in-process buffer; a hosted worker creates a fresh EF scope and saves batches. Queue saturation drops diagnostics and logs a bounded counter, never research/chat work. Terminal research/profile boundaries request a best-effort flush; host shutdown completes and drains the telemetry channel where time permits. Do not capture a request-scoped `RavenDbContext` in telemetry background work.
+
 ## Controlled identity-model probe
 
 `backend/tools/IdentityProbe` is a non-production Day-6 preparation tool. It exercises the configured `IAiModelProvider`/Gemini path with identity hints only: it creates no Company or ResearchRun and makes no Search, Crawl, or evidence calls. It is a controlled live smoke, not an automated test.
