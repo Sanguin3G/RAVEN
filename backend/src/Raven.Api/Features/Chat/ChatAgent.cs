@@ -44,7 +44,7 @@ public sealed class CompanyChatAgent(
           "type":"OBJECT",
           "properties":{
             "action":{"type":"STRING","enum":["final","get_source_excerpt"]},
-            "status":{"type":"STRING","enum":["answered","clarification_required","insufficient_evidence","unsupported_scope"]},
+            "status":{"type":"STRING","enum":["answered","conversational","guidance","clarification_required","insufficient_evidence","unsupported_scope"]},
             "answer":{"type":"STRING"},
             "sourceDocumentId":{"type":"STRING","nullable":true},
             "citedSourceDocumentIds":{"type":"ARRAY","items":{"type":"STRING"}},
@@ -173,7 +173,7 @@ public sealed class CompanyChatAgent(
             LAST TOOL RESULT:
             {ChatText.Bound(toolResult ?? "none", 8_000)}
 
-            Decide one next action. Use get_source_excerpt only for a source ID already listed in profile evidence. If the question asks about another company, return unsupported_scope. If the question is ambiguous, return clarification_required. If the profile/evidence cannot support the answer, return insufficient_evidence. For a final answer, cite only source IDs from the accepted profile evidence or the supplied tool result.
+            Decide one next action. Use get_source_excerpt only for a source ID already listed in profile evidence. If the question asks about another company, return unsupported_scope. If the question is ambiguous, return clarification_required. If the profile/evidence cannot support the answer, return insufficient_evidence. A non-factual greeting, thanks, or product-navigation question may return conversational or guidance with no citations. Factual company answers use answered and cite only source IDs from the accepted profile evidence or the supplied tool result.
             """;
     }
 
@@ -210,13 +210,15 @@ public sealed class CompanyChatAgent(
         status = normalized switch
         {
             "answered" => ChatAnswerStatus.Answered,
+            "conversational" => ChatAnswerStatus.Conversational,
+            "guidance" => ChatAnswerStatus.Guidance,
             "clarification_required" => ChatAnswerStatus.ClarificationRequired,
             "insufficient_evidence" => ChatAnswerStatus.InsufficientEvidence,
             "unsupported_scope" => ChatAnswerStatus.UnsupportedScope,
             _ => default
         };
         return normalized is
-            "answered" or "clarification_required" or "insufficient_evidence" or "unsupported_scope";
+            "answered" or "conversational" or "guidance" or "clarification_required" or "insufficient_evidence" or "unsupported_scope";
     }
 
     private static ChatProblemException InvalidResponse() =>

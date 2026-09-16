@@ -86,6 +86,28 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     }
 
     [Fact]
+    public async Task Greeting_is_persisted_without_company_citation_or_ai_call()
+    {
+        var profileAgent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Answered, "This must not run", [], null));
+        using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => profileAgent);
+        })).CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+
+        var response = await client.PostAsJsonAsync($"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages", new CreateChatMessageRequest("hi"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, body);
+        var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        Assert.Equal(ChatAnswerStatus.Conversational, message.Status);
+        Assert.Empty(message.Citations);
+        Assert.Contains("Ask", message.Answer, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Structured_insufficient_evidence_status_is_accepted_from_gemini_shape()
     {
         using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>

@@ -130,7 +130,7 @@ public sealed class CompanyChatService(
         {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromSeconds(90));
-            var completion = await agentFactory.Create().RunAsync(
+            var completion = ChatConversationPolicy.TryRespond(question) ?? await agentFactory.Create().RunAsync(
                 new ChatAgentRequest(companyId, conversationId, company, profile, recentMessages, question),
                 deadline.Token);
             var validated = await ValidateResultAsync(completion.Result, profile, companyId, cancellationToken);

@@ -26,18 +26,16 @@ describe("AskRavenHandoff", () => {
     expect(screen.getByRole("heading", { name: "Ask RAVEN" })).toBeInTheDocument();
     expect(screen.getByText(/FPT Smart Cloud.*v2.*17 sources/)).toBeInTheDocument();
     expect(screen.getByText("Profile only")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Web search" })).not.toBeChecked();
-    expect(screen.getByText("Off · UI preview")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Additional capabilities" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("What does this company do?")).toBeInTheDocument();
   });
 
-  it("keeps the web-search choice in the UI until the capability is implemented", () => {
+  it("keeps web search disabled and exposes only a real investigations route", () => {
     render(<AskRavenHandoff {...props} />);
 
-    const webSearchToggle = screen.getByRole("checkbox", { name: "Web search" });
-    fireEvent.click(webSearchToggle);
-
-    expect(webSearchToggle).toBeChecked();
-    expect(screen.getByText("On · UI preview")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    expect(screen.getByRole("link", { name: /Open Investigations/ })).toHaveAttribute("href", "/companies/company-1?tab=investigations");
+    expect(screen.getByRole("button", { name: /Search the web/ })).toBeDisabled();
   });
 
   it("requires an accepted profile before enabling the composer", () => {

@@ -1,0 +1,412 @@
+.handoff {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ai) 13%, var(--surface-raised)), var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 42%, var(--border));
+  border-radius: 5px;
+  box-shadow: 0 2px 5px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-block-size: clamp(31rem, calc(100dvh - 9rem), 48rem);
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+.handoff h2 {
+  margin: 0;
+}
+
+.handoff p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.58;
+  margin: 0.7rem 0 0;
+  max-width: 68ch;
+}
+
+.aiMark {
+  align-items: center;
+  background: color-mix(in srgb, var(--ai) 19%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 55%, var(--border));
+  border-radius: 4px;
+  color: var(--ai);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  height: 2rem;
+  justify-content: center;
+  letter-spacing: 0.04em;
+  width: 2rem;
+}
+
+.handoffStatus {
+  align-self: start;
+  border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
+  border-radius: 999px;
+  color: var(--warning);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.18rem 0.45rem;
+  width: fit-content;
+}
+
+.assistantCompactHeader {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--ai) 24%, var(--border));
+  display: flex;
+  gap: 0.55rem;
+  min-inline-size: 0;
+  padding-bottom: 0.55rem;
+}
+
+.assistantCompactHeader > div {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.assistantCompactHeader h2 {
+  font-size: 0.94rem;
+}
+
+.assistantCompactHeader p {
+  margin: 0.08rem 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistantCompactHeader .handoffStatus {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.chatViewport {
+  background: color-mix(in srgb, var(--surface-raised) 72%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--ai) 20%, var(--border));
+  border-radius: 0.65rem;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-block-size: 14rem;
+  min-inline-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+  scrollbar-gutter: stable;
+}
+
+.chatEmptyState {
+  display: grid;
+  gap: 0.32rem;
+  margin: auto;
+  max-inline-size: 28ch;
+  place-items: center;
+  text-align: center;
+}
+
+.chatEmptyState p {
+  margin: 0;
+}
+
+.chatEmptyMark {
+  color: var(--ai);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.starterList {
+  display: grid;
+  gap: 0.35rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.55rem;
+  max-inline-size: 32rem;
+  width: min(32rem, 100%);
+}
+
+.starterPrompt {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  padding: 0.48rem 0.55rem;
+  text-align: start;
+}
+
+.starterPrompt:hover,
+.starterPrompt:focus-visible {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.chatSystemMessage {
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised));
+  border-left: 3px solid var(--warning);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  margin-top: auto;
+  padding: 0.55rem 0.6rem;
+}
+
+.chatMessage {
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  display: grid;
+  gap: 0.22rem;
+  max-inline-size: 92%;
+  padding: 0.62rem 0.7rem;
+}
+
+.chatMessageUser {
+  align-self: end;
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface-raised));
+}
+
+.chatMessageAssistant {
+  align-self: start;
+  background: var(--surface-raised);
+}
+
+.chatMessageRole,
+.chatMessageStatus {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chatMessage p {
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chatFollowUp {
+  border-left: 2px solid var(--ai);
+  color: var(--text-muted) !important;
+  padding-left: 0.45rem;
+}
+
+.chatCitations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+
+.chatCitation {
+  color: var(--primary);
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.assistantComposer {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.7rem;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0;
+  padding: 0.55rem 0.6rem;
+}
+
+.assistantComposer textarea {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  min-block-size: 3.75rem;
+  min-inline-size: 0;
+  padding: 0.3rem 0;
+  resize: vertical;
+  width: 100%;
+}
+
+.assistantComposer textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.assistantComposerFooter {
+  align-items: center;
+  display: flex;
+  gap: 0.42rem;
+  min-inline-size: 0;
+}
+
+.capabilityControls {
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.capabilityTrigger,
+.assistantSubmit {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.capabilityTrigger {
+  border-radius: 50%;
+  height: 1.9rem;
+  padding: 0;
+  width: 1.9rem;
+}
+
+.capabilityTrigger:hover,
+.capabilityTrigger:focus-visible {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.capabilityPanel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.65rem;
+  bottom: calc(100% + 0.5rem);
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--shadow) 80%, transparent);
+  display: grid;
+  gap: 0.65rem;
+  inset-inline-start: 0;
+  max-inline-size: calc(100vw - 1.5rem);
+  padding: 0.7rem;
+  position: absolute;
+  width: min(18rem, calc(100vw - 1.5rem));
+  z-index: 5;
+}
+
+.capabilityPanelHeader {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.capabilityPanelHeader strong {
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.capabilityPanelHeader span {
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+.capabilityList {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capabilityAction {
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  color: var(--text);
+  display: grid;
+  gap: 0.12rem;
+  font: inherit;
+  padding: 0.52rem 0.55rem;
+  text-align: start;
+  text-decoration: none;
+  width: 100%;
+}
+
+a.capabilityAction {
+  cursor: pointer;
+}
+
+.capabilityAction:hover,
+.capabilityAction:focus-visible {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.capabilityAction span {
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.capabilityAction small {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.35;
+}
+
+.capabilityUnavailable {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.assistantProfileBoundary {
+  color: var(--text-muted);
+  flex: 1 1 auto;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistantSubmit {
+  background: var(--primary);
+  border-color: var(--primary);
+  border-radius: 50%;
+  color: var(--surface-raised);
+  flex: 0 0 auto;
+  height: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0;
+  width: 1.9rem;
+}
+
+.assistantSubmit:hover:not(:disabled),
+.assistantSubmit:focus-visible:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.assistantSubmit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 480px) {
+  .starterList {
+    grid-template-columns: 1fr;
+  }
+
+  .capabilityPanel {
+    inset-inline-start: -0.25rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .assistantProfileBoundary {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .handoff {
+    min-block-size: calc(100dvh - 1.6rem);
+  }
+}

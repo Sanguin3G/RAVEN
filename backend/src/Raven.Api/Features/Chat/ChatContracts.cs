@@ -3,7 +3,9 @@ using Raven.Api.Features.Profiles;
 
 namespace Raven.Api.Features.Chat;
 
-public enum ChatAnswerStatus { Answered, ClarificationRequired, InsufficientEvidence, UnsupportedScope }
+// Answered is the only factual-answer status and therefore requires profile
+// evidence citations. Conversational and Guidance are deliberately non-factual.
+public enum ChatAnswerStatus { Answered, Conversational, Guidance, ClarificationRequired, InsufficientEvidence, UnsupportedScope }
 public enum ChatMessageRole { User, Assistant }
 public enum ChatMessageStatus { Pending, Completed, Failed }
 public enum ChatCitationOrigin { Profile }

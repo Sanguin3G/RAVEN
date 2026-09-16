@@ -1,4 +1,4 @@
-export type ChatAnswerStatus = "Answered" | "ClarificationRequired" | "InsufficientEvidence" | "UnsupportedScope";
+export type ChatAnswerStatus = "Answered" | "Conversational" | "Guidance" | "ClarificationRequired" | "InsufficientEvidence" | "UnsupportedScope";
 export type ChatMessageRole = "User" | "Assistant";
 export type ChatMessageStatus = "Pending" | "Completed" | "Failed";
 

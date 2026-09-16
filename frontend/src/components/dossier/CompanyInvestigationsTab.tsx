@@ -16,7 +16,7 @@ function formatDate(value: string) {
 }
 
 function researchTypeLabel(type: SavedResearchArtifact["researchType"]) {
-  return type === "Deep" ? "Deep Research" : "Quick Research";
+  return type === "Deep" ? "Deep Research" : "Research";
 }
 
 function artifactCountLabel(count: number) {
@@ -63,7 +63,7 @@ export function CompanyInvestigationsTab({ companyId, investigations }: CompanyI
       <div className={styles.sectionHeader}>
         <div>
           <h2 id="dossier-investigations-heading">Investigations</h2>
-          <p className={styles.tabIntro}>Saved answers from Quick or Deep Research. They remain reference material until a human uses evidence in a profile improvement workflow.</p>
+          <p className={styles.tabIntro}>Saved research results remain reference material until a human uses evidence in a profile improvement workflow.</p>
         </div>
         <span>{artifacts.length} saved</span>
       </div>

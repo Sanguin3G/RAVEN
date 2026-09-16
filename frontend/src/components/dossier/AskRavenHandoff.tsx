@@ -1,8 +1,8 @@
-import { FormEvent, useState } from "react";
-import { ArrowUp } from "@phosphor-icons/react";
+import { FormEvent, useEffect, useId, useRef, useState } from "react";
+import { ArrowUp, Plus } from "@phosphor-icons/react";
 import { createChatConversation, sendChatMessage } from "../../api/chat";
 import type { ChatAnswerStatus, ChatMessage } from "../../types/chat";
-import styles from "./dossier.module.css";
+import styles from "./AskRaven.module.css";
 
 export interface AskRavenHandoffProps {
   companyId: string;
@@ -21,19 +21,56 @@ function formatDate(value?: string | null): string | null {
 
 const statusLabels: Record<ChatAnswerStatus, string> = {
   Answered: "Answered",
+  Conversational: "Conversation",
+  Guidance: "Guidance",
   ClarificationRequired: "Clarification needed",
   InsufficientEvidence: "Insufficient profile evidence",
   UnsupportedScope: "Outside current company scope",
 };
 
+const starterPrompts = [
+  "What does this company do?",
+  "Who are its key leaders?",
+  "Where does it operate?",
+  "What changed recently?",
+  "Show me the supporting sources.",
+];
+
 export function AskRavenHandoff({ companyId, companyName, profileVersion, profileVersionId, sourceCount, lastResearchedAt }: AskRavenHandoffProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const capabilitiesId = useId();
+  const capabilitiesRef = useRef<HTMLDivElement>(null);
+  const capabilitiesTriggerRef = useRef<HTMLButtonElement>(null);
+  const investigationsLinkRef = useRef<HTMLAnchorElement>(null);
+  const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const researched = formatDate(lastResearchedAt);
+
+  useEffect(() => {
+    if (!capabilitiesOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!capabilitiesRef.current?.contains(event.target as Node)) setCapabilitiesOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setCapabilitiesOpen(false);
+      capabilitiesTriggerRef.current?.focus();
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    investigationsLinkRef.current?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [capabilitiesOpen]);
 
   const submitQuestion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,6 +129,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <span className={styles.chatEmptyMark} aria-hidden="true">✦</span>
           <strong>{profileVersionId ? "Ask about this company" : "Accept a profile first"}</strong>
           <p>{profileVersionId ? "Answers are grounded in the accepted profile and its evidence." : "Ask RAVEN becomes available after a company profile is accepted."}</p>
+          {profileVersionId ? <div className={styles.starterList} aria-label="Suggested questions">
+            {starterPrompts.map((prompt) => <button className={styles.starterPrompt} key={prompt} type="button" onClick={() => { setQuestion(prompt); questionInputRef.current?.focus(); }}>{prompt}</button>)}
+          </div> : null}
         </div> : messages.map((message) => (
           <article key={message.id} className={`${styles.chatMessage} ${message.role === "User" ? styles.chatMessageUser : styles.chatMessageAssistant}`}>
             <span className={styles.chatMessageRole}>{message.role === "User" ? "You" : "RAVEN"}</span>
@@ -111,6 +151,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         <label className="sr-only" htmlFor="ask-raven-question">Ask about {companyName}</label>
         <textarea
           id="ask-raven-question"
+          ref={questionInputRef}
           value={question}
           disabled={!profileVersionId || pending}
           onChange={(event) => setQuestion(event.target.value)}
@@ -124,17 +165,40 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           rows={2}
         />
         <div className={styles.assistantComposerFooter}>
-          <label className={styles.webSearchToggle}>
-            <input
-              aria-label="Web search"
-              checked={webSearchEnabled}
-              onChange={(event) => setWebSearchEnabled(event.target.checked)}
-              type="checkbox"
-            />
-            <span>Web search</span>
-            <small>{webSearchEnabled ? "On · UI preview" : "Off · UI preview"}</small>
-          </label>
-          <span className={styles.assistantProfileBoundary}>Profile v{profileVersion ?? "—"} · answers use the accepted profile</span>
+          <div className={styles.capabilityControls} ref={capabilitiesRef}>
+            <button
+              aria-controls={capabilitiesId}
+              aria-expanded={capabilitiesOpen}
+              aria-label="Additional capabilities"
+              className={styles.capabilityTrigger}
+              ref={capabilitiesTriggerRef}
+              type="button"
+              onClick={() => setCapabilitiesOpen((open) => !open)}
+            >
+              <Plus size={17} weight="bold" aria-hidden="true" />
+            </button>
+            {capabilitiesOpen ? <div aria-label="Additional capabilities" className={styles.capabilityPanel} id={capabilitiesId} role="group">
+              <div className={styles.capabilityPanelHeader}>
+                <strong>Additional capabilities</strong>
+                <span>Choose a next step.</span>
+              </div>
+              <ul className={styles.capabilityList}>
+                <li>
+                  <a className={styles.capabilityAction} ref={investigationsLinkRef} href={`/companies/${encodeURIComponent(companyId)}?tab=investigations`} onClick={() => setCapabilitiesOpen(false)}>
+                    <span>Open Investigations</span>
+                    <small>View saved research results</small>
+                  </a>
+                </li>
+                <li>
+                  <button className={`${styles.capabilityAction} ${styles.capabilityUnavailable}`} disabled type="button">
+                    <span>Search the web</span>
+                    <small>Coming in Day 8 — not available yet</small>
+                  </button>
+                </li>
+              </ul>
+            </div> : null}
+          </div>
+          <span className={styles.assistantProfileBoundary}>Profile v{profileVersion ?? "—"} · accepted profile context</span>
           <button className={styles.assistantSubmit} type="submit" disabled={!question.trim() || pending || !profileVersionId} aria-label="Send question">
             <ArrowUp size={17} weight="bold" aria-hidden="true" />
           </button>
