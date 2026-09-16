@@ -108,17 +108,17 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddSingleton<IEvidenceCoverageEvaluator, EvidenceCoverageEvaluator>();
         services.AddSingleton<TargetedQueryPlanner>();
         services.AddSingleton<OfficialSiteEvidencePlanner>();
-        services.AddSingleton<CorporateFamilyDiscoveryPlanner>();
-        services.AddSingleton<DeterministicIdentityFamilyBuilder>();
-        services.AddScoped<IResearchEventWriter, EfResearchEventWriter>();
+        // Execution telemetry is diagnostic and intentionally detached from a
+        // request DbContext. The worker creates an isolated scope per batch.
+        services.AddSingleton<BufferedResearchEventWriter>();
+        services.AddSingleton<IResearchEventWriter>(services => services.GetRequiredService<BufferedResearchEventWriter>());
+        services.AddSingleton<IResearchTelemetryFlusher>(services => services.GetRequiredService<BufferedResearchEventWriter>());
+        services.AddHostedService<ResearchTelemetryBackgroundService>();
         services.AddSingleton<IdentityResolutionPolicy>();
         services.AddScoped<IIdentityKnowledgeResolver, GeminiKnowledgeIdentityResolver>();
         services.AddScoped<IIdentityResolutionService, IdentityResolutionService>();
         services.AddScoped<IResearchRunConfigurationSnapshot, ResearchRunConfigurationSnapshot>();
         services.AddScoped<IResearchExecutionService, ResearchExecutionService>();
-        services.AddScoped<ICompanyIdentityResolver>(serviceProvider => new GeminiCompanyIdentityResolver(
-            serviceProvider.GetRequiredService<IAiModelProvider>(),
-            researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));
         services.AddScoped<ISourceSemanticReranker>(serviceProvider => new GeminiSourceSemanticReranker(
             serviceProvider.GetRequiredService<IAiModelProvider>(),
             researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));

@@ -201,6 +201,10 @@ public static class ResearchExecutionSummaryAggregator
             {
                 fallbacks++;
             }
+            else if (category is ResearchEventCategory.Search or ResearchEventCategory.Crawl or ResearchEventCategory.AI && isCall)
+            {
+                fallbacks += ReadFallbackCount(item);
+            }
 
             if (item.Status == ResearchEventStatus.Failed)
             {
@@ -258,6 +262,29 @@ public static class ResearchExecutionSummaryAggregator
         }
 
         return 1;
+    }
+
+    private static int ReadFallbackCount(ResearchEvent item)
+    {
+        if (string.IsNullOrWhiteSpace(item.MetadataJson)) return 0;
+        try
+        {
+            using var document = JsonDocument.Parse(item.MetadataJson);
+            var root = document.RootElement;
+            foreach (var propertyName in new[] { "fallbackCount", "fallbackAttempts" })
+            {
+                if (root.TryGetProperty(propertyName, out var property) && property.TryGetInt32(out var count))
+                {
+                    return Math.Max(0, count);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Diagnostic metadata is optional and must not break the summary.
+        }
+
+        return 0;
     }
 
     private static int? SumNullable(IEnumerable<int?> values)

@@ -103,6 +103,25 @@ public sealed class ResearchExecutionSummaryTests
     }
 
     [Fact]
+    public void Aggregate_reads_fallbacks_from_canonical_route_metadata()
+    {
+        var started = DateTimeOffset.UtcNow;
+        var summary = ResearchExecutionSummaryAggregator.Aggregate(Guid.NewGuid(), started, started.AddSeconds(1), 0,
+        [new ResearchEvent
+        {
+            Timestamp = started,
+            Category = ResearchEventCategory.Search,
+            Operation = "web_search",
+            Status = ResearchEventStatus.Completed,
+            MetadataJson = "{\"providerAttempts\":2,\"fallbackAttempts\":1}"
+        }]);
+
+        Assert.Equal(1, summary.SearchCalls);
+        Assert.Equal(2, summary.ProviderAttempts);
+        Assert.Equal(1, summary.Fallbacks);
+    }
+
+    [Fact]
     public async Task Writer_allocates_sequence_without_database_max_lookup()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

@@ -13,7 +13,10 @@ public sealed class CompanyProfileWorkflowService(
     RavenDbContext dbContext,
     IProfileGenerationService generationService,
     ICompanyProfilePersistenceService persistenceService,
-    IResearchEventWriter eventWriter) : ICompanyProfileWorkflowService
+    IResearchEventWriter eventWriter,
+    IResearchExecutionContext executionContext,
+    IResearchTelemetryFlusher? telemetryFlusher = null,
+    ILogger<CompanyProfileWorkflowService>? logger = null) : ICompanyProfileWorkflowService
 {
     public async Task<ProfileGenerationResponse?> GenerateAsync(Guid researchRunId, CancellationToken cancellationToken)
     {
@@ -49,15 +52,13 @@ public sealed class CompanyProfileWorkflowService(
         run.Status = ResearchRunStatus.Searching;
         run.Error = null;
         await dbContext.SaveChangesAsync(cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.AiRequested, ResearchEventStatus.Working,
-            "Building a structured profile from acquired evidence.", cancellationToken);
-
         var companySourceIds = await dbContext.SourceDocuments
             .AsNoTracking()
             .Where(item => item.CompanyId == company.Id)
             .Select(item => item.Id)
             .ToHashSetAsync(cancellationToken);
         var runSourceIds = sources.Select(item => item.Id).ToHashSet();
+        using var telemetryScope = executionContext.Push(run.Id, stage: run.Stage);
         var result = await generationService.GenerateAsync(new ProfileGenerationInput(
             company.Id,
             run.Id,
@@ -79,8 +80,7 @@ public sealed class CompanyProfileWorkflowService(
             run.CompletedAt = DateTimeOffset.UtcNow;
             run.Error = result.Failure?.Message ?? "Profile generation did not return a valid candidate.";
             await dbContext.SaveChangesAsync(cancellationToken);
-            await WriteEventAsync(run, ResearchEventCategory.AiFailed, ResearchEventStatus.Failed,
-                run.Error, cancellationToken);
+            await FlushTelemetryAsync(cancellationToken);
             return ToResponse(result);
         }
 
@@ -92,7 +92,7 @@ public sealed class CompanyProfileWorkflowService(
             run.CompletedAt = DateTimeOffset.UtcNow;
             run.Error = "The generated profile candidate could not be validated for this evidence set.";
             await dbContext.SaveChangesAsync(cancellationToken);
-            await WriteEventAsync(run, ResearchEventCategory.AiFailed, ResearchEventStatus.Failed, run.Error, cancellationToken);
+            await FlushTelemetryAsync(cancellationToken);
             return Failed("candidate_validation_failed", run.Error, result);
         }
 
@@ -101,10 +101,9 @@ public sealed class CompanyProfileWorkflowService(
         run.CompletedAt = DateTimeOffset.UtcNow;
         run.Error = null;
         await dbContext.SaveChangesAsync(cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.AiCompleted, ResearchEventStatus.WaitingForUser,
-            "Profile candidate is ready for human confirmation.", cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.ProfileValidated, ResearchEventStatus.Completed,
-            $"Validated {candidate.Evidence.Count} evidence groups.", cancellationToken);
+        await WriteEventAsync(run, ResearchEventCategory.Profile, "profile_validation", ResearchEventStatus.Completed,
+            $"Validated {candidate.Evidence.Count} evidence groups; candidate is ready for human confirmation.", cancellationToken);
+        await FlushTelemetryAsync(cancellationToken);
 
         return ToResponse(result, candidate);
     }
@@ -134,8 +133,9 @@ public sealed class CompanyProfileWorkflowService(
         }
 
         var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == researchRunId, cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.ProfileConfirmed, ResearchEventStatus.Completed,
+        await WriteEventAsync(run, ResearchEventCategory.Profile, "profile_confirmation", ResearchEventStatus.Completed,
             $"Confirmed Company Profile version {profile.Version}.", cancellationToken);
+        await FlushTelemetryAsync(cancellationToken);
         return profile;
     }
 
@@ -148,16 +148,30 @@ public sealed class CompanyProfileWorkflowService(
     public Task<CompanyProfileVersion?> GetVersionAsync(Guid companyId, int version, CancellationToken cancellationToken) =>
         persistenceService.GetProfileVersionAsync(companyId, version, cancellationToken);
 
-    private async Task WriteEventAsync(ResearchRun run, ResearchEventCategory category, ResearchEventStatus status, string? summary, CancellationToken cancellationToken) =>
+    private async Task WriteEventAsync(ResearchRun run, ResearchEventCategory category, string operation, ResearchEventStatus status, string? summary, CancellationToken cancellationToken) =>
         await eventWriter.WriteAsync(new ResearchEvent
         {
             ResearchRunId = run.Id,
             Stage = run.Stage,
             Category = category,
+            Operation = operation,
             Status = status,
             Provider = "gemini",
             OutputSummary = summary
         }, cancellationToken);
+
+    private async Task FlushTelemetryAsync(CancellationToken cancellationToken)
+    {
+        if (telemetryFlusher is null) return;
+        try
+        {
+            await telemetryFlusher.FlushAsync(cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(exception, "Could not flush profile execution telemetry; the workflow remains successful.");
+        }
+    }
 
     private static ProfileGenerationResponse Failed(string code, string message, ProfileGenerationResult? result = null) =>
         new(null, result?.Warnings ?? [message], result?.Provider ?? "gemini", result?.Model ?? "gemini-3.5-flash-lite",

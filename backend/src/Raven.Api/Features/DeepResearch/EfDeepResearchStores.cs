@@ -45,17 +45,18 @@ public sealed class EfDeepResearchRunStore(RavenDbContext dbContext) : IDeepRese
 
 public sealed class EfDeepResearchActivityStore(RavenDbContext dbContext) : IDeepResearchActivityStore, IDeepResearchActivitySink
 {
+    private static long sequenceClock;
+
     public async Task AddAsync(Guid runId, DeepResearchActivityEvent activity, CancellationToken cancellationToken = default)
     {
         var safe = DeepResearchActivitySanitizer.Sanitize(activity);
-        var next = (await dbContext.DeepResearchActivities
-            .Where(item => item.DeepResearchRunId == runId)
-            .Select(item => (long?)item.Sequence)
-            .MaxAsync(cancellationToken) ?? -1) + 1;
         dbContext.DeepResearchActivities.Add(new DeepResearchActivityRecord
         {
             DeepResearchRunId = runId,
-            Sequence = next,
+            // Existing Day-4 rows use small per-run values. UTC ticks ensure
+            // newly appended rows sort after them even after a process restart,
+            // while the atomic clock resolves same-tick concurrent writes.
+            Sequence = NextSequence(),
             Type = safe.Type,
             Status = safe.Status,
             Label = safe.Label,
@@ -88,5 +89,19 @@ public sealed class EfDeepResearchActivityStore(RavenDbContext dbContext) : IDee
     {
         try { return JsonSerializer.Deserialize<Guid[]>(json) ?? []; }
         catch (JsonException) { return []; }
+    }
+
+    private static long NextSequence()
+    {
+        var now = DateTimeOffset.UtcNow.UtcTicks;
+        while (true)
+        {
+            var previous = Interlocked.Read(ref sequenceClock);
+            var next = Math.Max(now, previous + 1);
+            if (Interlocked.CompareExchange(ref sequenceClock, next, previous) == previous)
+            {
+                return next;
+            }
+        }
     }
 }

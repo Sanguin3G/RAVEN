@@ -28,16 +28,16 @@ public sealed class ResearchCompanyService(
     SourceCandidateSelector candidateSelector,
     SourceUrlNormalizer urlNormalizer,
     IResearchEventWriter eventWriter,
-    ICompanyIdentityResolver? identityResolver = null,
+    IResearchExecutionContext executionContext,
     ISourceSemanticReranker? sourceSemanticReranker = null,
     IResearchSettingsService? researchSettings = null,
     ICompanyProfilePersistenceService? profilePersistence = null,
-    CorporateFamilyDiscoveryPlanner? corporateFamilyDiscoveryPlanner = null,
     CoverageAwareSourceSelector? coverageAwareSourceSelector = null,
     TargetedQueryPlanner? targetedQueryPlanner = null,
     OfficialSiteEvidencePlanner? officialSiteEvidencePlanner = null,
-    DeterministicIdentityFamilyBuilder? deterministicIdentityFamilyBuilder = null,
-    IResearchRunConfigurationSnapshot? configurationSnapshot = null) : IResearchCompanyService
+    IResearchRunConfigurationSnapshot? configurationSnapshot = null,
+    IResearchTelemetryFlusher? telemetryFlusher = null,
+    ILogger<ResearchCompanyService>? logger = null) : IResearchCompanyService
 {
     private const int MaximumRecommendedCandidates = 5;
     private const int SearchResultsPerQuery = 5;
@@ -47,12 +47,9 @@ public sealed class ResearchCompanyService(
     private readonly TopCvSourceParser topCvSourceParser = new();
     private readonly MaSoThueSourceParser maSoThueSourceParser = new();
     private readonly MaSoThueSourceDetector maSoThueSourceDetector = new();
-    private readonly IdentityAmbiguityAnalyzer ambiguityAnalyzer = new();
-    private readonly CorporateFamilyDiscoveryPlanner corporateFamilyPlanner = corporateFamilyDiscoveryPlanner ?? new();
     private readonly CoverageAwareSourceSelector coverageSourceSelector = coverageAwareSourceSelector ?? new();
     private readonly TargetedQueryPlanner targetedPlanner = targetedQueryPlanner ?? new();
     private readonly OfficialSiteEvidencePlanner officialEvidencePlanner = officialSiteEvidencePlanner ?? new(urlNormalizer);
-    private readonly DeterministicIdentityFamilyBuilder deterministicIdentityFamilyBuilder = deterministicIdentityFamilyBuilder ?? new();
     private readonly IResearchRunConfigurationSnapshot? configurationSnapshot = configurationSnapshot;
 
     public async Task<ResearchRunResponse?> CreateQueuedRunAsync(
@@ -96,6 +93,7 @@ public sealed class ResearchCompanyService(
         run.CompletedAt = DateTimeOffset.UtcNow;
         run.Error = "Research cancelled by the user.";
         await dbContext.SaveChangesAsync(cancellationToken);
+        await FlushTelemetryAsync(cancellationToken);
         return ToResponse(run);
     }
 
@@ -205,110 +203,6 @@ public sealed class ResearchCompanyService(
             }
 
             var drafts = CreateDrafts(rankedCandidates);
-            if (identityResolver is not null && run.GroundingMode != GroundingMode.Off)
-            {
-                var familyQueries = corporateFamilyPlanner.Plan(
-                    initialIdentity,
-                    drafts.Select(ToGroundingCandidate).ToArray(),
-                    officialWebsite);
-                if (familyQueries.Count > 0)
-                {
-                    await WriteEventAsync(run, ResearchEventCategory.SearchRequested, ResearchEventStatus.Working,
-                        run.RequestedSearchProvider, $"Planning {familyQueries.Count} bounded corporate-family discovery queries.", cancellationToken);
-                    var (familyResults, familyErrors) = await SearchAdditionalAsync(run, initialIdentity, familyQueries, cancellationToken);
-                    searchResults.AddRange(familyResults);
-                    errors.AddRange(familyErrors);
-                    officialWebsite = ResolveOfficialWebsite(company, searchResults);
-                    rankedCandidates = RankCandidates(company, searchResults, officialWebsite, GetTargets(run));
-                    drafts = CreateDrafts(rankedCandidates);
-                }
-            }
-            var settings = await ReadSettingsAsync(cancellationToken);
-            var groundingCandidates = drafts.Select(ToGroundingCandidate).ToArray();
-            var shouldGround = identityResolver is not null &&
-                               string.IsNullOrWhiteSpace(run.ResolvedIdentitySnapshotJson) &&
-                               !request!.UseAcceptedProfileIdentity &&
-                               ambiguityAnalyzer.RequiresGrounding(
-                                   new IdentityResolutionRequest(initialIdentity, groundingCandidates),
-                                   run.GroundingMode);
-            ResolvedResearchEntity? resolvedTarget = null;
-            var identityRecords = Array.Empty<ResearchIdentityCandidate>();
-
-            if (shouldGround)
-            {
-                run.Stage = ResearchStage.Grounding;
-                await dbContext.SaveChangesAsync(cancellationToken);
-                await WriteEventAsync(run, ResearchEventCategory.GroundingRequested, ResearchEventStatus.Working,
-                    settings?.GroundingModel, "Resolving the intended real-world organization from bounded search metadata.", cancellationToken);
-
-                IdentityResolutionResult resolution;
-                try
-                {
-                    resolution = await identityResolver!.ResolveAsync(
-                        new IdentityResolutionRequest(initialIdentity, groundingCandidates),
-                        cancellationToken);
-                }
-                catch (Exception) when (!cancellationToken.IsCancellationRequested)
-                {
-                    resolution = new IdentityResolutionResult(
-                        false,
-                        null,
-                        [],
-                        "Company identity grounding failed; deterministic research can continue.",
-                        new AiFailure("provider_error", "Company identity grounding failed.", true));
-                }
-                var deterministicFamily = deterministicIdentityFamilyBuilder.Build(initialIdentity, groundingCandidates);
-                if (deterministicFamily.Count >= 2 && (resolution.Failure is not null || resolution.Entities.Count < 2))
-                {
-                    resolution = new IdentityResolutionResult(
-                        true,
-                        deterministicFamily.FirstOrDefault(entity => entity.Recommended)?.TemporaryId,
-                        deterministicFamily,
-                        "Grounding returned an incomplete family view; showing bounded metadata-based organization choices for review.");
-                }
-
-                identityRecords = PersistIdentityCandidates(run, resolution);
-
-                if (resolution.Failure is not null)
-                {
-                    run.Error = resolution.Warning;
-                    await WriteEventAsync(run, ResearchEventCategory.GroundingFailed, ResearchEventStatus.Failed,
-                        settings?.GroundingModel, resolution.Warning, cancellationToken);
-                }
-                else if (resolution.Ambiguous)
-                {
-                    run.UniqueCandidates = drafts.Length;
-                    run.RecommendedCandidates = drafts.Count(candidate => candidate.DeterministicRecommended);
-                    run.Stage = ResearchStage.AwaitingIdentitySelection;
-                    run.Status = ResearchRunStatus.Searching;
-                    run.Error = null;
-                    AddCandidateEntities(drafts, run.Id, null);
-                    TrackIdentityCandidates(identityRecords);
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    await WriteEventAsync(run, ResearchEventCategory.GroundingCompleted, ResearchEventStatus.WaitingForUser,
-                        settings?.GroundingModel, $"Found {identityRecords.Length} possible research targets; awaiting user selection.", cancellationToken);
-                    return ToResponse(run);
-                }
-                else
-                {
-                    resolvedTarget = SelectResolvedTarget(resolution, identityRecords);
-                    if (resolvedTarget is not null)
-                    {
-                        var selectedRecord = identityRecords.Single(record =>
-                            string.Equals(record.TemporaryId, resolvedTarget.TemporaryId, StringComparison.OrdinalIgnoreCase));
-                        selectedRecord.Selected = true;
-                        run.ResolvedIdentityCandidateId = selectedRecord.Id;
-                        await WriteEventAsync(run, ResearchEventCategory.GroundingCompleted, ResearchEventStatus.Completed,
-                            settings?.GroundingModel, $"Selected {resolvedTarget.DisplayName} as the research target.", cancellationToken);
-                    }
-                }
-            }
-
-            if (resolvedTarget is not null && settings?.AiSourceRerankingEnabled == true && sourceSemanticReranker is not null)
-            {
-                drafts = await ApplySemanticRerankingAsync(run, resolvedTarget, drafts, settings.GroundingModel, cancellationToken);
-            }
-
             drafts = ApplyCoverageAwareSelection(drafts, GetTargets(run));
 
             run.UniqueCandidates = drafts.Length;
@@ -320,7 +214,6 @@ public sealed class ResearchCompanyService(
                 run.Error = BuildFailureMessage("Some search queries failed.", errors);
             }
             AddCandidateEntities(drafts, run.Id, null);
-            TrackIdentityCandidates(identityRecords);
             await dbContext.SaveChangesAsync(cancellationToken);
             await WriteEventAsync(run, ResearchEventCategory.CandidateDiscovery, ResearchEventStatus.WaitingForUser,
                 searchProvider.Id, $"Discovered {run.UniqueCandidates} unique candidates; {run.RecommendedCandidates} recommended.", cancellationToken);
@@ -403,16 +296,13 @@ public sealed class ResearchCompanyService(
             candidate.AcquisitionStatus = CandidateAcquisitionStatus.Acquiring;
             candidate.AcquisitionError = null;
             await dbContext.SaveChangesAsync(cancellationToken);
-            await WriteEventAsync(run, ResearchEventCategory.CrawlRequested, ResearchEventStatus.Working,
-                run.RequestedCrawlerProvider, $"Acquiring {candidate.Domain}.", cancellationToken);
-
             try
             {
+                using var telemetryScope = executionContext.Push(run.Id, stage: run.Stage);
                 var crawl = await crawlerProvider.CrawlAsync(
                     new CrawlRequest(candidate.NormalizedUrl),
                     cancellationToken);
                 run.ActualCrawlerProvider = crawl.Provider;
-                await WriteProviderFallbackAsync(run, crawlerProvider, cancellationToken);
                 run.CrawlCompleted++;
 
                 if (!crawl.Success || string.IsNullOrWhiteSpace(crawl.Markdown))
@@ -422,8 +312,6 @@ public sealed class ResearchCompanyService(
                     run.CrawlFailed++;
                     errors.Add($"{candidate.NormalizedUrl}: {candidate.AcquisitionError}");
                     await dbContext.SaveChangesAsync(cancellationToken);
-                    await WriteEventAsync(run, ResearchEventCategory.CrawlFailed, ResearchEventStatus.Failed,
-                        crawl.Provider, $"Could not acquire {candidate.Domain}.", cancellationToken);
                     continue;
                 }
 
@@ -527,8 +415,7 @@ public sealed class ResearchCompanyService(
             .SingleAsync(candidate => candidate.Id == run.CompanyId, cancellationToken);
         company.LastResearchedAt = run.CompletedAt;
         await dbContext.SaveChangesAsync(cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.CrawlCompleted, ResearchEventStatus.Completed,
-            run.ActualCrawlerProvider ?? run.RequestedCrawlerProvider, $"Acquisition finished: {run.DocumentsAdded} documents added, {run.DuplicatesSkipped} duplicates skipped.", cancellationToken);
+        await FlushTelemetryAsync(cancellationToken);
         return ToResponse(run);
     }
 
@@ -769,13 +656,6 @@ public sealed class ResearchCompanyService(
         CancellationToken cancellationToken)
         => SearchQueriesAsync(run, identity, BuildQueries(identity, run.Mode, GetTargets(run)), true, cancellationToken);
 
-    private Task<(List<SearchResult> Results, List<string> Errors)> SearchAdditionalAsync(
-        ResearchRun run,
-        ResearchIdentityInput identity,
-        IReadOnlyList<string> queries,
-        CancellationToken cancellationToken)
-        => SearchQueriesAsync(run, identity, queries, false, cancellationToken);
-
     private async Task<(List<SearchResult> Results, List<string> Errors)> SearchQueriesAsync(
         ResearchRun run,
         ResearchIdentityInput identity,
@@ -795,20 +675,17 @@ public sealed class ResearchCompanyService(
             run.QueriesTotal += queries.Count;
         }
         await dbContext.SaveChangesAsync(cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.SearchRequested, ResearchEventStatus.Working,
-            run.RequestedSearchProvider, $"Planned {queries.Count} bounded public-source queries.", cancellationToken);
-
         var searchResults = new List<SearchResult>();
         var errors = new List<string>();
         foreach (var query in queries)
         {
             try
             {
+                using var telemetryScope = executionContext.Push(run.Id, stage: run.Stage);
                 var search = await searchProvider.SearchAsync(
                     new SearchRequest(query, SearchResultsPerQuery, identity.Country),
                     cancellationToken);
                 run.ActualSearchProvider = search.Provider;
-                await WriteProviderFallbackAsync(run, searchProvider, cancellationToken);
                 searchResults.AddRange(search.Results);
             }
             catch (ProviderException exception) when (exception.Kind is ProviderFailureKind.Configuration or ProviderFailureKind.Authentication)
@@ -960,39 +837,6 @@ public sealed class ResearchCompanyService(
         return reranked;
     }
 
-    private ResearchIdentityCandidate[] PersistIdentityCandidates(
-        ResearchRun run,
-        IdentityResolutionResult resolution)
-    {
-        var records = resolution.Entities
-            .Select(entity => new ResearchIdentityCandidate
-            {
-                ResearchRunId = run.Id,
-                TemporaryId = entity.TemporaryId,
-                DisplayName = entity.DisplayName,
-                LegalName = entity.LegalName,
-                Country = entity.Country,
-                Website = entity.Website,
-                OfficialDomain = entity.OfficialDomain,
-                EntityType = entity.EntityType,
-                RelationshipHint = entity.RelationshipHint,
-                Confidence = entity.Confidence,
-                Rationale = entity.Rationale,
-                SupportingCandidateIdsJson = JsonSerializer.Serialize(entity.SupportingCandidateIds.Distinct().ToArray()),
-                Recommended = entity.Recommended
-            })
-            .ToArray();
-        return records;
-    }
-
-    private void TrackIdentityCandidates(IEnumerable<ResearchIdentityCandidate> candidates)
-    {
-        foreach (var candidate in candidates)
-        {
-            dbContext.Set<ResearchIdentityCandidate>().Add(candidate);
-        }
-    }
-
     private void AddCandidateEntities(
         IReadOnlyList<CandidateDraft> drafts,
         Guid researchRunId,
@@ -1020,18 +864,6 @@ public sealed class ResearchCompanyService(
                 IconUrl = BuildIconUrl(draft.Ranked.Classification.Domain ?? draft.Ranked.Source.SourceDomain)
             });
         }
-    }
-
-    private static ResolvedResearchEntity? SelectResolvedTarget(
-        IdentityResolutionResult resolution,
-        IReadOnlyList<ResearchIdentityCandidate> records)
-    {
-        var temporaryId = resolution.RecommendedTemporaryId ??
-                          records.SingleOrDefault(record => record.Recommended)?.TemporaryId;
-        return temporaryId is null
-            ? null
-            : resolution.Entities.SingleOrDefault(entity =>
-                string.Equals(entity.TemporaryId, temporaryId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static ResolvedResearchEntity ToResolvedEntity(ResearchIdentityCandidate candidate) => new(
@@ -1073,17 +905,6 @@ public sealed class ResearchCompanyService(
         assessment.Recommended &&
         assessment.EntityRelationship is not EntityRelationship.DifferentEntity &&
         assessment.Relevance is not CandidateRelevance.Low;
-
-    private static GroundingSourceCandidate ToGroundingCandidate(CandidateDraft draft) => new(
-        draft.Id,
-        draft.Ranked.Source.Url,
-        draft.Ranked.Classification.Domain ?? draft.Ranked.Source.SourceDomain,
-        draft.Ranked.Source.Title,
-        draft.Ranked.Source.Snippet,
-        draft.Ranked.Classification.SourceKind,
-        draft.Ranked.Source.SearchRank,
-        draft.Ranked.Reasons,
-        draft.Ranked.Classification.SourceKind is SourceKind.OfficialWebsite or SourceKind.OfficialDocument);
 
     private static SourceSemanticCandidate ToSemanticCandidate(CandidateDraft draft) => new(
         draft.Id,
@@ -1195,8 +1016,7 @@ public sealed class ResearchCompanyService(
         run.CompletedAt = DateTimeOffset.UtcNow;
         run.Error = error[..Math.Min(error.Length, 4_000)];
         await dbContext.SaveChangesAsync(cancellationToken);
-        await WriteEventAsync(run, ResearchEventCategory.CrawlFailed, ResearchEventStatus.Failed,
-            null, error, cancellationToken);
+        await FlushTelemetryAsync(cancellationToken);
         return ToResponse(run);
     }
 
@@ -1217,23 +1037,19 @@ public sealed class ResearchCompanyService(
             OutputSummary = outputSummary
         }, cancellationToken);
 
-    private async Task WriteProviderFallbackAsync(
-        ResearchRun run,
-        object provider,
-        CancellationToken cancellationToken)
+    private async Task FlushTelemetryAsync(CancellationToken cancellationToken)
     {
-        if (provider is not IProviderRouteDiagnostics { LastRoute: { } route } || route.Attempts.Count == 0)
+        if (telemetryFlusher is null) return;
+        try
         {
-            return;
+            await telemetryFlusher.FlushAsync(cancellationToken);
         }
-
-        var attempted = string.Join(", ", route.Attempts.Select(attempt => attempt.ProviderId).Distinct(StringComparer.OrdinalIgnoreCase));
-        var summary = string.IsNullOrWhiteSpace(route.ActualProvider)
-            ? $"All attempted {route.Capability} providers failed: {attempted}."
-            : $"{route.Capability} fell back from {attempted} to {route.ActualProvider}.";
-        await WriteEventAsync(run, ResearchEventCategory.ProviderFallback, ResearchEventStatus.Completed,
-            route.ActualProvider, summary, cancellationToken);
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(exception, "Could not flush research execution telemetry; the run remains successful.");
+        }
     }
+
 
     private IReadOnlyList<string> BuildQueries(
         ResearchIdentityInput input,
