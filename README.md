@@ -6,15 +6,17 @@ RAVEN is an AI-assisted Company Intelligence Platform. It discovers public compa
 
 ## Current milestone
 
-Day 6 adds identity resolution and stabilizes the working research slice:
+Day 7 closes execution-efficiency work and establishes the Ask RAVEN Chat foundation:
 
 ```text
-Company identity → duplicate check → optional AI grounding → source review
-→ provider-routed acquisition → evidence → Gemini profile candidate
+Identity preflight → duplicate check → one discovery phase → source review
+→ selected-source acquisition → evidence → Gemini profile candidate
 → human confirmation → versioned profile/history/changes
 ```
 
-Identity preflight resolves explicit identifiers locally or asks one bounded topology question before public-source research. Day 6 also hardens cancellable research restoration, profile-preserving duplicate merges, direct Monitoring/enrichment workspace actions, and sparse-profile guidance. RAVEN keeps unsupported facts unknown and preserves accepted profile history.
+Identity preflight resolves explicit identifiers locally or asks one bounded topology question before public-source research. The obsolete active corporate-family search/grounding expansion is retired: a resolved or selected identity starts one normal discovery phase.
+
+Developer execution telemetry is sanitized, bounded, and batch-persisted outside provider-call latency; durable user-visible activity, including Deep Research activity, remains separate. Ask RAVEN is persistent profile-grounded Chat: factual company answers require cited evidence, while greetings and product guidance can respond naturally. Deep Research remains an explicit workflow, and web-enabled Chat is intentionally deferred.
 
 ## Stack
 
