@@ -21,7 +21,6 @@ public static class AiServiceCollectionExtensions
             options.BaseUrl = configuration["GEMINI_BASE_URL"] ?? options.BaseUrl;
             options.ApiVersion = configuration["GEMINI_API_VERSION"] ?? options.ApiVersion;
             options.FastModel = configuration["GEMINI_FAST_MODEL"] ?? options.FastModel;
-            options.DeepModel = configuration["GEMINI_DEEP_MODEL"] ?? options.DeepModel;
 
             if (int.TryParse(configuration["GEMINI_TIMEOUT_SECONDS"], out var timeoutSeconds))
             {

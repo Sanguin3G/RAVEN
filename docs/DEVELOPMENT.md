@@ -63,11 +63,8 @@ GET  /api/companies/{id}/sources
 GET  /api/research-runs/{id}/coverage
 GET  /api/companies/{id}/coverage
 GET  /api/sources/{id}
-POST /api/companies/{id}/deep-research
-GET  /api/deep-research-runs/{id}
-GET  /api/companies/{id}/deep-research-runs
-POST /api/companies/{id}/saved-research
 GET  /api/companies/{id}/saved-research
+GET  /api/companies/{id}/saved-research/{artifactId}
 ```
 
 Profile endpoints:
@@ -103,7 +100,7 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 | Exa Search and Contents | `EXA_API_KEY` |
 | Firecrawl Search and Crawl | `FIRECRAWL_API_KEY` |
 | Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
-| Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
+| Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL` |
 | SQLite | `ConnectionStrings__Raven` |
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
@@ -173,9 +170,9 @@ dotnet run --project backend/tools/IdentityProbe/IdentityProbe.csproj --no-build
 
 It uses the existing Raven API user secret or `GEMINI_API_KEY`, defaults to `gemini-3.5-flash-lite`, and emits only sanitized semantic summaries, timing, token usage, parse state, and safe failure codes. Never commit credentials or raw model responses.
 
-## Monitoring and Deep Research
+## Monitoring and background research
 
-Monitoring and Deep Research use in-process `BackgroundService` workers. They execute only while the API process is running; this project deliberately does not add an external scheduler or job broker. Monitoring produces a review-ready profile candidate and never accepts a profile automatically.
+Monitoring and background research use in-process workers. They execute only while the API process is running; this project deliberately does not add an external scheduler or job broker. Monitoring produces a review-ready profile candidate and never accepts a profile automatically.
 
 The background research start endpoint also uses an in-process channel-backed worker. It returns `202 Accepted`, exposes active runs, and supports cancellation. It is not a durable job queue: a process restart drops queued work, by design for this MVP.
 
@@ -187,7 +184,7 @@ The frontend persists only an active, resumable research session for handoff acr
 
 Company List actions are addressable: **Monitor company** opens the Monitoring tab and **Improve profile** opens the targeted enrichment dialog. Both require an accepted profile. When one is unavailable, the company page explains the constraint and links to refresh research or Workspace Review instead of presenting an empty action.
 
-Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
+Saved investigations are historical artifacts; they are not accepted Company Profile facts. The current APIs expose saved-artifact reads only.
 
 ## Git workflow
 

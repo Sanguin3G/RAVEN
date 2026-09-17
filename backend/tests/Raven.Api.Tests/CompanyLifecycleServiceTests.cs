@@ -3,7 +3,6 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
 using Raven.Api.Features.Companies;
-using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Profiles.Persistence;
@@ -86,21 +85,6 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
             SourceDocumentIds = { source.Id },
             SourceDocumentIdsJson = $"[\"{source.Id}\"]"
         });
-        var deepRun = new DeepResearchRun
-        {
-            CompanyId = company.Id,
-            Question = "Delete test",
-            Model = "test-model"
-        };
-        dbContext.DeepResearchActivities.Add(new DeepResearchActivityRecord
-        {
-            DeepResearchRunId = deepRun.Id,
-            Sequence = 0,
-            Type = "crawl",
-            Status = DeepResearchActivityStatus.Completed,
-            Label = "Read source",
-            SourceDocumentIdsJson = $"[\"{source.Id}\"]"
-        });
         var deleteArtifact = new SavedResearchArtifact
         {
             CompanyId = company.Id,
@@ -108,7 +92,7 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
             Question = "Delete test",
             Summary = "Delete test",
             CreatedAt = DateTimeOffset.UtcNow,
-            ResearchType = SavedResearchType.Deep
+            ResearchType = SavedResearchType.Fast
         };
         deleteArtifact.SourceDocumentIds.Add(source.Id);
         dbContext.SavedResearchArtifacts.Add(deleteArtifact);
@@ -154,7 +138,6 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         dbContext.SourceDocuments.Add(source);
         dbContext.CompanyProfileCandidates.Add(candidate);
         dbContext.CompanyProfileVersions.Add(profile);
-        dbContext.DeepResearchRuns.Add(deepRun);
         await dbContext.SaveChangesAsync();
 
         var service = new CompanyLifecycleService(dbContext);
@@ -172,8 +155,6 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         Assert.Empty(await dbContext.CompanyProfileVersions.ToListAsync());
         Assert.Empty(await dbContext.ProfileEvidences.ToListAsync());
         Assert.Empty(await dbContext.ProfileChanges.ToListAsync());
-        Assert.Empty(await dbContext.DeepResearchRuns.ToListAsync());
-        Assert.Empty(await dbContext.DeepResearchActivities.ToListAsync());
         Assert.Empty(await dbContext.SavedResearchArtifacts.ToListAsync());
         Assert.Empty(await dbContext.CompanyMonitoringSettings.ToListAsync());
     }

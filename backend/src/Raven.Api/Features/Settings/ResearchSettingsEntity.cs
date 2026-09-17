@@ -22,8 +22,6 @@ public sealed class ResearchSettingsEntity
 
     public string GroundingModel { get; set; } = ResearchSettingsDefaults.GroundingModel;
 
-    public string DeepResearchModel { get; set; } = ResearchSettingsDefaults.DeepResearchModel;
-
     public bool AiSourceRerankingEnabled { get; set; } = true;
 
     public ProviderPreset ProviderPreset { get; set; } = ProviderPreset.LocalFirst;
@@ -42,7 +40,6 @@ public sealed class ResearchSettingsEntity
         GroundingMode = GroundingMode,
         ProfileModel = ProfileModel,
         GroundingModel = GroundingModel,
-        DeepResearchModel = DeepResearchModel,
         AiSourceRerankingEnabled = AiSourceRerankingEnabled,
         ProviderPreset = ProviderPreset,
         SearchProviderPriority = [.. SearchProviderPriority],

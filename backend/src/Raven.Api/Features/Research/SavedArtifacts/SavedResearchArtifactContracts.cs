@@ -13,8 +13,7 @@ public record SavedResearchArtifactRequest(
     SavedResearchType ResearchType,
     string? Model = null,
     IReadOnlyList<Guid>? SourceDocumentIds = null,
-    Guid? ConversationId = null,
-    Guid? DeepResearchRunId = null)
+    Guid? ConversationId = null)
 {
     /// <summary>Vocabulary alias for callers that use Result instead of Summary.</summary>
     public string Result => Summary;
@@ -29,8 +28,7 @@ public sealed record CreateSavedResearchArtifactRequest(
     SavedResearchType ResearchType,
     string? Model = null,
     IReadOnlyList<Guid>? SourceDocumentIds = null,
-    Guid? ConversationId = null,
-    Guid? DeepResearchRunId = null)
+    Guid? ConversationId = null)
     : SavedResearchArtifactRequest(
         CompanyId,
         Title,
@@ -39,8 +37,7 @@ public sealed record CreateSavedResearchArtifactRequest(
         ResearchType,
         Model,
         SourceDocumentIds,
-        ConversationId,
-        DeepResearchRunId);
+        ConversationId);
 
 /// <summary>
 /// Response-shaped contract for a future endpoint. The current domain service
@@ -50,7 +47,6 @@ public sealed record SavedResearchArtifactResponse(
     Guid Id,
     Guid CompanyId,
     Guid? ConversationId,
-    Guid? DeepResearchRunId,
     string Title,
     string Question,
     string Summary,
@@ -70,7 +66,6 @@ public sealed record SavedResearchArtifactResponse(
             artifact.Id,
             artifact.CompanyId,
             artifact.ConversationId,
-            artifact.DeepResearchRunId,
             artifact.Title,
             artifact.Question,
             artifact.Summary,

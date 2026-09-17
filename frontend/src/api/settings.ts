@@ -7,7 +7,6 @@ export interface ResearchSettings {
   groundingMode: GroundingMode;
   profileModel: string;
   groundingModel: string;
-  deepResearchModel: string;
   aiSourceRerankingEnabled: boolean;
   providerPreset: ProviderPreset;
   searchProviderPriority: string[];

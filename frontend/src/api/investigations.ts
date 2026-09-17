@@ -6,7 +6,6 @@ export interface SavedResearchArtifact {
   id: string;
   companyId: string;
   conversationId?: string | null;
-  deepResearchRunId?: string | null;
   title: string;
   question: string;
   summary: string;

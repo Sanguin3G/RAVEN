@@ -19,7 +19,6 @@ const fallbackSettings: ResearchSettings = {
   groundingMode: "Auto",
   profileModel: "gemini-3.5-flash-lite",
   groundingModel: "gemini-3.5-flash-lite",
-  deepResearchModel: "gemini-3.8-flash",
   aiSourceRerankingEnabled: true,
   providerPreset: "LocalFirst",
   searchProviderPriority: ["brave"],
@@ -74,7 +73,6 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
     (candidate.groundingMode !== "Auto" && candidate.groundingMode !== "Always" && candidate.groundingMode !== "Off")
     || typeof candidate.profileModel !== "string"
     || typeof candidate.groundingModel !== "string"
-    || typeof candidate.deepResearchModel !== "string"
     || typeof candidate.aiSourceRerankingEnabled !== "boolean"
     || (candidate.providerPreset !== "Resilient" && candidate.providerPreset !== "LocalFirst" && candidate.providerPreset !== "Cloud" && candidate.providerPreset !== "Custom")
     || !Array.isArray(candidate.searchProviderPriority)
@@ -85,7 +83,6 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
     groundingMode: candidate.groundingMode,
     profileModel: candidate.profileModel,
     groundingModel: candidate.groundingModel,
-    deepResearchModel: candidate.deepResearchModel,
     aiSourceRerankingEnabled: candidate.aiSourceRerankingEnabled,
     providerPreset: candidate.providerPreset,
     searchProviderPriority: candidate.searchProviderPriority.filter((provider): provider is string => typeof provider === "string"),
@@ -367,15 +364,7 @@ export function SettingsPage() {
             <select id="grounding-model" value={draft.groundingModel} disabled={isLoading || isSaving || isResetting} onChange={(event) => updateDraft({ groundingModel: event.target.value })}>
               {roleOptions(draft.groundingModel).map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
             </select>
-          </div>
-          <div className={styles.modelRole}>
-            <label htmlFor="deep-research-model">Deep research</label>
-            <small>Multi-step tool-assisted investigation for longer questions.</small>
-            <select id="deep-research-model" value={draft.deepResearchModel} disabled={isLoading || isSaving || isResetting} onChange={(event) => updateDraft({ deepResearchModel: event.target.value })}>
-              {roleOptions(draft.deepResearchModel).map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
-            </select>
-          </div>
-        </div>
+          </div></div>
       </Panel>
 
       <Panel title="Provider routing" eyebrow="PROVIDERS" className={styles.section}>

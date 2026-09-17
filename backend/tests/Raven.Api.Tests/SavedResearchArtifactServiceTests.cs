@@ -17,28 +17,25 @@ public sealed class SavedResearchArtifactServiceTests
         var store = new InMemorySavedResearchArtifactStore();
         var service = CreateService(store, new SourceOwnershipReader(SourceOne, SourceTwo));
         var conversationId = Guid.NewGuid();
-        var deepResearchRunId = Guid.NewGuid();
 
         var artifact = await service.CreateAsync(new SavedResearchArtifactRequest(
             CompanyId,
             "  Market outlook  ",
             "  What is the company's outlook? ",
             "  The company is expanding into two new markets.  ",
-            SavedResearchType.Deep,
+            SavedResearchType.Fast,
             "  gemini-3.8-flash  ",
             [SourceOne, SourceTwo, SourceOne],
-            conversationId,
-            deepResearchRunId));
+            conversationId));
 
         Assert.Equal(CompanyId, artifact.CompanyId);
         Assert.Equal(conversationId, artifact.ConversationId);
-        Assert.Equal(deepResearchRunId, artifact.DeepResearchRunId);
         Assert.Equal("Market outlook", artifact.Title);
         Assert.Equal("What is the company's outlook?", artifact.Question);
         Assert.Equal("The company is expanding into two new markets.", artifact.Summary);
         Assert.Equal(artifact.Summary, artifact.Result);
         Assert.Equal(CreatedAt, artifact.CreatedAt);
-        Assert.Equal(SavedResearchType.Deep, artifact.ResearchType);
+        Assert.Equal(SavedResearchType.Fast, artifact.ResearchType);
         Assert.Equal("gemini-3.8-flash", artifact.Model);
         Assert.Equal(2, artifact.SourceCount);
         Assert.Equal([SourceOne, SourceTwo], artifact.SourceDocumentIds);
@@ -77,8 +74,7 @@ public sealed class SavedResearchArtifactServiceTests
             " ",
             (SavedResearchType)999,
             SourceDocumentIds: [Guid.Empty],
-            ConversationId: Guid.Empty,
-            DeepResearchRunId: Guid.Empty);
+            ConversationId: Guid.Empty);
 
         var exception = await Assert.ThrowsAsync<SavedResearchArtifactValidationException>(() =>
             service.CreateAsync(request));
@@ -90,7 +86,6 @@ public sealed class SavedResearchArtifactServiceTests
         Assert.Contains("Research type is not supported.", exception.Errors);
         Assert.Contains("Source document IDs must be non-empty IDs.", exception.Errors);
         Assert.Contains("Conversation ID must be a non-empty ID when provided.", exception.Errors);
-        Assert.Contains("Deep Research run ID must be a non-empty ID when provided.", exception.Errors);
         Assert.Equal(0, ownership.LookupCount);
     }
 

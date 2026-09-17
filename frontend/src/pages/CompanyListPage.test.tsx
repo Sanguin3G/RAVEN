@@ -47,8 +47,6 @@ const mergePreview = {
   profileVersions: 3,
   profileEvidenceRows: 6,
   profileChanges: 2,
-  deepResearchRuns: 1,
-  deepResearchActivities: 2,
   savedInvestigations: 1,
   hasCanonicalMonitoring: true,
   hasDuplicateMonitoring: false,

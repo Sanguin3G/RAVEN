@@ -8,14 +8,13 @@ public sealed record ResearchRunConfiguration(
     GroundingMode GroundingMode,
     string ProfileModel,
     string IdentityModel,
-    string DeepResearchModel,
     bool AiSourceRerankingEnabled,
     ProviderPreset ProviderPreset,
     IReadOnlyList<string> SearchProviderPriority,
     IReadOnlyList<string> CrawlerProviderPriority)
 {
     public static ResearchRunConfiguration From(ResearchSettingsResponse settings) => new(
-        settings.GroundingMode, settings.ProfileModel, settings.GroundingModel, settings.DeepResearchModel,
+        settings.GroundingMode, settings.ProfileModel, settings.GroundingModel,
         settings.AiSourceRerankingEnabled, settings.ProviderPreset,
         settings.SearchProviderPriority.ToArray(), settings.CrawlerProviderPriority.ToArray());
 }

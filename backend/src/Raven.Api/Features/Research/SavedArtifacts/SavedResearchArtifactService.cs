@@ -58,7 +58,6 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
         {
             CompanyId = request.CompanyId,
             ConversationId = request.ConversationId,
-            DeepResearchRunId = request.DeepResearchRunId,
             Title = request.Title.Trim(),
             Question = request.Question.Trim(),
             Summary = request.Summary.Trim(),

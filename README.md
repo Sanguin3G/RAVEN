@@ -16,7 +16,7 @@ Identity preflight → duplicate check → one discovery phase → source review
 
 Identity preflight resolves explicit identifiers locally or asks one bounded topology question before public-source research. The obsolete active corporate-family search/grounding expansion is retired: a resolved or selected identity starts one normal discovery phase.
 
-Developer execution telemetry is sanitized, bounded, and batch-persisted outside provider-call latency; durable user-visible activity, including Deep Research activity, remains separate. Ask RAVEN is persistent profile-grounded Chat: factual company answers require cited evidence, while greetings and product guidance can respond naturally. Deep Research remains an explicit workflow, and web-enabled Chat is intentionally deferred.
+Developer execution telemetry is sanitized, bounded, and batch-persisted outside provider-call latency. Ask RAVEN is persistent profile-grounded Chat: factual company answers require cited evidence, while greetings and product guidance can respond naturally. Web-enabled Chat is intentionally deferred.
 
 ## Stack
 
@@ -26,7 +26,7 @@ Developer execution telemetry is sanitized, bounded, and batch-persisted outside
 - Brave and Exa Search
 - Crawl4AI Local, Firecrawl, and Exa Contents retrieval
 - Gemini structured output
-- Microsoft Agent Framework for bounded Deep Research
+
 
 ## Quick start
 

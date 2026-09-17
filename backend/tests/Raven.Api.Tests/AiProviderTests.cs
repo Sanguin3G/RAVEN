@@ -201,7 +201,6 @@ public sealed class AiProviderTests
         var options = new GeminiOptions();
 
         Assert.Equal("gemini-3.5-flash-lite", options.FastModel);
-        Assert.Equal("gemini-3.8-flash", options.DeepModel);
         Assert.Equal("v1beta", options.ApiVersion);
     }
 

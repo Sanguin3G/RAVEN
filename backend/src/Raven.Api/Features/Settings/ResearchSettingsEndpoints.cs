@@ -34,17 +34,11 @@ public static class ResearchSettingsEndpoints
     private static async Task<Results<Ok<ResearchSettingsResponse>, ValidationProblem>> UpdateAsync(
         UpdateResearchSettingsRequest request,
         IResearchSettingsService settings,
-        IRuntimeModelPreferences runtimeModels,
         CancellationToken cancellationToken)
     {
         try
         {
-            var updated = await settings.UpdateAsync(request, cancellationToken);
-            // Preserve the Day-3 compatibility seam while settings become durable.
-            runtimeModels.TryUpdate(new UpdateRuntimeModelPreferencesRequest(
-                updated.ProfileModel,
-                updated.DeepResearchModel), out _);
-            return TypedResults.Ok(updated);
+            var updated = await settings.UpdateAsync(request, cancellationToken); return TypedResults.Ok(updated);
         }
         catch (ResearchSettingsValidationException exception)
         {
@@ -56,13 +50,9 @@ public static class ResearchSettingsEndpoints
 
     private static async Task<Ok<ResearchSettingsResponse>> ResetAsync(
         IResearchSettingsService settings,
-        IRuntimeModelPreferences runtimeModels,
         CancellationToken cancellationToken)
     {
         var reset = await settings.ResetAsync(cancellationToken);
-        runtimeModels.TryUpdate(new UpdateRuntimeModelPreferencesRequest(
-            reset.ProfileModel,
-            reset.DeepResearchModel), out _);
         return TypedResults.Ok(reset);
     }
 }

@@ -14,9 +14,9 @@ public interface IRuntimeModelPreferences
     bool TryUpdate(UpdateRuntimeModelPreferencesRequest request, out RuntimeModelPreferenceResponse preferences);
 }
 
-public sealed record RuntimeModelPreferenceResponse(string FastModel, string DeepModel);
+public sealed record RuntimeModelPreferenceResponse(string FastModel);
 
-public sealed record UpdateRuntimeModelPreferencesRequest(string FastModel, string DeepModel);
+public sealed record UpdateRuntimeModelPreferencesRequest(string FastModel);
 
 public sealed class RuntimeModelPreferences : IRuntimeModelPreferences
 {
@@ -31,8 +31,7 @@ public sealed class RuntimeModelPreferences : IRuntimeModelPreferences
     {
         var configured = options.Value;
         current = new RuntimeModelPreferenceResponse(
-            AllowedOrDefault(configured.FastModel, FlashLite),
-            AllowedOrDefault(configured.DeepModel, Flash));
+            AllowedOrDefault(configured.FastModel, FlashLite));
     }
 
     public RuntimeModelPreferenceResponse Current
@@ -48,7 +47,7 @@ public sealed class RuntimeModelPreferences : IRuntimeModelPreferences
 
     public bool TryUpdate(UpdateRuntimeModelPreferencesRequest request, out RuntimeModelPreferenceResponse preferences)
     {
-        if (request is null || !AllowedModels.Contains(request.FastModel) || !AllowedModels.Contains(request.DeepModel))
+        if (request is null || !AllowedModels.Contains(request.FastModel))
         {
             preferences = Current;
             return false;
@@ -56,7 +55,7 @@ public sealed class RuntimeModelPreferences : IRuntimeModelPreferences
 
         lock (sync)
         {
-            current = new RuntimeModelPreferenceResponse(request.FastModel, request.DeepModel);
+            current = new RuntimeModelPreferenceResponse(request.FastModel);
             preferences = current;
             return true;
         }

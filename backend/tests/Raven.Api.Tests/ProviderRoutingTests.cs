@@ -175,7 +175,6 @@ public sealed class ProviderRoutingTests
             GroundingMode.Auto,
             "gemini-3.5-flash-lite",
             "gemini-3.5-flash-lite",
-            "gemini-3.8-flash",
             true,
             ProviderPreset.Custom,
             searchProviders ?? ["brave"],

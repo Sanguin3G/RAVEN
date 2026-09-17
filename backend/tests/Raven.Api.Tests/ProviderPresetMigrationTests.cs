@@ -23,12 +23,11 @@ public sealed class ProviderPresetMigrationTests
             await context.Database.MigrateAsync("20260911102454_AddDay5ResearchModesAndArchiving");
             await context.Database.ExecuteSqlRawAsync("""
                 INSERT INTO ResearchSettings
-                    (Id, GroundingMode, ProfileModel, GroundingModel, DeepResearchModel,
+                (Id, GroundingMode, ProfileModel, GroundingModel, DeepResearchModel,
                      AiSourceRerankingEnabled, ProviderPreset, SearchProviderPriority,
                      CrawlerProviderPriority, UpdatedAt)
                 VALUES
-                    ('research', 'Always', 'gemini-3.8-flash', 'gemini-3.5-flash-lite',
-                     'gemini-3.5-flash-lite', 0, 'Balanced', '["brave","exa"]',
+                    ('research', 'Always', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-flash-lite', 0, 'Balanced', '["brave","exa"]',
                      '["crawl4ai-local","firecrawl"]', '2026-09-11T00:00:00.0000000+00:00');
                 """);
         }

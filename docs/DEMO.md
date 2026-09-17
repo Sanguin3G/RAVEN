@@ -69,7 +69,7 @@ Optionally show archive/restore for the disposable record. Mention permanent del
 
 Open the Ask RAVEN dock.
 
-> “Ask RAVEN is normal Chat over the accepted profile and stored evidence. A greeting or product-navigation question can be answered naturally; a factual company claim still needs a citation. Deep Research remains a separate, explicit workflow.”
+> “Ask RAVEN is normal Chat over the accepted profile and stored evidence. A greeting or product-navigation question can be answered naturally; a factual company claim still needs a citation. Saved Investigations remain separate reference material.”
 
 Send `hi`, then ask a profile-supported factual question and open its citation. Ask whether RAVEN can research further, then use **Open Investigations** from the plus menu. Point out that **Search the web** is visibly unavailable rather than pretending to work.
 

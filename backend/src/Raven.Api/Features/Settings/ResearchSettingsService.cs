@@ -1,3 +1,4 @@
+using Raven.Api.Features.Ai;
 using Raven.Api.Features.Research.Intelligence;
 
 namespace Raven.Api.Features.Settings;
@@ -12,7 +13,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
     private static readonly HashSet<string> AllowedModels =
     [
         ResearchSettingsDefaults.ProfileModel,
-        ResearchSettingsDefaults.DeepResearchModel
+        RuntimeModelPreferences.Flash,
     ];
 
     public async Task<ResearchSettingsResponse> GetAsync(CancellationToken cancellationToken = default)
@@ -59,7 +60,6 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             GroundingMode = request.GroundingMode,
             ProfileModel = NormalizeModel(request.ProfileModel),
             GroundingModel = NormalizeModel(request.GroundingModel),
-            DeepResearchModel = NormalizeModel(request.DeepResearchModel),
             AiSourceRerankingEnabled = request.AiSourceRerankingEnabled,
             ProviderPreset = request.ProviderPreset,
             SearchProviderPriority = NormalizeProviderIds(
@@ -94,7 +94,6 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             GroundingMode = response.GroundingMode,
             ProfileModel = response.ProfileModel,
             GroundingModel = response.GroundingModel,
-            DeepResearchModel = response.DeepResearchModel,
             AiSourceRerankingEnabled = response.AiSourceRerankingEnabled,
             ProviderPreset = response.ProviderPreset,
             SearchProviderPriority = [.. response.SearchProviderPriority],
@@ -122,11 +121,6 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             errors.Add("Grounding model is not supported.");
         }
 
-        if (!AllowedModels.Contains(request.DeepResearchModel?.Trim() ?? string.Empty))
-        {
-            errors.Add("Deep Research model is not supported.");
-        }
-
         if (!Enum.IsDefined(request.ProviderPreset))
         {
             errors.Add("Provider preset is not supported.");
@@ -144,7 +138,6 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             settings.GroundingMode,
             settings.ProfileModel,
             settings.GroundingModel,
-            settings.DeepResearchModel,
             settings.AiSourceRerankingEnabled,
             settings.ProviderPreset,
             settings.SearchProviderPriority,
@@ -187,7 +180,6 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         entity.GroundingMode,
         entity.ProfileModel,
         entity.GroundingModel,
-        entity.DeepResearchModel,
         entity.AiSourceRerankingEnabled,
         entity.ProviderPreset,
         entity.SearchProviderPriority.AsReadOnly(),

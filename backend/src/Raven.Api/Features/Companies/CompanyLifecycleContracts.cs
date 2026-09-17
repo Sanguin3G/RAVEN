@@ -53,8 +53,6 @@ public sealed record CompanyMergePreviewResponse(
     int ProfileVersions,
     int ProfileEvidenceRows,
     int ProfileChanges,
-    int DeepResearchRuns,
-    int DeepResearchActivities,
     int SavedInvestigations,
     bool HasCanonicalMonitoring,
     bool HasDuplicateMonitoring,

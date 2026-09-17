@@ -7,9 +7,7 @@ using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Monitoring;
-using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
-using Microsoft.Extensions.AI;
 using Raven.Api.Middleware;
 using Raven.Api.Features.Profiles.Enrichment;
 using Raven.Api.Features.Research.Coverage;
@@ -57,16 +55,6 @@ builder.Services.AddScoped<ICompanyMonitoringService, CompanyMonitoringService>(
 builder.Services.AddScoped<ICompanyMonitoringStore, EfCompanyMonitoringStore>();
 builder.Services.AddScoped<ICompanyMonitoringCoordinator, CompanyMonitoringCoordinator>();
 builder.Services.AddHostedService<CompanyMonitoringWorker>();
-builder.Services.AddSingleton<IDeepResearchQueue, DeepResearchQueue>();
-builder.Services.AddHostedService<DeepResearchWorker>();
-builder.Services.AddScoped<IDeepResearchRunStore, EfDeepResearchRunStore>();
-builder.Services.AddScoped<EfDeepResearchActivityStore>();
-builder.Services.AddScoped<IDeepResearchActivityStore>(services => services.GetRequiredService<EfDeepResearchActivityStore>());
-builder.Services.AddScoped<IDeepResearchActivitySink>(services => services.GetRequiredService<EfDeepResearchActivityStore>());
-builder.Services.AddScoped<IDeepResearchToolset, EfDeepResearchToolset>();
-builder.Services.AddScoped<IChatClient, GeminiStructuredChatClient>();
-builder.Services.AddScoped<IDeepResearchAgent, MafDeepResearchAgent>();
-builder.Services.AddScoped<IDeepResearchRunService, DeepResearchRunService>();
 builder.Services.AddScoped<ISavedResearchArtifactStore, EfSavedResearchArtifactStore>();
 builder.Services.AddScoped<ISourceDocumentOwnershipReader, EfSourceDocumentOwnershipReader>();
 builder.Services.AddSingleton<ISavedResearchArtifactClock, SystemSavedResearchArtifactClock>();
@@ -108,7 +96,7 @@ app.MapResearchEndpoints();
 app.MapResearchCoverageEndpoints();
 app.MapProfileEndpoints();
 app.MapTargetedProfileUpdateEndpoints();
-app.MapDeepResearchEndpoints();
+app.MapSavedResearchEndpoints();
 app.MapChatEndpoints();
 
 if (app.Environment.IsDevelopment())

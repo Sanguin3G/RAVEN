@@ -9,7 +9,6 @@ using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Monitoring;
-using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Chat;
@@ -30,8 +29,6 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ProfileChange> ProfileChanges => Set<ProfileChange>();
     public DbSet<ResearchIdentityCandidate> ResearchIdentityCandidates => Set<ResearchIdentityCandidate>();
     public DbSet<CompanyMonitoringSetting> CompanyMonitoringSettings => Set<CompanyMonitoringSetting>();
-    public DbSet<DeepResearchRun> DeepResearchRuns => Set<DeepResearchRun>();
-    public DbSet<DeepResearchActivityRecord> DeepResearchActivities => Set<DeepResearchActivityRecord>();
     public DbSet<SavedResearchArtifact> SavedResearchArtifacts => Set<SavedResearchArtifact>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
@@ -109,30 +106,6 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<DeepResearchRun>(entity =>
-        {
-            entity.HasKey(run => run.Id);
-            entity.Property(run => run.Question).HasMaxLength(4_000).IsRequired();
-            entity.Property(run => run.Model).HasMaxLength(200).IsRequired();
-            entity.Property(run => run.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
-            entity.Property(run => run.ResultMarkdown).HasMaxLength(40_000);
-            entity.Property(run => run.Error).HasMaxLength(4_000);
-            entity.HasIndex(run => new { run.CompanyId, run.CreatedAt });
-            entity.HasOne<Company>().WithMany().HasForeignKey(run => run.CompanyId).OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<DeepResearchActivityRecord>(entity =>
-        {
-            entity.HasKey(activity => activity.Id);
-            entity.Property(activity => activity.Type).HasMaxLength(32).IsRequired();
-            entity.Property(activity => activity.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
-            entity.Property(activity => activity.Label).HasMaxLength(120).IsRequired();
-            entity.Property(activity => activity.Detail).HasMaxLength(280);
-            entity.Property(activity => activity.Provider).HasMaxLength(100);
-            entity.Property(activity => activity.SourceDocumentIdsJson).HasMaxLength(1_000).IsRequired();
-            entity.HasIndex(activity => new { activity.DeepResearchRunId, activity.Sequence }).IsUnique();
-            entity.HasOne<DeepResearchRun>().WithMany().HasForeignKey(activity => activity.DeepResearchRunId).OnDelete(DeleteBehavior.Restrict);
-        });
 
         modelBuilder.Entity<SavedResearchArtifact>(entity =>
         {
@@ -156,7 +129,6 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(settings => settings.GroundingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(settings => settings.ProfileModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.GroundingModel).HasMaxLength(200).IsRequired();
-            entity.Property(settings => settings.DeepResearchModel).HasMaxLength(200).IsRequired();
             // The Day-5.5 migration rewrites the persisted legacy value, but
             // accepting it at the model boundary keeps an interrupted upgrade
             // readable instead of resetting a user's provider priorities.

@@ -16,7 +16,7 @@ function formatDate(value: string) {
 }
 
 function researchTypeLabel(type: SavedResearchArtifact["researchType"]) {
-  return type === "Deep" ? "Deep Research" : "Research";
+  return type === "Deep" ? "Legacy research" : "Research";
 }
 
 function artifactCountLabel(count: number) {
@@ -73,7 +73,7 @@ export function CompanyInvestigationsTab({ companyId, investigations }: CompanyI
       {!isLoading && !error && !artifacts.length && (
         <div className={styles.emptyState}>
           <h3>No saved investigations</h3>
-          <p>Deep Research results become visible here only after someone explicitly saves them.</p>
+          <p>Saved research results remain reference material until explicitly used in a profile workflow.</p>
         </div>
       )}
       {artifacts.length > 0 && (

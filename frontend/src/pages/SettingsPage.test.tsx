@@ -8,7 +8,6 @@ const settings = {
   groundingMode: "Auto",
   profileModel: "gemini-3.5-flash-lite",
   groundingModel: "gemini-3.5-flash-lite",
-  deepResearchModel: "gemini-3.8-flash",
   aiSourceRerankingEnabled: true,
   providerPreset: "LocalFirst",
   searchProviderPriority: ["brave"],
@@ -20,7 +19,6 @@ const providerStatus = {
   brave: { provider: "brave", configured: true, available: true },
   crawl4Ai: { provider: "crawl4ai-local", configured: true, available: true },
   gemini: { provider: "gemini", configured: true, available: true, selectedModel: settings.profileModel },
-  deepResearchModel: settings.deepResearchModel,
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -56,7 +54,6 @@ it("loads persistent settings and saves the explicit model roles", async () => {
     groundingMode: "Always",
     profileModel: settings.profileModel,
     groundingModel: "gemini-3.8-flash",
-    deepResearchModel: settings.deepResearchModel,
     aiSourceRerankingEnabled: settings.aiSourceRerankingEnabled,
     providerPreset: settings.providerPreset,
     searchProviderPriority: settings.searchProviderPriority,

@@ -13,12 +13,10 @@ export interface ProviderStatusResponse {
   gemini: ProviderStatus;
   exa: ProviderStatus;
   firecrawl: ProviderStatus;
-  deepResearchModel: string;
 }
 
 export interface RuntimeModelPreferences {
   fastModel: string;
-  deepModel: string;
 }
 
 export function getProviderStatus() {

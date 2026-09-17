@@ -21,7 +21,7 @@ async function installFixture(page: import("@playwright/test").Page) {
     const response = question.includes("ceo")
       ? { conversationId: "conversation-1", messageId: "message-ceo", companyId, profileVersion: 1, status: "Answered", answer: "The accepted profile identifies the CEO as Jane Doe.", citations: [{ origin: "Profile", sourceDocumentId: "source-1", fieldPath: "leadership[0]", title: "Northwind leadership", url: "https://northwind.example/leadership", retrievedAt: "2026-09-10T00:00:00Z" }], toolExecutions: [], followUpQuestion: null }
       : question.includes("research")
-        ? { conversationId: "conversation-1", messageId: "message-research", companyId, profileVersion: 1, status: "Guidance", answer: "Deep Research can investigate this across multiple sources. Open Investigations to continue.", citations: [], toolExecutions: [], followUpQuestion: null }
+        ? { conversationId: "conversation-1", messageId: "message-research", companyId, profileVersion: 1, status: "Guidance", answer: "Saved investigations are available in Investigations.", citations: [], toolExecutions: [], followUpQuestion: null }
         : { conversationId: "conversation-1", messageId: "message-hello", companyId, profileVersion: 1, status: "Conversational", answer: "Hello. Ask me about this company's accepted profile and stored evidence.", citations: [], toolExecutions: [], followUpQuestion: null };
     const body = pathname.endsWith("/chat/conversations") && route.request().method() === "POST"
       ? { id: "conversation-1", companyId, profileVersionId: profile.id, profileVersion: 1, title: "Ask RAVEN", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z", messages: [] }
@@ -71,7 +71,7 @@ test("Ask RAVEN conversation and truthful capability menu", async ({ page }) => 
 
   await page.getByRole("textbox", { name: /Ask about/ }).fill("Can you research this company more deeply?");
   await page.getByRole("button", { name: "Send question" }).click();
-  await expect(page.getByText(/Deep Research can investigate this/)).toBeVisible();
+  await expect(page.getByText(/Saved investigations are available in Investigations/)).toBeVisible();
 
   await page.getByRole("button", { name: "Additional capabilities" }).click();
   const investigations = page.getByRole("link", { name: /Open Investigations/ });

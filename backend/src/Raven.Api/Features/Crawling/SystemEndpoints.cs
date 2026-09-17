@@ -51,8 +51,7 @@ public static class SystemEndpoints
             new ProviderConfigurationStatus("crawl4ai-local", !string.IsNullOrWhiteSpace(crawler.Provider), crawler.Available, null),
             new ProviderConfigurationStatus("gemini", !string.IsNullOrWhiteSpace(gemini.Value.ApiKey), null, modelPreferences.Current.FastModel),
             new ProviderConfigurationStatus("exa", !string.IsNullOrWhiteSpace(exa.Value.ApiKey), null, null),
-            new ProviderConfigurationStatus("firecrawl", !string.IsNullOrWhiteSpace(firecrawl.Value.ApiKey), null, null),
-            modelPreferences.Current.DeepModel));
+            new ProviderConfigurationStatus("firecrawl", !string.IsNullOrWhiteSpace(firecrawl.Value.ApiKey), null, null)));
     }
 
     private static IResult UpdateModelPreferences(

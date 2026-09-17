@@ -10,12 +10,7 @@ public sealed class SavedResearchArtifact
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid CompanyId { get; init; }
-
-    // These are deliberately GUID hooks only. The corresponding Conversation
-    // and DeepResearchRun entities are future work and are not required to save
-    // an artifact today.
     public Guid? ConversationId { get; init; }
-    public Guid? DeepResearchRunId { get; init; }
 
     public required string Title { get; init; }
     public required string Question { get; init; }
@@ -55,7 +50,6 @@ public sealed class SavedResearchArtifact
             Id = Id,
             CompanyId = CompanyId,
             ConversationId = ConversationId,
-            DeepResearchRunId = DeepResearchRunId,
             Title = Title,
             Question = Question,
             Summary = Summary,

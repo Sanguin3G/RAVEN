@@ -62,7 +62,7 @@ export function StatusPage() {
     { name: "Exa", detail: "Semantic discovery and contents", provider: providers?.exa, icon: MagnifyingGlass, statusUrl: "https://status.exa.ai/" },
     { name: "Crawl4AI Local", detail: "Local evidence acquisition", provider: providers?.crawl4Ai, icon: CloudArrowDown },
     { name: "Firecrawl", detail: "Cloud evidence acquisition", provider: providers?.firecrawl, icon: CloudArrowDown, statusUrl: "https://status.firecrawl.dev/" },
-    { name: "Gemini", detail: settings ? `Profile: ${settings.profileModel} | Deep: ${settings.deepResearchModel}` : "Evidence normalization", provider: providers?.gemini, icon: Brain },
+    { name: "Gemini", detail: settings ? `Profile: ${settings.profileModel}` : "Evidence normalization", provider: providers?.gemini, icon: Brain },
   ];
 
   return (
@@ -89,7 +89,7 @@ export function StatusPage() {
           <span className="status-core-arrow" aria-hidden="true">-&gt;</span>
           <article className={`status-core-card status-core-card--${routeState}`}><MagnifyingGlass size={23} weight="duotone" /><div><span><StateMark state={routeState} /> {stateLabel(routeState)}</span><h2>Provider route</h2><p>Saved search, crawler, and model preferences.</p></div></article>
           <span className="status-core-arrow" aria-hidden="true">-&gt;</span>
-          <article className={`status-core-card status-core-card--${providerState(providers?.gemini)}`}><Brain size={23} weight="duotone" /><div><span><StateMark state={providerState(providers?.gemini)} /> {stateLabel(providerState(providers?.gemini))}</span><h2>RAVEN intelligence</h2><p>Grounding, profile generation, and Deep Research.</p></div></article>
+          <article className={`status-core-card status-core-card--${providerState(providers?.gemini)}`}><Brain size={23} weight="duotone" /><div><span><StateMark state={providerState(providers?.gemini)} /> {stateLabel(providerState(providers?.gemini))}</span><h2>RAVEN intelligence</h2><p>Grounding, profile generation, and provider routing.</p></div></article>
         </div>
       </Panel>
 
@@ -100,7 +100,6 @@ export function StatusPage() {
           <div><dt>Acquisition</dt><dd>{routeLabel(settings.crawlerProviderPriority, "No crawler selected")}</dd></div>
           <div><dt>Grounding</dt><dd>{settings.groundingMode} | {settings.groundingModel}</dd></div>
           <div><dt>Profile model</dt><dd>{settings.profileModel}</dd></div>
-          <div><dt>Deep Research</dt><dd>{settings.deepResearchModel}</dd></div>
         </dl> : <p className="status-page__note">Research settings are unavailable, so this page can only show provider health.</p>}
       </Panel>
 

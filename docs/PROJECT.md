@@ -35,11 +35,11 @@ RAVEN currently supports:
 - a React Company workspace with Overview, Sources, Investigations, Changes, and Monitoring; Ask RAVEN is a company-scoped dock, not a dossier tab.
 - topology-only Gemini identity assistance with deterministic workflow policy, explicit-identifier fast paths, clarification, and source relevance with deterministic fallback.
 - persistent research settings, manual refresh, profile history, deterministic changes, and review-only monitoring.
-- neutral Exa and Firecrawl provider adapters plus bounded Deep Research and saved investigation backend contracts.
+- neutral Exa and Firecrawl provider adapters plus read-only saved investigation artifacts.
 - coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
 - cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, parent-first corporate-family choices, and a guided clarification path for weak or unknown identities.
 - persistent profile-grounded Ask RAVEN conversations with stored citations and bounded source excerpts; greetings and product guidance remain conversational while company facts remain evidence-gated.
-- bounded, best-effort execution telemetry batch-persisted outside the provider-call critical path; durable Deep Research activity remains separate.
+- bounded, best-effort execution telemetry batch-persisted outside the provider-call critical path.
 
 ## Company Profile
 
@@ -62,8 +62,8 @@ Research activity      Human review and confirmation
 Identity preflight     Source relevance
 Profile refresh        Change detection
 Provider routing       Monitoring
-Bounded Deep Research  Saved investigations
-Ask RAVEN Chat         Buffered execution telemetry
+Saved investigations   Buffered execution telemetry
+Ask RAVEN Chat
 ```
 
 ### P2 — later

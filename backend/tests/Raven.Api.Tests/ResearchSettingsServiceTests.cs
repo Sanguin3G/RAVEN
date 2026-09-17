@@ -17,7 +17,6 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(GroundingMode.Auto, settings.GroundingMode);
         Assert.Equal("gemini-3.5-flash-lite", settings.ProfileModel);
         Assert.Equal("gemini-3.5-flash-lite", settings.GroundingModel);
-        Assert.Equal("gemini-3.8-flash", settings.DeepResearchModel);
         Assert.True(settings.AiSourceRerankingEnabled);
         Assert.Equal(ProviderPreset.LocalFirst, settings.ProviderPreset);
         Assert.Equal(["brave"], settings.SearchProviderPriority);
@@ -35,7 +34,6 @@ public sealed class ResearchSettingsServiceTests
             GroundingMode.Always,
             "gemini-3.8-flash",
             "gemini-3.5-flash-lite",
-            "gemini-3.5-flash-lite",
             false,
             ProviderPreset.Custom,
             ["exa", "brave", "EXA"],
@@ -47,7 +45,6 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(expectedUpdate.GroundingMode, updated.GroundingMode);
         Assert.Equal(expectedUpdate.ProfileModel, reloaded.ProfileModel);
         Assert.Equal(expectedUpdate.GroundingModel, reloaded.GroundingModel);
-        Assert.Equal(expectedUpdate.DeepResearchModel, reloaded.DeepResearchModel);
         Assert.False(reloaded.AiSourceRerankingEnabled);
         Assert.Equal(ProviderPreset.Custom, reloaded.ProviderPreset);
         Assert.Equal(["exa", "brave"], reloaded.SearchProviderPriority);
@@ -64,7 +61,6 @@ public sealed class ResearchSettingsServiceTests
             GroundingMode.Off,
             "gemini-3.8-flash",
             "gemini-3.8-flash",
-            "gemini-3.5-flash-lite",
             false,
             ProviderPreset.Cloud,
             ["exa"],
@@ -75,7 +71,6 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(GroundingMode.Auto, reset.GroundingMode);
         Assert.Equal("gemini-3.5-flash-lite", reset.ProfileModel);
         Assert.Equal("gemini-3.5-flash-lite", reset.GroundingModel);
-        Assert.Equal("gemini-3.8-flash", reset.DeepResearchModel);
         Assert.True(reset.AiSourceRerankingEnabled);
         Assert.Equal(ProviderPreset.LocalFirst, reset.ProviderPreset);
         Assert.Equal(["brave"], reset.SearchProviderPriority);
@@ -94,7 +89,6 @@ public sealed class ResearchSettingsServiceTests
                 GroundingMode.Auto,
                 "gemini-unknown",
                 "gemini-3.5-flash-lite",
-                "gemini-3.8-flash",
                 false,
                 ProviderPreset.LocalFirst,
                 [""],
@@ -117,7 +111,6 @@ public sealed class ResearchSettingsServiceTests
             Id = ResearchSettingsEntity.SingletonKey,
             ProfileModel = "gemini-unavailable",
             GroundingModel = "gemini-3.5-flash-lite",
-            DeepResearchModel = "gemini-3.8-flash",
             SearchProviderPriority = ["brave"],
             CrawlerProviderPriority = ["crawl4ai-local"]
         });

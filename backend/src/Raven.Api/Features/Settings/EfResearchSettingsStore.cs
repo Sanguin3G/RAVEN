@@ -35,7 +35,6 @@ public sealed class EfResearchSettingsStore(RavenDbContext dbContext) : IResearc
             existing.GroundingMode = settings.GroundingMode;
             existing.ProfileModel = settings.ProfileModel;
             existing.GroundingModel = settings.GroundingModel;
-            existing.DeepResearchModel = settings.DeepResearchModel;
             existing.AiSourceRerankingEnabled = settings.AiSourceRerankingEnabled;
             existing.ProviderPreset = settings.ProviderPreset;
             existing.SearchProviderPriority = [.. settings.SearchProviderPriority];

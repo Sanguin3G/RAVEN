@@ -375,7 +375,6 @@ public sealed class InstrumentedAiModelProvider(
         if (template.Contains("identity", StringComparison.OrdinalIgnoreCase)) return "identity_resolution";
         if (template.Contains("rerank", StringComparison.OrdinalIgnoreCase) || template.Contains("relevance", StringComparison.OrdinalIgnoreCase)) return "source_relevance";
         if (template.Contains("patch", StringComparison.OrdinalIgnoreCase)) return "profile_patch_generation";
-        if (template.Contains("deep-research", StringComparison.OrdinalIgnoreCase)) return "deep_research_decision";
         if (template.Contains("company-chat", StringComparison.OrdinalIgnoreCase)) return "company_chat";
         return ResearchExecutionTelemetry.DefaultAiOperation;
     }

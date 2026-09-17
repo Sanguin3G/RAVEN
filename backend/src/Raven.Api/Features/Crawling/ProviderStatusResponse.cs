@@ -8,5 +8,5 @@ public sealed record ProviderStatusResponse(
     ProviderConfigurationStatus Crawl4Ai,
     ProviderConfigurationStatus Gemini,
     ProviderConfigurationStatus Exa,
-    ProviderConfigurationStatus Firecrawl,
-    string DeepResearchModel);
+    ProviderConfigurationStatus Firecrawl
+);

@@ -37,11 +37,6 @@ public static class SavedResearchArtifactValidation
             errors.Add("Conversation ID must be a non-empty ID when provided.");
         }
 
-        if (request.DeepResearchRunId == Guid.Empty)
-        {
-            errors.Add("Deep Research run ID must be a non-empty ID when provided.");
-        }
-
         var sourceDocumentIds = request.SourceDocumentIds ?? [];
         if (sourceDocumentIds.Count > MaxSourceDocumentIds)
         {

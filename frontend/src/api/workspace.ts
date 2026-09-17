@@ -94,8 +94,6 @@ export interface CompanyMergePreview {
   profileVersions: number;
   profileEvidenceRows: number;
   profileChanges: number;
-  deepResearchRuns: number;
-  deepResearchActivities: number;
   savedInvestigations: number;
   hasCanonicalMonitoring: boolean;
   hasDuplicateMonitoring: boolean;

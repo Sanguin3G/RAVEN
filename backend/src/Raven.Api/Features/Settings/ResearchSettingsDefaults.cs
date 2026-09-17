@@ -14,7 +14,6 @@ public static class ResearchSettingsDefaults
 {
     public const string ProfileModel = RuntimeModelPreferences.FlashLite;
     public const string GroundingModel = RuntimeModelPreferences.FlashLite;
-    public const string DeepResearchModel = RuntimeModelPreferences.Flash;
 
     public const string BraveSearchProvider = BraveProvider.ProviderId;
     public const string Crawl4AiLocalProvider = CrawlProvider.ProviderId;
@@ -26,7 +25,6 @@ public static class ResearchSettingsDefaults
         GroundingMode = GroundingMode.Auto,
         ProfileModel = ProfileModel,
         GroundingModel = GroundingModel,
-        DeepResearchModel = DeepResearchModel,
         AiSourceRerankingEnabled = true,
         ProviderPreset = ProviderPreset.LocalFirst,
         SearchProviderPriority = [BraveSearchProvider],

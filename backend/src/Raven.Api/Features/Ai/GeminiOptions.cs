@@ -17,8 +17,6 @@ public sealed class GeminiOptions
     // Product plan defaults. The selected model is supplied on each request.
     public string FastModel { get; set; } = "gemini-3.5-flash-lite";
 
-    public string DeepModel { get; set; } = "gemini-3.8-flash";
-
     public int TimeoutSeconds { get; set; } = 60;
 
     /// <summary>

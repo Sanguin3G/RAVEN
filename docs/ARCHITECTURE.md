@@ -2,7 +2,7 @@
 
 ## Current implementation boundary
 
-RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Bounded Deep Research and small in-process workers are implemented, but RAG, MCP, distributed queues, and microservices are not.
+RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Small in-process workers support research and monitoring; RAG, MCP, distributed queues, and microservices are not implemented.
 
 ```text
 Identity preflight
@@ -17,7 +17,7 @@ Identity preflight
 → immutable CompanyProfileVersion + ProfileEvidence
 ```
 
-Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress. Developer execution telemetry is a separate, bounded diagnostic stream: sanitized Search/Crawl/AI rows enqueue without blocking the caller and a background service persists batches using a fresh EF scope. A terminal run boundary requests a best-effort flush so execution summaries are promptly available. Business state is never dropped; Deep Research activity remains durable user-visible state and is not put in the lossy telemetry queue. An in-process channel-backed worker may run discovery after a `202 Accepted` start request; it supports cancellation and active-run visibility, but is intentionally non-durable, so queued work does not survive an API restart. Client session restoration is intentionally narrower: only known active/user-actionable stages are restored. Missing, cancelled, completed, failed, or legacy-unrestorable runs are cleared back to a blank research form rather than rendered as a stale company error.
+Each network step remains an ordinary HTTP operation. `ResearchRun.Stage`, status, counters, and ResearchEvent records provide truthful UI activity without invented percentage progress. Developer execution telemetry is a separate, bounded diagnostic stream: sanitized Search/Crawl/AI rows enqueue without blocking the caller and a background service persists batches using a fresh EF scope. A terminal run boundary requests a best-effort flush so execution summaries are promptly available. Business state is never dropped. An in-process channel-backed worker may run discovery after a `202 Accepted` start request; it supports cancellation and active-run visibility, but is intentionally non-durable, so queued work does not survive an API restart. Client session restoration is intentionally narrower: only known active/user-actionable stages are restored. Missing, cancelled, completed, failed, or legacy-unrestorable runs are cleared back to a blank research form rather than rendered as a stale company error.
 
 ## Technology stack
 
@@ -75,13 +75,13 @@ Generated candidates are not accepted facts. A human confirmation creates an imm
 
 ## Runtime model preferences
 
-Gemini configuration establishes startup defaults. The local Settings page may switch the approved Fast and Deep model choices between `gemini-3.5-flash-lite` and `gemini-3.8-flash` through a runtime-only preference service. Fast choice applies to new profile-generation scopes; preferences reset on API restart and do not alter or reveal secrets.
+Gemini configuration establishes startup defaults. The local Settings page may switch the approved Fast model choice between `gemini-3.5-flash-lite` and `gemini-3.8-flash` through a runtime-only preference service. The choice applies to new profile-generation scopes; preferences reset on API restart and do not alter or reveal secrets.
 
 ## Workspace composition
 
 The React application uses a fixed, collapsible desktop sidebar and a mobile drawer, contextual top bar, System Status route, reusable source cards/icons, and Settings. Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. A desktop Ask RAVEN dock reflows the dossier rather than overlaying it; on mobile it becomes a drawer. The frontend may render company context and composer modes, but Hung owns the Ask RAVEN backend/conversation contract. Source icons use safe domain favicon resolution with provider-aware and Phosphor fallbacks.
 
-`CompanyLifecycleService` is the mutation boundary for archive, restore, permanent deletion, and user-confirmed merge. Merge is transactional and retains compatible research, source, profile, provenance, monitoring, Deep Research, and saved-investigation relationships. It rewrites moved serialized profile/candidate identity references and reorders the combined immutable profile history by confirmation time, so the current accepted profile remains a valid, hydrated snapshot rather than being masked by a sparse retained Company row. Missing stable Company identity values are filled from the merged record; existing canonical values remain authoritative. `CompanyWorkspaceReviewService` is read-only: it evaluates deterministic health and duplicate groups, and its optional AI seam can only return recommendations.
+`CompanyLifecycleService` is the mutation boundary for archive, restore, permanent deletion, and user-confirmed merge. Merge is transactional and retains compatible research, source, profile, provenance, monitoring, and saved-investigation relationships. It rewrites moved serialized profile/candidate identity references and reorders the combined immutable profile history by confirmation time, so the current accepted profile remains a valid, hydrated snapshot rather than being masked by a sparse retained Company row. Missing stable Company identity values are filled from the merged record; existing canonical values remain authoritative. `CompanyWorkspaceReviewService` is read-only: it evaluates deterministic health and duplicate groups, and its optional AI seam can only return recommendations.
 
 ## Future seams
 
@@ -92,8 +92,6 @@ SourceDocument → SourceChunk → embeddings → company-filtered retrieval
 → Ask RAVEN answers with citations
 ```
 
-`DeepResearchRun` is a bounded, company-scoped backend operation implemented through Microsoft Agent Framework and `IChatClient`. Its model may invoke only read-only profile/source lookup, configured provider-routed search/crawl, and stored-source text search. Tool/search/crawl/document/duration budgets prevent open-ended work. `DeepResearchActivityRecord` persists only safe activity labels and source IDs—not prompts, credentials, raw tool outputs, or hidden reasoning.
-
-`SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. It belongs in Investigations; it can only begin a target-scoped profile-improvement flow, not update an accepted profile directly. Ask RAVEN is persistent profile-grounded Chat: factual company answers cite accepted-profile evidence, while safe greetings and navigation guidance need not invent citations. Chat web lookup is not implemented. Deep Research remains an explicit, long-running workflow rather than a Chat mode.
+`SavedResearchArtifact` preserves historical investigation material for a company. It validates source ownership and does not mutate an accepted profile. It belongs in Investigations; it can only begin a target-scoped profile-improvement flow, not update an accepted profile directly. Ask RAVEN is persistent profile-grounded Chat: factual company answers cite accepted-profile evidence, while safe greetings and navigation guidance need not invent citations. Chat web lookup is not implemented.
 
 RAG, MCP, Crawl4AI Cloud, and web-enabled Ask RAVEN turns remain future work. They must preserve the same source provenance and deterministic Fast Research path.

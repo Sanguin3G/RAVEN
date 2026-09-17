@@ -28,7 +28,7 @@ public static class ChatConversationPolicy
         if (normalized.Contains("research", StringComparison.Ordinal) &&
             (normalized.Contains("deep", StringComparison.Ordinal) || normalized.Contains("more", StringComparison.Ordinal)))
         {
-            return Complete(ChatAnswerStatus.Guidance, "Deep Research is a separate long-running investigation workflow. This profile chat does not silently start it; use Investigations to review saved investigation results.");
+            return Complete(ChatAnswerStatus.Guidance, "Saved investigations are reference material. This profile chat does not silently start additional research; use Investigations to review saved results.");
         }
 
         if (normalized.Contains("where", StringComparison.Ordinal) && normalized.Contains("source", StringComparison.Ordinal))

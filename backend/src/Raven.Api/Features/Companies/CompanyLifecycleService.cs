@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
-using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Profiles.Changes;
@@ -170,7 +169,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             await ReassignCompanyAsync(dbContext.CompanyProfileCandidates, profile => profile.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.CompanyProfileVersions, profile => profile.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.ProfileChanges, change => change.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
-            await ReassignCompanyAsync(dbContext.DeepResearchRuns, run => run.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.SavedResearchArtifacts, artifact => artifact.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await RewriteMovedProfilePayloadsAsync(
                 canonical.Id,
@@ -238,10 +236,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             .Where(run => run.CompanyId == companyId)
             .Select(run => run.Id)
             .ToArrayAsync(cancellationToken);
-        var deepResearchRunIds = await dbContext.DeepResearchRuns
-            .Where(run => run.CompanyId == companyId)
-            .Select(run => run.Id)
-            .ToArrayAsync(cancellationToken);
         var profileCandidateIds = await dbContext.CompanyProfileCandidates
             .Where(profile => profile.CompanyId == companyId)
             .Select(profile => profile.Id)
@@ -287,16 +281,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             .Where(artifact => artifact.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);
 
-        if (deepResearchRunIds.Length > 0)
-        {
-            deleted += await dbContext.DeepResearchActivities
-                .Where(activity => deepResearchRunIds.Contains(activity.DeepResearchRunId))
-                .ExecuteDeleteAsync(cancellationToken);
-        }
-
-        deleted += await dbContext.DeepResearchRuns
-            .Where(run => run.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.CompanyMonitoringSettings
             .Where(setting => setting.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);
@@ -315,11 +299,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
         CancellationToken cancellationToken)
     {
         var duplicateRunIds = await dbContext.ResearchRuns
-            .AsNoTracking()
-            .Where(run => run.CompanyId == duplicate.Id)
-            .Select(run => run.Id)
-            .ToArrayAsync(cancellationToken);
-        var duplicateDeepRunIds = await dbContext.DeepResearchRuns
             .AsNoTracking()
             .Where(run => run.CompanyId == duplicate.Id)
             .Select(run => run.Id)
@@ -362,8 +341,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
                 (evidence.CompanyProfileCandidateId.HasValue && duplicateProfileCandidateIds.Contains(evidence.CompanyProfileCandidateId.Value)) ||
                 (evidence.CompanyProfileVersionId.HasValue && duplicateProfileVersionIds.Contains(evidence.CompanyProfileVersionId.Value)), cancellationToken),
             await dbContext.ProfileChanges.CountAsync(change => change.CompanyId == duplicate.Id, cancellationToken),
-            duplicateDeepRunIds.Length,
-            await CountByIdsAsync(dbContext.DeepResearchActivities, activity => activity.DeepResearchRunId, duplicateDeepRunIds, cancellationToken),
             await dbContext.SavedResearchArtifacts.CountAsync(artifact => artifact.CompanyId == duplicate.Id, cancellationToken),
             await dbContext.CompanyMonitoringSettings.AnyAsync(setting => setting.CompanyId == canonical.Id, cancellationToken),
             await dbContext.CompanyMonitoringSettings.AnyAsync(setting => setting.CompanyId == duplicate.Id, cancellationToken),
@@ -588,17 +565,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             }
         }
 
-        var activities = await dbContext.DeepResearchActivities.ToListAsync(cancellationToken);
-        foreach (var activity in activities)
-        {
-            var rewritten = RewriteSourceIdJson(activity.SourceDocumentIdsJson, sourceMap);
-            if (rewritten is not null)
-            {
-                dbContext.Entry(activity)
-                    .Property(item => item.SourceDocumentIdsJson)
-                    .CurrentValue = rewritten;
-            }
-        }
     }
 
     private static string? RewriteSourceIdJson(
