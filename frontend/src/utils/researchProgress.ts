@@ -68,7 +68,7 @@ export function researchProgressLabel(run: ResearchRun, paused = false): string 
     case "Cancelled":
       return "Research cancelled";
     case "Failed":
-      return "Research needs attention";
+      return "Research issue";
     default:
       return "Research status unavailable";
   }

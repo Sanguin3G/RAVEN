@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatConversation, sendChatMessage } from "../../api/chat";
 import {
@@ -91,8 +91,10 @@ describe("AskRavenHandoff", () => {
     expect(deepResearch).not.toBeDisabled();
     fireEvent.click(deepResearch);
 
-    expect(screen.getByText("Launches a background investigation; you can keep chatting.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove Deep Research capability" })).toBeInTheDocument();
+    const capabilityTrigger = screen.getByRole("button", { name: "Additional capabilities" });
+    const capabilityChip = screen.getByRole("button", { name: "Remove Deep Research capability" });
+    expect(capabilityChip).toBeInTheDocument();
+    expect(capabilityTrigger.compareDocumentPosition(capabilityChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await waitFor(() => expect(screen.getByPlaceholderText(/investigate about FPT Smart Cloud/i)).toBeInTheDocument());
   });
 
@@ -121,7 +123,7 @@ describe("AskRavenHandoff", () => {
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
   });
 
-  it("surfaces a recent completed investigation without blocking the composer", async () => {
+  it("keeps completed research out of the floating notification layer", async () => {
     vi.mocked(getManagedResearchJobs).mockResolvedValue([{
       id: "job-complete",
       companyId: "company-1",
@@ -134,8 +136,9 @@ describe("AskRavenHandoff", () => {
     }]);
     render(<AskRavenHandoff {...props} />);
 
-    await waitFor(() => expect(screen.getByTestId("managed-research-completion")).toBeInTheDocument());
-    expect(screen.getByTestId("managed-research-completion").querySelector("a")).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=investigation-1");
+    await waitFor(() => expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=investigation-1"));
+    expect(screen.queryByTestId("managed-research-completion")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
   });
 
   it("attaches and removes an investigation context without changing the Chat contract", async () => {
@@ -163,8 +166,8 @@ describe("AskRavenHandoff", () => {
     });
     render(<AskRavenHandoff {...props} />);
 
-    const notification = await waitFor(() => screen.getByTestId("managed-research-completion"));
-    fireEvent.click(within(notification).getByRole("button", { name: "Continue with result", hidden: true }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Attach to Ask RAVEN" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Attach to Ask RAVEN" }));
 
     await waitFor(() => expect(screen.getByLabelText("Attached research context")).toBeInTheDocument());
     expect(attachResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1");

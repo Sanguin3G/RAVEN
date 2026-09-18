@@ -35,11 +35,17 @@ RAVEN currently supports:
 - a React Company workspace with Overview, Sources, Investigations, Changes, and Monitoring; Ask RAVEN is a company-scoped dock, not a dossier tab.
 - topology-only Gemini identity assistance with deterministic workflow policy, explicit-identifier fast paths, clarification, and source relevance with deterministic fallback.
 - persistent research settings, manual refresh, profile history, deterministic changes, and review-only monitoring.
-- neutral Exa and Firecrawl provider adapters plus bounded Deep Research and saved investigation backend contracts.
+- native Brave/Exa Search and Crawl4AI/Exa Contents routing; managed asynchronous Exa Agent research; and saved Investigation contracts.
+- provider-neutral External Research Import: RAVEN creates a copyable focused brief for any assistant and imports pasted Markdown as untrusted research material.
+- explicit, removable Investigation attachments per Ask RAVEN conversation. Attached material remains separate from accepted profile truth; Hung's Chat backend owns eventual LLM grounding.
 - coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
 - cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, parent-first corporate-family choices, and a guided clarification path for weak or unknown identities.
 - persistent profile-grounded Ask RAVEN conversations with stored citations and bounded source excerpts; greetings and product guidance remain conversational while company facts remain evidence-gated.
 - bounded, best-effort execution telemetry batch-persisted outside the provider-call critical path; durable Deep Research activity remains separate.
+
+Initial profile creation is a user-controlled boundary. RAVEN may generate a candidate, but only explicit user confirmation can create an immutable Company Profile version. Failed or still-running runs cannot be confirmed, and an identity-only/name-only profile row is not a usable Profile Improvement baseline. The workspace uses supported-target coverage gaps plus model-generation provenance to distinguish a real sparse/partial profile from an interrupted workflow artifact.
+
+The three research methods remain intentionally distinct: Native RAVEN Research is the fast integrated default; Deep Research is asynchronous and its ProfileImprovement results stay locked and outside Workspace Review until a usable Profile v1 exists; External AI Assist is provider-neutral, unverified material that also requires the normal review and confirmation path.
 
 ## Company Profile
 

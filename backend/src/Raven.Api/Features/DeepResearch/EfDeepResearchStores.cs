@@ -37,10 +37,11 @@ public sealed class EfDeepResearchRunStore(RavenDbContext dbContext) : IDeepRese
     }
 
     public async Task<IReadOnlyList<DeepResearchRun>> ListForCompanyAsync(Guid companyId, CancellationToken cancellationToken = default) =>
-        await dbContext.DeepResearchRuns.AsNoTracking()
+        (await dbContext.DeepResearchRuns.AsNoTracking()
             .Where(run => run.CompanyId == companyId)
-            .OrderByDescending(run => run.CreatedAt)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken))
+        .OrderByDescending(run => run.CreatedAt)
+        .ToArray();
 }
 
 public sealed class EfDeepResearchActivityStore(RavenDbContext dbContext) : IDeepResearchActivityStore, IDeepResearchActivitySink

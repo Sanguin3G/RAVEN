@@ -16,6 +16,7 @@ public static class ResearchSettingsDefaults
     public const string ProfileModel = RuntimeModelPreferences.FlashLite;
     public const string GroundingModel = RuntimeModelPreferences.FlashLite;
     public const string DeepResearchModel = RuntimeModelPreferences.Flash;
+    public const string ManagedResearchProvider = "exa-agent";
 
     public const string BraveSearchProvider = BraveProvider.ProviderId;
     public const string ExaSearchProvider = ExaSearch.ProviderId;
@@ -51,6 +52,8 @@ public static class ResearchSettingsDefaults
         ProfileModel = ProfileModel,
         GroundingModel = GroundingModel,
         DeepResearchModel = DeepResearchModel,
+        ManagedResearchProvider = ManagedResearchProvider,
+        ManagedResearchDepth = ManagedResearchDepth.Adaptive,
         AiSourceRerankingEnabled = true,
         ProviderPreset = ProviderPreset.LocalFirst,
         SearchProviderPriority = [BraveSearchProvider],

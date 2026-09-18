@@ -81,7 +81,18 @@ public sealed class CompanyProfileWorkflowService(
             run.Error = result.Failure?.Message ?? "Profile generation did not return a valid candidate.";
             await dbContext.SaveChangesAsync(cancellationToken);
             await FlushTelemetryAsync(cancellationToken);
-            return ToResponse(result);
+            return Failed(result.Failure?.Code ?? "profile_generation_failed", run.Error, result);
+        }
+
+        if (!CompanyProfileReadiness.IsConfirmableCandidate(result.Candidate))
+        {
+            run.Status = ResearchRunStatus.Failed;
+            run.Stage = ResearchStage.Failed;
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            run.Error = "RAVEN returned an identity-only profile preview without enough supported evidence to create a Company Profile.";
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await FlushTelemetryAsync(cancellationToken);
+            return Failed("profile_incomplete", run.Error, result);
         }
 
         var candidate = await persistenceService.SaveCandidateAsync(result.Candidate, cancellationToken);
@@ -120,10 +131,27 @@ public sealed class CompanyProfileWorkflowService(
 
     public async Task<CompanyProfileVersion?> ConfirmAsync(Guid researchRunId, Guid candidateId, CancellationToken cancellationToken)
     {
+        var run = await dbContext.ResearchRuns
+            .SingleOrDefaultAsync(item => item.Id == researchRunId, cancellationToken);
+        if (run is null)
+        {
+            return null;
+        }
+
+        if (run.Status != ResearchRunStatus.Completed || run.Stage != ResearchStage.AwaitingProfileConfirmation)
+        {
+            throw new BadHttpRequestException("This research run is not waiting for your profile confirmation. No Company Profile was created.");
+        }
+
         var candidate = await persistenceService.GetCandidateAsync(candidateId, cancellationToken);
         if (candidate is null || candidate.ResearchRunId != researchRunId)
         {
             return null;
+        }
+
+        if (!CompanyProfileReadiness.IsConfirmableCandidate(candidate))
+        {
+            throw new BadHttpRequestException("This profile preview is incomplete and has not created a Company Profile. Start or restore RAVEN Research to produce supported profile evidence.");
         }
 
         var profile = await persistenceService.ConfirmCandidateAsync(candidateId, cancellationToken);
@@ -131,8 +159,6 @@ public sealed class CompanyProfileWorkflowService(
         {
             return null;
         }
-
-        var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == researchRunId, cancellationToken);
         await WriteEventAsync(run, ResearchEventCategory.Profile, "profile_confirmation", ResearchEventStatus.Completed,
             $"Confirmed Company Profile version {profile.Version}.", cancellationToken);
         await FlushTelemetryAsync(cancellationToken);

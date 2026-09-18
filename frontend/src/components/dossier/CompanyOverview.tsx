@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { safeExternalUrl } from "../sources/sourceUtils";
 import type { CoverageLevel, ResearchTarget } from "../../api/coverage";
 import type { CompanyProfileVersion } from "../../types/profile";
@@ -6,14 +7,21 @@ import styles from "./dossier.module.css";
 import { CompanyCoveragePanel } from "./CompanyCoveragePanel";
 import { TargetedEnrichmentPanel } from "./TargetedEnrichmentPanel";
 import type { DossierCompany, DossierCoverage, DossierLocation, DossierProfile } from "./dossierTypes";
+import { getSavedInvestigations } from "../../api/investigations";
+import { getManagedResearchJobs } from "../../api/managedResearch";
+import { getProfileReadiness, hasUsableAcceptedProfile } from "../../utils/profileReadiness";
 
 export interface CompanyOverviewProps {
   company: DossierCompany;
   profile?: DossierProfile | null;
   coverage?: DossierCoverage | null;
   initialEnrichmentTargets?: ResearchTarget[];
+  initialEnrichmentArtifactId?: string | null;
+  initialManagedResearchInvestigationId?: string | null;
   openEnrichment?: boolean;
   onProfileConfirmed?: (profile: CompanyProfileVersion) => void;
+  onOpenExternalResearch?: (target: ResearchTarget) => void;
+  profileImprovedMaterialIds?: ReadonlySet<string>;
 }
 
 function UnknownValue() {
@@ -59,8 +67,28 @@ const targetLabels: Record<ResearchTarget, string> = {
   Markets: "markets", Leadership: "leadership", Locations: "locations",
 };
 
+const targetKeywords: Array<[ResearchTarget, string[]]> = [
+  ["Leadership", ["leadership", "leader", "executive", "ceo"]],
+  ["EmployeeScale", ["employee", "headcount", "workforce", "scale"]],
+  ["Markets", ["market", "expansion", "customer"]],
+  ["Locations", ["location", "office", "headquarter"]],
+  ["ProductsServices", ["product", "service"]],
+  ["Industry", ["industry", "sector"]],
+  ["FoundedHistory", ["founded", "history", "established"]],
+  ["LegalIdentity", ["legal", "identity", "registration", "tax"]],
+];
+
+function inferInvestigationTargets(text: string): ResearchTarget[] {
+  const normalized = text.toLowerCase();
+  return targetKeywords.filter(([, keywords]) => keywords.some((keyword) => normalized.includes(keyword))).map(([target]) => target);
+}
+
+function isProfileImprovementMaterial(text: string): boolean {
+  return /strengthen|improve\s+(this\s+)?profile|profile\s+improvement|profile\s+update|dossier/i.test(text);
+}
+
 function coverageLevel(response: DossierCoverage["response"] | undefined, target: ResearchTarget): CoverageLevel {
-  return response?.items.find((item) => item.target === target)?.level ?? "Missing";
+  return response?.items?.find((item) => item.target === target)?.level ?? "Missing";
 }
 
 function ResearchAction({ target, level, onClick }: { target: ResearchTarget; level: CoverageLevel; onClick: () => void }) {
@@ -68,12 +96,44 @@ function ResearchAction({ target, level, onClick }: { target: ResearchTarget; le
   return <button className={styles.coverageAction} type="button" onClick={onClick}>{level === "Missing" ? `Find ${targetLabels[target]}` : `Strengthen ${targetLabels[target]}`}</button>;
 }
 
-export function CompanyOverview({ company, profile, coverage, initialEnrichmentTargets, openEnrichment = false, onProfileConfirmed }: CompanyOverviewProps) {
+export function CompanyOverview({ company, profile, coverage, profileImprovedMaterialIds, initialEnrichmentTargets, initialEnrichmentArtifactId, initialManagedResearchInvestigationId, openEnrichment = false, onProfileConfirmed, onOpenExternalResearch }: CompanyOverviewProps) {
   const [displayProfile, setDisplayProfile] = useState<DossierProfile | null | undefined>(profile);
   const [enrichmentTargets, setEnrichmentTargets] = useState<ResearchTarget[]>([]);
+  const [enrichmentArtifactId, setEnrichmentArtifactId] = useState<string | null>(null);
+  const [enrichmentManagedInvestigationId, setEnrichmentManagedInvestigationId] = useState<string | null>(null);
+  const [investigationSummary, setInvestigationSummary] = useState<{ count: number; targets: ResearchTarget[]; appliedCount: number }>({ count: 0, targets: [], appliedCount: 0 });
   const [enrichmentOpen, setEnrichmentOpen] = useState(false);
   const autoOpenRef = useRef(false);
   const current = displayProfile || {};
+  const profileReadiness = getProfileReadiness(displayProfile);
+  const coverageItems = Array.isArray(coverage?.response?.items) ? coverage.response.items : [];
+  const profileGapCount = coverage ? coverageItems.filter((item) => item.level === "Missing" || item.level === "Weak").length : undefined;
+  const hasAcceptedProfile = hasUsableAcceptedProfile(displayProfile || profile, profileGapCount);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([getSavedInvestigations(company.id).catch(() => []), getManagedResearchJobs(company.id).catch(() => [])]).then(([loadedArtifacts, loadedJobs]) => {
+      if (!active) return;
+      const artifacts = Array.isArray(loadedArtifacts) ? loadedArtifacts : [];
+      const jobs = Array.isArray(loadedJobs) ? loadedJobs : [];
+      const appliedIds = profileImprovedMaterialIds ?? new Set<string>();
+      const artifactRecords = artifacts.filter((artifact) => isProfileImprovementMaterial(artifact.title + " " + (artifact.objective || artifact.question))).map((artifact) => ({
+        id: artifact.id,
+        targets: inferInvestigationTargets(artifact.title + " " + (artifact.objective || artifact.question) + " " + (artifact.claims || []).map((claim) => claim.field + " " + claim.statement).join(" ")),
+      }));
+      const managedRecords = jobs
+        .filter((job) => hasAcceptedProfile && job.status === "Completed" && job.purpose === "ProfileImprovement")
+        .map((job) => ({ id: job.investigationId ?? job.id, targets: inferInvestigationTargets(job.objective) }));
+      const relevant = [...artifactRecords, ...managedRecords].filter((item) => item.targets.length > 0);
+      const pending = relevant.filter((item) => !appliedIds.has(item.id));
+      setInvestigationSummary({
+        count: pending.length,
+        targets: [...new Set(pending.flatMap((item) => item.targets))],
+        appliedCount: relevant.length - pending.length,
+      });
+    });
+    return () => { active = false; };
+  }, [company.id, displayProfile, hasAcceptedProfile, profile, profileImprovedMaterialIds]);
 
   useEffect(() => setDisplayProfile(profile), [profile]);
 
@@ -85,8 +145,10 @@ export function CompanyOverview({ company, profile, coverage, initialEnrichmentT
     if (autoOpenRef.current) return;
     autoOpenRef.current = true;
     setEnrichmentTargets(initialEnrichmentTargets?.length ? initialEnrichmentTargets : gapTargetsFallback(profile, coverage));
+    setEnrichmentArtifactId(initialEnrichmentArtifactId ?? null);
+    setEnrichmentManagedInvestigationId(initialManagedResearchInvestigationId ?? null);
     setEnrichmentOpen(true);
-  }, [openEnrichment, initialEnrichmentTargets, profile, coverage]);
+  }, [openEnrichment, initialEnrichmentArtifactId, initialEnrichmentTargets, initialManagedResearchInvestigationId, profile, coverage]);
 
   const gapTargets = useMemo(() => {
     const all: ResearchTarget[] = ["LegalIdentity", "TaxRegistration", "FoundedHistory", "Industry", "EmployeeScale", "ProductsServices", "Markets", "Leadership", "Locations"];
@@ -98,6 +160,8 @@ export function CompanyOverview({ company, profile, coverage, initialEnrichmentT
 
   function beginEnrichment(targets: ResearchTarget[]) {
     setEnrichmentTargets(targets.length ? targets : ["LegalIdentity", "Markets", "Leadership"]);
+    setEnrichmentArtifactId(null);
+    setEnrichmentManagedInvestigationId(null);
     setEnrichmentOpen(true);
   }
 
@@ -167,18 +231,31 @@ export function CompanyOverview({ company, profile, coverage, initialEnrichmentT
       </div>
 
       <aside className={styles.contextStack} aria-label="Dossier context">
+        {!hasAcceptedProfile ? <section className={styles.contextCard} aria-labelledby="dossier-profile-status-heading">
+          <div className={styles.sectionHeader}><h2 id="dossier-profile-status-heading">This profile is not ready to improve</h2><span>{profileReadiness === "identity-only" ? "Identity-only profile" : "Incomplete profile"}</span></div>
+          <p className={styles.contextNote}>{displayProfile ? "RAVEN preserved this profile row, but it has no supported research baseline. It cannot be used for Profile Improvement; create or repair the initial profile first." : "This company does not have an accepted Company Profile yet. You can still review the dossier, continue research, or open the workspace while evidence is being collected."}</p>
+          <div className={styles.coverageActions}><Link className="button button--secondary" to={`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`}>Refresh research</Link><Link className="button button--quiet" to="/companies?review=true">Review workspace</Link></div>
+        </section> : null}
         <CompanyCoveragePanel coverage={coverage} />
         <section className={styles.contextCard} aria-labelledby="dossier-improve-heading">
-          <div className={styles.sectionHeader}><h2 id="dossier-improve-heading">Improve this profile</h2><span>{gapTargets.length ? `${gapTargets.length} area${gapTargets.length === 1 ? "" : "s"} to strengthen` : "No obvious gaps"}</span></div>
-          <p className={styles.contextNote}>Targeted research adds evidence to selected gaps and preserves unrelated accepted fields.</p>
-          <div className={styles.coverageActions}><button className="button button--secondary" type="button" onClick={() => beginEnrichment(gapTargets)}>Improve this profile</button></div>
+          <div className={styles.sectionHeader}><h2 id="dossier-improve-heading">Improve this profile</h2><span>{gapTargets.length ? gapTargets.length + " gap" + (gapTargets.length === 1 ? "" : "s") + " remain" : coverage?.response ? "No obvious gaps" : "Checking gaps"}</span></div>
+          {!hasAcceptedProfile ? <>
+            <p className={styles.contextNote}>Profile Improvement unlocks after RAVEN creates a supported profile baseline. The current row is preserved for review but is not actionable.</p>
+            <div className={styles.coverageActions}><Link className="button button--secondary" to={`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`}>Create or repair profile</Link></div>
+          </> : investigationSummary.count > 0 ? <>
+            <p className={styles.contextNote}><strong>{investigationSummary.targets.slice(0, 2).map((target) => targetLabels[target]).join(" · ")}</strong><br />{investigationSummary.count} investigation{investigationSummary.count === 1 ? "" : "s"} with new profile material.</p>
+            <div className={styles.coverageActions}><Link className="button button--secondary" to={"/companies/" + encodeURIComponent(company.id) + "?tab=investigations"}>Review investigations</Link></div>
+          </> : <>
+            <p className={styles.contextNote}>{investigationSummary.appliedCount > 0 ? investigationSummary.appliedCount + " investigation" + (investigationSummary.appliedCount === 1 ? "" : "s") + " already applied. " : ""}Targeted research adds evidence to selected gaps and preserves unrelated accepted fields.</p>
+            <div className={styles.coverageActions}><button className="button button--secondary" type="button" onClick={() => beginEnrichment(gapTargets)}>Improve this profile</button></div>
+          </>}
         </section>
         <section className={styles.contextCard} aria-labelledby="dossier-identifiers-heading">
           <h2 id="dossier-identifiers-heading">Identifiers</h2>
           <dl className={styles.identifierList}>
             <div><dt>Legal name</dt><dd><FieldValue value={current.legalName || company.legalName} /></dd></div>
             <div><dt>Registration / tax ID</dt><dd><FieldValue value={current.registrationNumberOrTaxId || company.registrationNumber} /></dd></div>
-            <div><dt>Official website</dt><dd>{website ? <a href={website} rel="noreferrer noopener" target="_blank">{new URL(website).hostname.replace(/^www\./i, "")}</a> : <UnknownValue />}</dd></div>
+            <div><dt>Official website</dt><dd>{website ? <a href={website} rel="noreferrer noopener" target="_blank">{website}</a> : <UnknownValue />}</dd></div>
           </dl>
           <div className={styles.coverageActions}><ResearchAction target="LegalIdentity" level={coverageLevel(coverage?.response, "LegalIdentity")} onClick={() => beginEnrichment(["LegalIdentity"])} /><ResearchAction target="TaxRegistration" level={coverageLevel(coverage?.response, "TaxRegistration")} onClick={() => beginEnrichment(["TaxRegistration"])} /></div>
         </section>
@@ -197,10 +274,10 @@ export function CompanyOverview({ company, profile, coverage, initialEnrichmentT
 
         <section className={styles.contextCard} aria-labelledby="dossier-links-heading">
           <h2 id="dossier-links-heading">Public links</h2>
-          {links.length || website ? <ul className={styles.linkList}>{website && <li><strong>Official website</strong><a href={website} rel="noreferrer noopener" target="_blank">{new URL(website).hostname.replace(/^www\./i, "")}</a></li>}{links.map((link, index) => { const safeLink = safeExternalUrl(link); return safeLink ? <li key={`${safeLink}-${index}`}><strong>Public source</strong><a href={safeLink} rel="noreferrer noopener" target="_blank">{new URL(safeLink).hostname.replace(/^www\./i, "")}</a></li> : null; })}</ul> : <p className={styles.contextNote}>No public links were verified.</p>}
+          {links.length || website ? <ul className={styles.linkList}>{website && <li><strong>Official website</strong><a href={website} rel="noreferrer noopener" target="_blank">{website}</a></li>}{links.map((link, index) => { const safeLink = safeExternalUrl(link); return safeLink ? <li key={`${safeLink}-${index}`}><strong>Public source</strong><a href={safeLink} rel="noreferrer noopener" target="_blank">{safeLink}</a></li> : null; })}</ul> : <p className={styles.contextNote}>No public links were verified.</p>}
         </section>
       </aside>
-      <TargetedEnrichmentPanel company={company} profile={displayProfile} initialTargets={enrichmentTargets} open={enrichmentOpen} onClose={() => setEnrichmentOpen(false)} onConfirmed={handleConfirmed} />
+      <TargetedEnrichmentPanel company={company} profile={displayProfile} initialTargets={enrichmentTargets} initialMaterialArtifactId={enrichmentArtifactId} initialManagedResearchInvestigationId={enrichmentManagedInvestigationId} open={enrichmentOpen} onClose={() => setEnrichmentOpen(false)} onConfirmed={handleConfirmed} onOpenExternalResearch={onOpenExternalResearch} />
     </div>
   );
 }
@@ -220,7 +297,7 @@ function gapTargetsFallback(profile: DossierProfile | null | undefined, coverage
     Locations: Boolean(current.locations?.length),
   };
   const gaps = all.filter((target) => {
-    const level = coverage?.response?.items.find((item) => item.target === target)?.level;
+    const level = coverage?.response?.items?.find((item) => item.target === target)?.level;
     return level === "Missing" || level === "Weak" || (level === undefined && !hasValue[target]);
   });
   return gaps.length ? gaps : ["LegalIdentity", "Markets", "Leadership"];

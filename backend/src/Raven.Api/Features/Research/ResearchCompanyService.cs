@@ -419,6 +419,117 @@ public sealed class ResearchCompanyService(
         return ToResponse(run);
     }
 
+    public async Task<ResearchRunResponse?> VerifySourceLeadsAsync(
+        Guid companyId,
+        VerifyResearchSourceLeadsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (companyId == Guid.Empty || string.IsNullOrWhiteSpace(request.Objective))
+        {
+            throw new ArgumentException("A company and research objective are required.");
+        }
+
+        var urls = (request.Urls ?? [])
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(25)
+            .ToArray();
+        if (urls.Length == 0)
+        {
+            throw new BadHttpRequestException("Select at least one source lead to verify.");
+        }
+
+        var company = await dbContext.Companies.SingleOrDefaultAsync(item => item.Id == companyId, cancellationToken);
+        if (company is null)
+        {
+            return null;
+        }
+
+        var normalizedCandidates = new List<ResearchCandidate>();
+        var normalizedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var url in urls)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed) || parsed.Scheme is not ("http" or "https"))
+            {
+                throw new BadHttpRequestException("Source leads must use HTTP or HTTPS URLs.");
+            }
+
+            var normalized = urlNormalizer.Normalize(url);
+            if (string.IsNullOrWhiteSpace(normalized) || !normalizedUrls.Add(normalized))
+            {
+                continue;
+            }
+
+            normalizedCandidates.Add(new ResearchCandidate
+            {
+                Url = url,
+                NormalizedUrl = normalized,
+                Domain = parsed.Host,
+                Title = parsed.Host,
+                Snippet = "Selected source lead from an investigation.",
+                SourceKind = SourceKind.ExternalWebsite,
+                SearchRank = normalizedCandidates.Count + 1,
+                Score = 100,
+                RecommendationReasonsJson = JsonSerializer.Serialize(new[] { "Selected investigation source lead" }),
+                Recommended = true,
+                Selected = true,
+                IconUrl = BuildIconUrl(parsed.Host)
+            });
+        }
+
+        if (normalizedCandidates.Count == 0)
+        {
+            throw new BadHttpRequestException("No usable source leads were supplied.");
+        }
+
+        var settings = await ReadSettingsAsync(cancellationToken);
+        var run = new ResearchRun
+        {
+            CompanyId = companyId,
+            RequestedSearchProvider = settings?.SearchProviderPriority.FirstOrDefault() ?? searchProvider.Id,
+            RequestedCrawlerProvider = settings?.CrawlerProviderPriority.FirstOrDefault() ?? crawlerProvider.Id,
+            ResearchHint = request.Objective.Trim(),
+            GroundingMode = settings?.GroundingMode ?? GroundingMode.Auto,
+            Mode = ResearchMode.TargetedEnrichment,
+            BaseProfileVersionId = request.BaseProfileVersionId,
+            ResearchTargetsJson = SerializeTargets(request.Targets),
+            Stage = ResearchStage.AwaitingSourceSelection,
+            Status = ResearchRunStatus.Searching,
+            SourcesFound = normalizedCandidates.Count,
+            UniqueCandidates = normalizedCandidates.Count,
+            RecommendedCandidates = normalizedCandidates.Count
+        };
+        dbContext.ResearchRuns.Add(run);
+        foreach (var candidate in normalizedCandidates)
+        {
+            dbContext.ResearchCandidates.Add(new ResearchCandidate
+            {
+                Id = candidate.Id,
+                ResearchRunId = run.Id,
+                Url = candidate.Url,
+                NormalizedUrl = candidate.NormalizedUrl,
+                Domain = candidate.Domain,
+                Title = candidate.Title,
+                Snippet = candidate.Snippet,
+                SourceKind = candidate.SourceKind,
+                SearchRank = candidate.SearchRank,
+                Score = candidate.Score,
+                RecommendationReasonsJson = candidate.RecommendationReasonsJson,
+                Recommended = candidate.Recommended,
+                Selected = candidate.Selected,
+                IconUrl = candidate.IconUrl
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await AcquireAsync(
+            run.Id,
+            new AcquireResearchCandidatesRequest(normalizedCandidates.Select(candidate => candidate.Id).ToArray()),
+            cancellationToken);
+    }
+
     public async Task<ResearchRunResponse?> GetRunAsync(Guid researchRunId, CancellationToken cancellationToken) =>
         await dbContext.ResearchRuns.AsNoTracking()
             .Where(run => run.Id == researchRunId)

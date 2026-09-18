@@ -156,7 +156,7 @@ it("opens a company detail from the list", async () => {
   await user.click(screen.getByRole("link", { name: "FPT Software" }));
 
   expect(await screen.findByRole("heading", { name: "FPT Software" })).toBeInTheDocument();
-  expect(screen.getByText("https://fptsoftware.com")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Official website" })).toHaveAttribute("href", "https://fptsoftware.com/");
 });
 
 it("runs staged public-source research and shows its acquired evidence", async () => {

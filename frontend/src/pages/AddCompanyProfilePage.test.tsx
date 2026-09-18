@@ -382,11 +382,36 @@ it("drops a missing saved run instead of showing a stale restore error", async (
   expect(sessionStorage.getItem("raven-current-research")).toBeNull();
 });
 
+it("preserves a valid saved run when a related restore request fails", async () => {
+  sessionStorage.setItem("raven-current-research", JSON.stringify({
+    runId: run.id,
+    companyId: company.id,
+    companyName: company.name,
+    paused: false,
+  }));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith(`/api/research-runs/${run.id}`)) return jsonResponse(run);
+    if (url.endsWith(`/api/companies/${company.id}`)) return jsonResponse(company);
+    if (url.endsWith(`/api/research-runs/${run.id}/candidates`)) return jsonResponse({ message: "temporary candidate service failure" }, 500);
+    if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
+    return jsonResponse([]);
+  });
+
+  renderWithRouter(<AddCompanyProfilePage />, "/companies/new");
+
+  expect(await screen.findByRole("heading", { name: "Saved research state needs to be restored" })).toBeInTheDocument();
+  expect(screen.getByText(/could not reload source candidates/i)).toBeInTheDocument();
+  expect(screen.queryByText(/couldn't reach the server/i)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Retry restore" })).toBeInTheDocument();
+  expect(sessionStorage.getItem("raven-current-research")).not.toBeNull();
+});
+
 it("returns to the blank research form after cancelling a run", async () => {
   const user = userEvent.setup();
   const activeRun = { ...run, status: "Searching", stage: "AwaitingSourceSelection" };
   const cancelledRun = { ...activeRun, status: "Cancelled", stage: "Cancelled" };
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
     if (url.endsWith("/execution")) return jsonResponse(execution);
     if (url.endsWith("/api/research/identity/resolve")) return jsonResponse(resolvedIdentity);
@@ -394,6 +419,7 @@ it("returns to the blank research form after cancelling a run", async () => {
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
     if (url.endsWith("/research/start")) return jsonResponse(activeRun);
     if (url.endsWith("/cancel")) return jsonResponse(cancelledRun);
+    if (url.endsWith(`/api/companies/${company.id}`) && init?.method === "DELETE") return new Response(null, { status: 204 });
     if (url.endsWith(`/api/research-runs/${activeRun.id}`)) return jsonResponse(activeRun);
     if (url.endsWith("/candidates")) return jsonResponse([candidate]);
     if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
@@ -411,4 +437,5 @@ it("returns to the blank research form after cancelling a run", async () => {
   expect(screen.getByRole("radio", { name: /Use default/ })).toBeChecked();
   expect(screen.queryByRole("button", { name: "Cancel research" })).not.toBeInTheDocument();
   expect(sessionStorage.getItem("raven-current-research")).toBeNull();
+  expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}`, expect.objectContaining({ method: "DELETE", body: JSON.stringify({ confirm: true }) }));
 });

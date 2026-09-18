@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { CompanyOverview } from "./CompanyOverview";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 
@@ -23,13 +24,13 @@ describe("CompanyOverview headquarters map", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("does not render a map when no headquarters address is available", () => {
-    render(<CompanyOverview company={company} profile={{ ...profile, headquarters: null }} />);
+    render(<MemoryRouter><CompanyOverview company={company} profile={{ ...profile, headquarters: null }} /></MemoryRouter>);
 
     expect(screen.queryByTestId("company-map")).not.toBeInTheDocument();
   });
 
   it("provides a safe address-only Google Maps link when the embed key is absent", () => {
-    render(<CompanyOverview company={{ ...company, headquarters: "Hanoi, Vietnam" }} profile={{ ...profile, headquarters: null }} />);
+    render(<MemoryRouter><CompanyOverview company={{ ...company, headquarters: "Hanoi, Vietnam" }} profile={{ ...profile, headquarters: null }} /></MemoryRouter>);
 
     expect(screen.queryByTitle(/Map for/)).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "View address in Google Maps" });
@@ -42,7 +43,7 @@ describe("CompanyOverview headquarters map", () => {
 
   it("renders a lazy accessible embed with safely encoded address and key", () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_EMBED_API_KEY", "test key");
-    render(<CompanyOverview company={company} profile={profile} />);
+    render(<MemoryRouter><CompanyOverview company={company} profile={profile} /></MemoryRouter>);
 
     const frame = screen.getByTitle("Map for 17 Duy Tan Street & Tower A, Cầu Giấy, Hanoi");
     expect(frame).toHaveAttribute("loading", "lazy");

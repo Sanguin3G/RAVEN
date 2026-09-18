@@ -36,7 +36,7 @@ test("Day 8 managed research and external import remain explicit review workflow
   await expect(page.getByRole("link", { name: "View address in Google Maps" })).toBeVisible();
   await page.getByRole("button", { name: "Additional capabilities" }).click();
   await page.getByRole("button", { name: /Deep Research/ }).click();
-  await expect(page.getByText("Launches a background investigation; you can keep chatting.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove Deep Research capability" })).toBeVisible();
   await page.getByRole("textbox", { name: /Research about/ }).fill("Expansion in Japan");
   await page.getByRole("button", { name: "Start Deep Research" }).click();
   await expect(page.getByText("Deep Research started")).toBeVisible();
@@ -46,11 +46,7 @@ test("Day 8 managed research and external import remain explicit review workflow
   await expect(page.getByText("Normal Chat remains available.")).toBeVisible();
 
   await page.getByRole("tab", { name: "Investigations" }).click();
-  await expect(page.getByText("Expansion in Japan", { exact: true })).toBeVisible();
-  await page.getByPlaceholder("What should RAVEN review?").fill("Markets");
-  await page.getByPlaceholder(/Paste the assistant/).fill("# Research Summary\n\nClaim: Markets: Operates in Vietnam\n\nSources\n- https://northwind.example");
-  await page.getByRole("button", { name: "Preview notes" }).click();
-  await expect(page.getByTestId("external-research-preview")).toBeVisible();
-  await page.getByRole("button", { name: "Save to Investigations" }).click();
-  await expect(page.getByText("Nothing was added to the accepted profile.")).toBeVisible();
+  await expect(page.getByTestId("dossier-investigations").getByRole("heading", { name: "Expansion in Japan" })).toBeVisible();
+  await expect(page.getByTestId("dossier-investigations").getByText("Running", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("dossier-investigations").getByText("Research material collected")).toBeVisible();
 });

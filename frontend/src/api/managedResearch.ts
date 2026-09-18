@@ -2,6 +2,7 @@ import { request } from "./client";
 
 export type ManagedResearchJobStatus = "Queued" | "Researching" | "Completed" | "Failed" | "Cancelled";
 export type ManagedResearchEffort = "Auto" | "Low" | "Medium" | "High" | "XHigh";
+export type ManagedResearchPurpose = "General" | "ProfileImprovement";
 
 export interface ManagedResearchJob {
   id: string;
@@ -9,6 +10,7 @@ export interface ManagedResearchJob {
   conversationId?: string | null;
   chatMessageId?: string | null;
   objective: string;
+  purpose?: ManagedResearchPurpose;
   provider?: string | null;
   status: ManagedResearchJobStatus;
   providerRunId?: string | null;
@@ -37,6 +39,7 @@ export interface StartManagedResearchOptions {
   conversationId?: string;
   chatMessageId?: string;
   effort?: ManagedResearchEffort;
+  purpose?: ManagedResearchPurpose;
 }
 
 function companyPath(companyId: string) {
@@ -48,6 +51,7 @@ export function startManagedResearch(companyId: string, objective: string, optio
   if (options?.conversationId) body.conversationId = options.conversationId;
   if (options?.chatMessageId) body.chatMessageId = options.chatMessageId;
   if (options?.effort) body.effort = options.effort;
+  if (options?.purpose) body.purpose = options.purpose;
 
   return request<ManagedResearchJob>(companyPath(companyId), {
     method: "POST",

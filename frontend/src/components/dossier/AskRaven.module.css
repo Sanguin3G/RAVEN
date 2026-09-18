@@ -233,31 +233,6 @@
   padding: 0.55rem 0.6rem;
 }
 
-.composerMode {
-  align-items: center;
-  background: color-mix(in srgb, var(--ai) 10%, var(--surface-raised));
-  border: 1px solid color-mix(in srgb, var(--ai) 32%, var(--border));
-  border-radius: 0.45rem;
-  color: var(--text-muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0.4rem 0.5rem;
-}
-
-.composerMode svg {
-  color: var(--ai);
-}
-
-.composerMode strong {
-  color: var(--text);
-  font-size: 0.72rem;
-}
-
-.composerMode span {
-  font-size: 0.66rem;
-}
-
 .assistantComposer textarea {
   background: transparent;
   border: 0;
@@ -474,73 +449,85 @@ a.capabilityAction {
   border-color: var(--primary);
 }
 
-.researchToast {
-  align-items: center;
-  background: var(--surface-raised);
-  border: 1px solid color-mix(in srgb, var(--ai) 42%, var(--border));
-  border-radius: 0.65rem;
-  bottom: 1rem;
-  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--shadow) 80%, transparent);
-  color: var(--text);
-  display: flex;
-  gap: 0.65rem;
-  inset-inline: auto 1rem;
-  max-inline-size: min(25rem, calc(100vw - 2rem));
-  padding: 0.65rem 0.7rem;
-  position: fixed;
-  z-index: 20;
+.completedResearchActions {
+  border-block: 1px solid var(--border);
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.6rem 0;
 }
 
-.researchToast > div {
-  display: grid;
-  gap: 0.12rem;
+.completedResearchLabel {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.completedResearchAction {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
   min-inline-size: 0;
 }
 
-.researchToast strong {
-  font-size: 0.74rem;
-}
-
-.researchToast span {
-  color: var(--text-muted);
-  font-size: 0.68rem;
+.completedResearchAction > span {
+  flex: 1 1 auto;
+  font-size: 0.7rem;
+  min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.researchToast a {
+.completedResearchAction a,
+.completedResearchAction button {
+  background: transparent;
+  border: 0;
   color: var(--primary);
+  cursor: pointer;
   flex: 0 0 auto;
-  font-size: 0.68rem;
+  font: inherit;
+  font-size: 0.66rem;
   font-weight: 800;
+  padding: 0.2rem 0.25rem;
+  text-decoration: none;
   white-space: nowrap;
 }
 
-.researchToast button {
-  background: transparent;
-  border: 0;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0.15rem;
+.completedResearchAction a:hover,
+.completedResearchAction a:focus-visible,
+.completedResearchAction button:hover:not(:disabled),
+.completedResearchAction button:focus-visible:not(:disabled) {
+  text-decoration: underline;
 }
 
-.researchToast button:hover,
-.researchToast button:focus-visible {
-  color: var(--text);
+.completedResearchAction button:disabled {
+  color: var(--text-muted);
+  cursor: wait;
 }
 
 .assistantProfileBoundary {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 999px;
   color: var(--text-muted);
+  display: inline-flex;
   flex: 1 1 auto;
-  font-size: 0.7rem;
-  line-height: 1.45;
+  font-size: 0.64rem;
+  gap: 0.28rem;
+  line-height: 1.2;
   min-inline-size: 0;
   overflow: hidden;
+  padding: 0.24rem 0.45rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.assistantProfileBoundary > span {
+  color: var(--primary);
+  font-size: 0.54rem;
 }
 
 .assistantSubmit {

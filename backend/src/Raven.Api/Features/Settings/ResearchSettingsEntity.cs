@@ -24,6 +24,10 @@ public sealed class ResearchSettingsEntity
 
     public string DeepResearchModel { get; set; } = ResearchSettingsDefaults.DeepResearchModel;
 
+    public string ManagedResearchProvider { get; set; } = ResearchSettingsDefaults.ManagedResearchProvider;
+
+    public ManagedResearchDepth ManagedResearchDepth { get; set; } = ManagedResearchDepth.Adaptive;
+
     public bool AiSourceRerankingEnabled { get; set; } = true;
 
     public ProviderPreset ProviderPreset { get; set; } = ProviderPreset.LocalFirst;
@@ -43,6 +47,8 @@ public sealed class ResearchSettingsEntity
         ProfileModel = ProfileModel,
         GroundingModel = GroundingModel,
         DeepResearchModel = DeepResearchModel,
+        ManagedResearchProvider = ManagedResearchProvider,
+        ManagedResearchDepth = ManagedResearchDepth,
         AiSourceRerankingEnabled = AiSourceRerankingEnabled,
         ProviderPreset = ProviderPreset,
         SearchProviderPriority = [.. SearchProviderPriority],

@@ -5,6 +5,7 @@ public static class SavedResearchArtifactValidation
     public const int MaxTitleLength = 500;
     public const int MaxQuestionLength = 4_000;
     public const int MaxSummaryLength = 100_000;
+    public const int MaxRawResponseLength = 200_000;
     public const int MaxModelLength = 200;
     public const int MaxProviderLength = 200;
     public const int MaxObjectiveLength = 4_000;
@@ -40,6 +41,7 @@ public static class SavedResearchArtifactValidation
         AddRequiredTextError(errors, request.Title, "Title", MaxTitleLength);
         AddRequiredTextError(errors, request.Question, "Question", MaxQuestionLength);
         AddRequiredTextError(errors, request.Summary, "Summary", MaxSummaryLength);
+        AddOptionalLengthError(errors, request.RawResponse, "Raw response", MaxRawResponseLength);
 
         if (!Enum.IsDefined(request.ResearchType))
         {

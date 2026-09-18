@@ -44,12 +44,32 @@ public sealed class CompanyProfilePersistenceServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Confirmation_requires_a_completed_run_waiting_for_user_confirmation()
+    {
+        var service = new CompanyProfilePersistenceService(dbContext);
+        await service.SaveCandidateAsync(Candidate(FirstCandidateId, "Still running"));
+
+        var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == RunId);
+        run.Status = ResearchRunStatus.Searching;
+        run.Stage = ResearchStage.GeneratingProfile;
+        await dbContext.SaveChangesAsync();
+
+        Assert.Null(await service.ConfirmCandidateAsync(FirstCandidateId));
+        Assert.Empty(await dbContext.CompanyProfileVersions.ToListAsync());
+    }
+
+    [Fact]
     public async Task Confirmation_allocates_an_immutable_per_company_version()
     {
         var service = new CompanyProfilePersistenceService(dbContext);
 
         await service.SaveCandidateAsync(Candidate(FirstCandidateId, "First snapshot"));
         var first = await service.ConfirmCandidateAsync(FirstCandidateId);
+
+        var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == RunId);
+        run.Status = ResearchRunStatus.Completed;
+        run.Stage = ResearchStage.AwaitingProfileConfirmation;
+        await dbContext.SaveChangesAsync();
 
         await service.SaveCandidateAsync(Candidate(SecondCandidateId, "Second snapshot"));
         var second = await service.ConfirmCandidateAsync(SecondCandidateId);
@@ -171,7 +191,8 @@ public sealed class CompanyProfilePersistenceServiceTests : IDisposable
             Company = company,
             RequestedSearchProvider = "fake-search",
             RequestedCrawlerProvider = "fake-crawler",
-            Stage = ResearchStage.EvidenceReady
+            Status = ResearchRunStatus.Completed,
+            Stage = ResearchStage.AwaitingProfileConfirmation
         };
         var source = new SourceDocument
         {

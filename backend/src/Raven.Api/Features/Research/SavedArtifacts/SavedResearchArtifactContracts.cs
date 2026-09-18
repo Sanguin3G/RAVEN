@@ -23,7 +23,8 @@ public record SavedResearchArtifactRequest(
     IReadOnlyDictionary<string, string>? ProviderMetadata = null,
     IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
     IReadOnlyList<ResearchClaim>? Claims = null,
-    IReadOnlyList<string>? Uncertainties = null)
+    IReadOnlyList<string>? Uncertainties = null,
+    string? RawResponse = null)
 {
     /// <summary>Vocabulary alias for callers that use Result instead of Summary.</summary>
     public string Result => Summary;
@@ -48,7 +49,8 @@ public sealed record CreateSavedResearchArtifactRequest(
     IReadOnlyDictionary<string, string>? ProviderMetadata = null,
     IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
     IReadOnlyList<ResearchClaim>? Claims = null,
-    IReadOnlyList<string>? Uncertainties = null)
+    IReadOnlyList<string>? Uncertainties = null,
+    string? RawResponse = null)
     : SavedResearchArtifactRequest(
         CompanyId,
         Title,
@@ -67,7 +69,8 @@ public sealed record CreateSavedResearchArtifactRequest(
         ProviderMetadata,
         SourceLeads,
         Claims,
-        Uncertainties);
+        Uncertainties,
+        RawResponse);
 
 /// <summary>
 /// Response-shaped contract for a future endpoint. The current domain service
@@ -94,7 +97,8 @@ public sealed record SavedResearchArtifactResponse(
     IReadOnlyDictionary<string, string>? ProviderMetadata = null,
     IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
     IReadOnlyList<ResearchClaim>? Claims = null,
-    IReadOnlyList<string>? Uncertainties = null)
+    IReadOnlyList<string>? Uncertainties = null,
+    string? RawResponse = null)
 {
     public string Result => Summary;
 
@@ -123,7 +127,8 @@ public sealed record SavedResearchArtifactResponse(
             new Dictionary<string, string>(artifact.ProviderMetadata, StringComparer.OrdinalIgnoreCase),
             artifact.SourceLeads.ToArray(),
             artifact.Claims.ToArray(),
-            artifact.Uncertainties.ToArray());
+            artifact.Uncertainties.ToArray(),
+            artifact.RawResponse);
     }
 }
 

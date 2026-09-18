@@ -13,6 +13,8 @@ const settings = {
   providerPreset: "LocalFirst",
   searchProviderPriority: ["brave"],
   crawlerProviderPriority: ["crawl4ai-local"],
+  managedResearchProvider: "exa-agent",
+  managedResearchDepth: "Adaptive",
   updatedAt: "2026-09-11T00:00:00Z",
 } as const;
 
@@ -44,7 +46,7 @@ it("loads persistent settings and saves the explicit model roles", async () => {
   expect(await screen.findByRole("heading", { name: "Research intelligence" })).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: /Auto/ })).toBeChecked();
   expect(screen.getByLabelText("Identity grounding")).toHaveValue("gemini-3.5-flash-lite");
-  expect(screen.getAllByText("Configured")).toHaveLength(3);
+  expect(screen.getAllByText("Operational")).toHaveLength(3);
 
   await user.click(screen.getByRole("radio", { name: /^Always/ }));
   await user.selectOptions(screen.getByLabelText("Identity grounding"), "gemini-3.8-flash");
@@ -61,6 +63,8 @@ it("loads persistent settings and saves the explicit model roles", async () => {
     providerPreset: settings.providerPreset,
     searchProviderPriority: settings.searchProviderPriority,
     crawlerProviderPriority: settings.crawlerProviderPriority,
+    managedResearchProvider: settings.managedResearchProvider,
+    managedResearchDepth: settings.managedResearchDepth,
   });
   expect(screen.getByText("All research settings saved.")).toBeInTheDocument();
 });

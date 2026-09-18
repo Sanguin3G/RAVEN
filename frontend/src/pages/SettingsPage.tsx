@@ -9,6 +9,7 @@ import {
   resetResearchSettings,
   updateResearchSettings,
   type GroundingMode,
+  type ManagedResearchDepth,
   type ProviderPreset,
   type ResearchSettings,
   type UpdateResearchSettings,
@@ -24,8 +25,18 @@ const fallbackSettings: ResearchSettings = {
   providerPreset: "LocalFirst",
   searchProviderPriority: ["brave"],
   crawlerProviderPriority: ["crawl4ai-local"],
+  managedResearchProvider: "exa-agent",
+  managedResearchDepth: "Adaptive",
   updatedAt: "",
 };
+
+const managedResearchDepthChoices: Array<{ value: ManagedResearchDepth; title: string; description: string }> = [
+  { value: "Adaptive", title: "Adaptive", description: "Let managed research choose an appropriate effort for the question." },
+  { value: "Focused", title: "Focused", description: "A compact investigation for a narrow target." },
+  { value: "Standard", title: "Standard", description: "Balanced breadth and depth for most investigations." },
+  { value: "Thorough", title: "Thorough", description: "Broader source coverage for consequential questions." },
+  { value: "Exhaustive", title: "Exhaustive", description: "The deepest available investigation; use selectively." },
+];
 
 const models = [
   { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
@@ -81,6 +92,9 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
     || !Array.isArray(candidate.crawlerProviderPriority)
   ) return null;
 
+  const managedResearchDepth = candidate.managedResearchDepth;
+  const validManagedResearchDepth = managedResearchDepth === "Adaptive" || managedResearchDepth === "Focused" || managedResearchDepth === "Standard" || managedResearchDepth === "Thorough" || managedResearchDepth === "Exhaustive";
+
   return {
     groundingMode: candidate.groundingMode,
     profileModel: candidate.profileModel,
@@ -90,6 +104,8 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
     providerPreset: candidate.providerPreset,
     searchProviderPriority: candidate.searchProviderPriority.filter((provider): provider is string => typeof provider === "string"),
     crawlerProviderPriority: candidate.crawlerProviderPriority.filter((provider): provider is string => typeof provider === "string"),
+    managedResearchProvider: typeof candidate.managedResearchProvider === "string" ? candidate.managedResearchProvider : "exa-agent",
+    managedResearchDepth: validManagedResearchDepth ? managedResearchDepth : "Adaptive",
     updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : "",
   };
 }
@@ -98,12 +114,15 @@ function providerStatusLabel(provider: ProviderStatus | undefined) {
   if (!provider) return "Checking…";
   if (!provider.configured) return "Not configured";
   if (provider.available === false) return "Unavailable";
-  return "Configured";
+  if (provider.available == null) return "Configured";
+  return "Operational";
 }
 
 function providerStatusClass(provider: ProviderStatus | undefined) {
   if (!provider) return "";
-  return provider.configured && provider.available !== false ? styles["statusDot--ok"] : styles["statusDot--warning"];
+  if (!provider.configured || provider.available === false) return styles["statusDot--warning"];
+  if (provider.available == null) return styles["statusDot--ok"];
+  return styles["statusDot--ok"];
 }
 
 function displayProvider(value: string) {
@@ -366,12 +385,29 @@ export function SettingsPage() {
               {roleOptions(draft.groundingModel).map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
             </select>
           </div>
+        </div>
+      </Panel>
+
+      <Panel title="Managed AI Research" eyebrow="ASYNC INVESTIGATIONS" className={styles.section}>
+        <div className={styles.sectionIntro}>
+          <p>Managed research runs asynchronously and ends as a reviewable Investigation. It never updates the accepted Company Profile automatically.</p>
+        </div>
+        <div className={styles.modelGrid}>
           <div className={styles.modelRole}>
-            <label htmlFor="deep-research-model">Deep research</label>
-            <small>Multi-step tool-assisted investigation for longer questions.</small>
-            <select id="deep-research-model" value={draft.deepResearchModel} disabled={isLoading || isSaving || isResetting} onChange={(event) => updateDraft({ deepResearchModel: event.target.value })}>
-              {roleOptions(draft.deepResearchModel).map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+            <label htmlFor="managed-research-provider">Provider</label>
+            <small>Specialized multi-step web research.</small>
+            <select id="managed-research-provider" value={draft.managedResearchProvider} disabled aria-describedby="managed-research-provider-help">
+              <option value="exa-agent">Exa Agent</option>
             </select>
+            <small id="managed-research-provider-help">Additional providers can map to the same product setting later.</small>
+          </div>
+          <div className={styles.modelRole}>
+            <label htmlFor="managed-research-depth">Default research depth</label>
+            <small>Controls the breadth of new managed investigations.</small>
+            <select id="managed-research-depth" value={draft.managedResearchDepth} disabled={isLoading || isSaving || isResetting} onChange={(event) => updateDraft({ managedResearchDepth: event.target.value as ManagedResearchDepth })}>
+              {managedResearchDepthChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.title}</option>)}
+            </select>
+            <small>{managedResearchDepthChoices.find((choice) => choice.value === draft.managedResearchDepth)?.description}</small>
           </div>
         </div>
       </Panel>

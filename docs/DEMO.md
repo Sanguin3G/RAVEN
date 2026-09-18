@@ -77,7 +77,16 @@ Close with: “The value is not merely a generated company description. It is a 
 
 ## Recovery paths to demonstrate only if asked
 
+### Day 8 research alternatives
+
+From Ask RAVEN, open the plus menu and choose **Deep Research**. Submit a narrow question, then continue with normal Chat while the investigation runs. Open **Investigations** to show the durable result and explain that claims and cited URLs remain research material until reviewed.
+
+For **Strengthen Dossier**, point out the method distinction: Native RAVEN is the fast integrated default, Deep Research runs asynchronously, and External AI Assist remains unverified material. If Deep completes before Profile v1, show the muted **Profile required** state: the global ready card is not clickable, the result is excluded from Workspace Review, and it becomes reviewable only after the user creates a supported profile. Emphasize that only the user's final **Confirm Profile** action creates a profile; a failed or still-running RAVEN run cannot create one.
+
+Open **External research**, prepare and copy a focused brief, paste fixture Markdown, analyze it asynchronously, review the AI-assisted comparison, and save it. Emphasize that imported claims and provider citations remain reviewable material; External Assist does not re-search or re-crawl the supplied links. From a ready Investigation, use **Improve profile** to prepare the existing server-owned profile patch from that material, then confirm only after human review. On Overview, show the optional headquarters map adapter and its normal external-map fallback.
+
 - Cancel an in-progress research run. RAVEN returns to the blank research form and clears the saved run, ready for a new search.
+- Navigate away from a known in-progress run and return. If a related restore request fails, RAVEN preserves the run and shows a targeted restore error with **Retry restore** rather than the generic API-unavailable message. A stale/missing run is the only case that resets to a blank form.
 - Reopen the application with a stale saved run. A missing, cancelled, failed, completed, or legacy-unrestorable run is discarded rather than leaving the user on a misleading “company not found” state.
 - If a provider fails, show the source-level failure and bounded fallback behavior. Never pretend the source was acquired.
 

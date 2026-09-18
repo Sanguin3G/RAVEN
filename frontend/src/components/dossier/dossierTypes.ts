@@ -49,6 +49,9 @@ export interface DossierLocation {
  */
 export interface DossierProfile {
   id?: string;
+  aiProvider?: string | null;
+  aiModel?: string | null;
+  promptTemplateVersion?: string | null;
   legalName?: string | null;
   website?: string | null;
   country?: string | null;
@@ -155,11 +158,17 @@ export interface CompanyDossierProps {
   activeTab?: DossierTab;
   initialTab?: DossierTab;
   onTabChange?: (tab: DossierTab) => void;
+  onOpenProfileImprovement?: (targets: ResearchTarget[], sourceMaterialId?: string, sourceMaterialKind?: "saved" | "managed") => void;
+  onOpenDeepResearch?: (objective?: string) => void;
   tracking?: DossierTracking | null;
   monitoring?: DossierMonitoring | null;
   coverage?: DossierCoverage | null;
   investigations?: DossierInvestigations | null;
   initialEnrichmentTargets?: ResearchTarget[];
+  initialEnrichmentArtifactId?: string | null;
+  initialManagedResearchInvestigationId?: string | null;
+  initialChatCapability?: "deepResearch";
+  initialChatQuestion?: string | null;
   openEnrichment?: boolean;
   onProfileConfirmed?: (profile: CompanyProfileVersion) => void;
 }

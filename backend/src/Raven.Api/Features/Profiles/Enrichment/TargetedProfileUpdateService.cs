@@ -1,12 +1,17 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.ManagedResearch;
 using Raven.Api.Features.Profiles.Generation;
 using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Research.Planning;
+using Raven.Api.Features.Research.SavedArtifacts;
+using Raven.Api.Features.Research.Sources;
 
 namespace Raven.Api.Features.Profiles.Enrichment;
 
@@ -21,7 +26,9 @@ public sealed class TargetedProfileUpdateService(
     IResearchCompanyService research,
     ICompanyProfilePersistenceService persistence,
     ICompanyProfileWorkflowService workflow,
-    IProfileGenerationService generation) : ITargetedProfileUpdateService
+    IProfileGenerationService generation,
+    ISavedResearchArtifactService artifacts,
+    IManagedResearchInvestigationStore managedInvestigations) : ITargetedProfileUpdateService
 {
     public async Task<ResearchRunResponse?> StartAsync(
         Guid companyId,
@@ -38,9 +45,23 @@ public sealed class TargetedProfileUpdateService(
         var baseProfile = request.BaseProfileVersionId is { } baseId
             ? profiles.SingleOrDefault(profile => profile.Id == baseId)
             : profiles.OrderByDescending(profile => profile.Version).FirstOrDefault();
-        if (baseProfile is null)
+        if (baseProfile is null || !CompanyProfileReadiness.IsUsableAcceptedProfile(baseProfile))
         {
-            throw new BadHttpRequestException("Targeted enrichment requires an accepted base Company Profile.");
+            throw new BadHttpRequestException("Profile Improvement requires a supported Company Profile created from completed RAVEN evidence. The saved profile is incomplete; create or repair the initial profile first.");
+        }
+
+        // A ready Investigation can be promoted into the same server-owned
+        // patch workflow without launching another provider search. The
+        // imported material is copied into this run so existing evidence and
+        // candidate validation remain the single trust boundary.
+        if (request.SavedResearchArtifactId is { } artifactId)
+        {
+            return await StartFromSavedMaterialAsync(companyId, request, baseProfile.Id, artifactId, cancellationToken);
+        }
+
+        if (request.ManagedResearchInvestigationId is { } investigationId)
+        {
+            return await StartFromManagedMaterialAsync(companyId, request, baseProfile.Id, investigationId, cancellationToken);
         }
 
         return await research.DiscoverAsync(companyId, new DiscoverResearchRequest(
@@ -48,6 +69,215 @@ public sealed class TargetedProfileUpdateService(
             Mode: ResearchMode.TargetedEnrichment,
             BaseProfileVersionId: baseProfile.Id,
             Targets: targets), cancellationToken);
+    }
+
+    private async Task<ResearchRunResponse?> StartFromManagedMaterialAsync(
+        Guid companyId,
+        StartTargetedResearchRequest request,
+        Guid baseProfileVersionId,
+        Guid investigationId,
+        CancellationToken cancellationToken)
+    {
+        var investigation = await managedInvestigations.GetAsync(companyId, investigationId, cancellationToken);
+        if (investigation is null)
+        {
+            throw new BadHttpRequestException("The selected managed research material is unavailable.");
+        }
+
+        ManagedResearchResult? result;
+        try
+        {
+            result = JsonSerializer.Deserialize<ManagedResearchResult>(investigation.ResultJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            result = null;
+        }
+
+        if (result is null)
+        {
+            throw new BadHttpRequestException("The managed research result could not be reviewed.");
+        }
+
+        var runResponse = await research.CreateQueuedRunAsync(companyId, new DiscoverResearchRequest(
+            UseAcceptedProfileIdentity: true,
+            Mode: ResearchMode.TargetedEnrichment,
+            BaseProfileVersionId: baseProfileVersionId,
+            Targets: request.Targets), cancellationToken);
+        if (runResponse is null)
+        {
+            return null;
+        }
+
+        var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == runResponse.Id && item.CompanyId == companyId, cancellationToken);
+        var importedDocuments = BuildImportedDocuments(companyId, run.Id,
+            result.Sources.Select(source => new ImportedSource(source.Url, source.Title, source.Publisher,
+                string.Join("\n", result.Claims.Where(claim => claim.SupportingSourceUrls.Contains(source.Url, StringComparer.OrdinalIgnoreCase)).Select(claim => $"{claim.Topic}: {claim.Statement}")))),
+            result.Summary,
+            investigation.CompletedAt,
+            result.Provider);
+        if (importedDocuments.Count == 0)
+        {
+            run.Status = ResearchRunStatus.Failed;
+            run.Stage = ResearchStage.Failed;
+            run.Error = "This managed research result has no source-backed material to prepare a profile proposal.";
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new BadHttpRequestException(run.Error);
+        }
+
+        dbContext.SourceDocuments.AddRange(importedDocuments);
+        run.Status = ResearchRunStatus.Completed;
+        run.Stage = ResearchStage.EvidenceReady;
+        run.ActualSearchProvider = result.Provider;
+        run.ActualCrawlerProvider = "Imported managed research material";
+        run.SourcesFound = importedDocuments.Count;
+        run.SourcesSelected = importedDocuments.Count;
+        run.SourcesCrawled = importedDocuments.Count;
+        run.CrawlTotal = importedDocuments.Count;
+        run.CrawlCompleted = importedDocuments.Count;
+        run.CrawlSucceeded = importedDocuments.Count;
+        run.DocumentsAdded = importedDocuments.Count;
+        run.CompletedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await research.GetRunAsync(run.Id, cancellationToken);
+    }
+
+    private async Task<ResearchRunResponse?> StartFromSavedMaterialAsync(
+        Guid companyId,
+        StartTargetedResearchRequest request,
+        Guid baseProfileVersionId,
+        Guid artifactId,
+        CancellationToken cancellationToken)
+    {
+        var artifact = await artifacts.GetAsync(companyId, artifactId, cancellationToken);
+        if (artifact is null)
+        {
+            throw new BadHttpRequestException("The selected investigation material is unavailable.");
+        }
+
+        var runResponse = await research.CreateQueuedRunAsync(companyId, new DiscoverResearchRequest(
+            UseAcceptedProfileIdentity: true,
+            Mode: ResearchMode.TargetedEnrichment,
+            BaseProfileVersionId: baseProfileVersionId,
+            Targets: request.Targets), cancellationToken);
+        if (runResponse is null)
+        {
+            return null;
+        }
+
+        var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == runResponse.Id && item.CompanyId == companyId, cancellationToken);
+        var importedDocuments = await BuildImportedDocumentsAsync(companyId, run.Id, artifact, cancellationToken);
+        if (importedDocuments.Count == 0)
+        {
+            run.Status = ResearchRunStatus.Failed;
+            run.Stage = ResearchStage.Failed;
+            run.Error = "This investigation has no source-backed material to prepare a profile proposal.";
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new BadHttpRequestException(run.Error);
+        }
+
+        foreach (var document in importedDocuments)
+        {
+            dbContext.SourceDocuments.Add(document);
+        }
+
+        run.Status = ResearchRunStatus.Completed;
+        run.Stage = ResearchStage.EvidenceReady;
+        run.ActualSearchProvider = artifact.Provider ?? "Investigation material";
+        run.ActualCrawlerProvider = "Imported investigation material";
+        run.SourcesFound = importedDocuments.Count;
+        run.SourcesSelected = importedDocuments.Count;
+        run.SourcesCrawled = importedDocuments.Count;
+        run.CrawlTotal = importedDocuments.Count;
+        run.CrawlCompleted = importedDocuments.Count;
+        run.CrawlSucceeded = importedDocuments.Count;
+        run.DocumentsAdded = importedDocuments.Count;
+        run.CompletedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await research.GetRunAsync(run.Id, cancellationToken);
+    }
+
+    private async Task<List<SourceDocument>> BuildImportedDocumentsAsync(
+        Guid companyId,
+        Guid researchRunId,
+        SavedResearchArtifact artifact,
+        CancellationToken cancellationToken)
+    {
+        var now = artifact.CompletedAt ?? DateTimeOffset.UtcNow;
+        var rawResponse = artifact.RawResponse ?? artifact.Summary;
+
+        var documents = BuildImportedDocuments(companyId, researchRunId,
+            artifact.SourceLeads.Where(lead => Uri.TryCreate(lead.Url, UriKind.Absolute, out _)).Take(20).Select(lead => new ImportedSource(
+                lead.Url,
+                lead.Title,
+                lead.Publisher,
+                string.Join("\n", artifact.Claims.Where(claim => claim.SupportingSourceLeadIds?.Contains(lead.Id) == true).Select(claim => $"{claim.Field}: {claim.Statement}")))),
+            rawResponse,
+            now,
+            artifact.Provider);
+
+        if (documents.Count > 0 || artifact.SourceDocumentIds.Count == 0)
+        {
+            return documents;
+        }
+
+        var existingDocuments = await dbContext.SourceDocuments
+            .Where(document => document.CompanyId == companyId && artifact.SourceDocumentIds.Contains(document.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var existing in existingDocuments.Take(20))
+        {
+            documents.Add(CreateImportedDocument(companyId, researchRunId, existing.Url, existing.Title, existing.SourceDomain, existing.Content, existing.RetrievedAt, existing.CrawlerProvider));
+        }
+
+        return documents;
+    }
+
+    private static List<SourceDocument> BuildImportedDocuments(
+        Guid companyId,
+        Guid researchRunId,
+        IEnumerable<ImportedSource> sources,
+        string fallbackContent,
+        DateTimeOffset retrievedAt,
+        string? provider)
+    {
+        var documents = new List<SourceDocument>();
+        foreach (var source in sources.Where(source => Uri.TryCreate(source.Url, UriKind.Absolute, out _)).Take(20))
+        {
+            var content = string.IsNullOrWhiteSpace(source.Content) ? fallbackContent : source.Content;
+            documents.Add(CreateImportedDocument(companyId, researchRunId, source.Url, source.Title, source.Publisher, content, retrievedAt, provider));
+        }
+        return documents;
+    }
+
+    private sealed record ImportedSource(string Url, string? Title, string? Publisher, string Content);
+
+    private static SourceDocument CreateImportedDocument(
+        Guid companyId,
+        Guid researchRunId,
+        string url,
+        string? title,
+        string? publisher,
+        string content,
+        DateTimeOffset retrievedAt,
+        string? provider)
+    {
+        var boundedContent = content.Length > 200_000 ? content[..200_000] : content;
+        return new SourceDocument
+        {
+            CompanyId = companyId,
+            ResearchRunId = researchRunId,
+            Url = url,
+            NormalizedUrl = url.Trim().TrimEnd('/').ToLowerInvariant(),
+            Title = title,
+            SourceDomain = publisher,
+            SourceKind = SourceKind.ExternalWebsite,
+            RetrievedAt = retrievedAt,
+            Content = boundedContent,
+            ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(boundedContent))),
+            CrawlerProvider = string.IsNullOrWhiteSpace(provider) ? "Imported investigation material" : $"Imported {provider} material"
+        };
     }
 
     public async Task<ProfilePatchCandidate?> GenerateAsync(Guid researchRunId, CancellationToken cancellationToken)
@@ -71,9 +301,9 @@ public sealed class TargetedProfileUpdateService(
 
         var baseProfile = (await persistence.ListProfileVersionsAsync(run.CompanyId, cancellationToken))
             .SingleOrDefault(profile => profile.Id == run.BaseProfileVersionId.Value);
-        if (baseProfile is null)
+        if (baseProfile is null || !CompanyProfileReadiness.IsUsableAcceptedProfile(baseProfile))
         {
-            throw new BadHttpRequestException("The selected base profile is unavailable.");
+            throw new BadHttpRequestException("The selected base profile is incomplete and cannot be improved until a supported Company Profile exists.");
         }
 
         var sources = await dbContext.SourceDocuments.Where(source => source.ResearchRunId == run.Id).ToListAsync(cancellationToken);

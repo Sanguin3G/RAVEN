@@ -31,7 +31,7 @@ Remaining M1 work is quality work: real-provider failure handling, usability pol
 
 **Day-4 implementation: integrated on `main`.**
 
-Implemented: profile refresh, change detection, AI target grounding, semantic source relevance, persisted research/provider settings, Exa/Firecrawl routing, in-process monitoring, bounded Deep Research, and saved research artifacts.
+Implemented: profile refresh, change detection, AI target grounding, semantic source relevance, persisted research/provider settings, Exa retrieval, in-process monitoring, bounded Deep Research, and saved research artifacts. Firecrawl remains legacy compatibility code only and is not active routing.
 
 Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and web-enabled Ask RAVEN turns. Persistent profile-grounded Chat with citations is integrated. Day 8 managed-research attachments are explicit conversation state; their eventual prompt grounding belongs to Hung's Ask RAVEN context-extension contract, not a parallel Huy-side Chat implementation.
 
@@ -44,6 +44,24 @@ Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and 
 Extend the bounded Deep Research backend with RAG-first retrieval, cancellation, richer diagnostics, controlled external research through normal provider interfaces, and optional MCP. Add Crawl4AI Cloud only when its value is demonstrated by the workflow.
 
 **Exit condition:** RAVEN can explain whether an answer came from stored evidence or newly acquired evidence, while keeping persistence application-owned.
+
+## Day 8 — Managed Research and Investigation interoperability
+
+**Status: PASS; integrated into `main`.**
+
+Delivered: asynchronous Exa Agent jobs with durable polling/recovery state; normalized claims, cited source leads, and uncertainties under Investigations; completion notification polling; and a Deep Research composer mode that leaves Chat usable. External Research Import generates a focused copyable brief for any assistant and saves pasted Markdown as reviewable, untrusted research material. Firecrawl is no longer an active route, settings choice, or provider-status surface; old persisted priorities normalize safely. Company Overview has an optional Google Maps Embed adapter and a safe external-map fallback.
+
+Investigation attachments are explicit, durable, and removable per conversation. Hung's Ask RAVEN backend owns eventual LLM grounding of those attachments; no parallel Chat agent or prompt path was introduced on this branch.
+
+## Research workspace and external research assist
+
+**Status: implemented on `feat/research-workspace`; final verification is recorded in the branch handoff.**
+
+The Company Investigations tab is research-first: one workspace presents Investigation objectives, origin/provenance, organized themes, claims, uncertainties, source leads, follow-up gaps, and expandable raw material. Organization is a versioned derived revision; raw research and earlier revisions remain intact. External Research Assist is a focused, provider-neutral copy/paste workflow with durable asynchronous analysis, draft preservation, minimize/reopen behavior, explicit unverified labeling, review, save-to-Investigation, and selected-source handoff to normal RAVEN acquisition. Native, Deep, and External activities share one global research status surface with running/ready semantics. Targeted profile improvement offers distinct RAVEN Research, Deep Research, and External paths; Deep ProfileImprovement results can run before Profile v1 but remain locked and out of Workspace Review until a supported profile exists. Profile confirmation is always an explicit user action.
+
+## Research recovery and profile safety
+
+Known research runs are restored step-by-step. Missing initial state is discarded as stale session data; a failed related restore request preserves the run and reports the specific step with retry. A failed or in-progress run cannot be confirmed, and an identity-only/name-only accepted row cannot be used as a Profile Improvement baseline. Supported-target gaps and model provenance are the product signals used to distinguish an interrupted artifact from a sparse or partial profile.
 
 ## Day 5 — Evidence coverage and workspace quality
 

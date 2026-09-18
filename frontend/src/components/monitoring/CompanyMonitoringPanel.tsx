@@ -46,7 +46,7 @@ function formatDate(value: string | null | undefined) {
 function statusDetails(status: MonitoringRunStatus | null | undefined) {
   switch (status) {
     case "Running":
-      return { label: "Research in progress", tone: styles.statusRunning, icon: CircleNotch };
+      return { label: "Active research", tone: styles.statusRunning, icon: CircleNotch };
     case "ReadyForReview":
       return { label: "New research update ready for review", tone: styles.statusReady, icon: CheckCircle };
     case "Completed":

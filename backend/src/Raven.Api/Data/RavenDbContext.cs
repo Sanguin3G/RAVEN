@@ -12,6 +12,8 @@ using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
 using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Research.Organization;
+using Raven.Api.Features.Research.ExternalImport;
 using Raven.Api.Features.Chat;
 using Raven.Api.Features.ManagedResearch;
 
@@ -34,6 +36,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<DeepResearchRun> DeepResearchRuns => Set<DeepResearchRun>();
     public DbSet<DeepResearchActivityRecord> DeepResearchActivities => Set<DeepResearchActivityRecord>();
     public DbSet<SavedResearchArtifact> SavedResearchArtifacts => Set<SavedResearchArtifact>();
+    public DbSet<InvestigationOrganizationRevision> InvestigationOrganizationRevisions => Set<InvestigationOrganizationRevision>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatCitation> ChatCitations => Set<ChatCitation>();
@@ -41,6 +44,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ManagedResearchJob> ManagedResearchJobs => Set<ManagedResearchJob>();
     public DbSet<ManagedResearchInvestigation> ManagedResearchInvestigations => Set<ManagedResearchInvestigation>();
     public DbSet<ResearchContextAttachment> ResearchContextAttachments => Set<ResearchContextAttachment>();
+    public DbSet<ExternalResearchAnalysisJob> ExternalResearchAnalysisJobs => Set<ExternalResearchAnalysisJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +66,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(item => item.Objective).HasMaxLength(4_000).IsRequired();
             entity.Property(item => item.ProviderQuery).HasMaxLength(12_000).IsRequired();
             entity.Property(item => item.Effort).HasMaxLength(32).IsRequired();
+            entity.Property(item => item.Purpose).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(item => item.Provider).HasMaxLength(100);
             entity.Property(item => item.ProviderRunId).HasMaxLength(300);
@@ -82,6 +87,19 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(item => item.ResultJson).HasMaxLength(200_000).IsRequired();
             entity.HasIndex(item => item.JobId).IsUnique();
             entity.HasIndex(item => new { item.CompanyId, item.CompletedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalResearchAnalysisJob>(entity =>
+        {
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Question).HasMaxLength(4_000).IsRequired();
+            entity.Property(item => item.RawResponse).HasMaxLength(200_000).IsRequired();
+            entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.ResultJson).HasMaxLength(200_000);
+            entity.Property(item => item.Error).HasMaxLength(4_000);
+            entity.HasIndex(item => new { item.CompanyId, item.CreatedAt });
+            entity.HasIndex(item => new { item.Status, item.CreatedAt });
             entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -184,6 +202,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(artifact => artifact.Title).HasMaxLength(500).IsRequired();
             entity.Property(artifact => artifact.Question).HasMaxLength(4_000).IsRequired();
             entity.Property(artifact => artifact.Summary).HasMaxLength(100_000).IsRequired();
+            entity.Property(artifact => artifact.RawResponse).HasMaxLength(200_000);
             entity.Property(artifact => artifact.Model).HasMaxLength(200);
             entity.Property(artifact => artifact.Origin).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(artifact => artifact.Provider).HasMaxLength(200);
@@ -201,6 +220,25 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasOne<Company>().WithMany().HasForeignKey(artifact => artifact.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<InvestigationOrganizationRevision>(entity =>
+        {
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.ExecutiveSummary).HasMaxLength(100_000).IsRequired();
+            entity.Property(item => item.ThemesJson).HasMaxLength(200_000).IsRequired();
+            entity.Property(item => item.EvidenceGapsJson).HasMaxLength(200_000).IsRequired();
+            entity.Property(item => item.SuggestedFollowUpsJson).HasMaxLength(200_000).IsRequired();
+            entity.Property(item => item.UncertaintiesJson).HasMaxLength(200_000).IsRequired();
+            entity.HasIndex(item => new { item.SavedResearchArtifactId, item.Version }).IsUnique();
+            entity.HasOne<SavedResearchArtifact>()
+                .WithMany()
+                .HasForeignKey(item => item.SavedResearchArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(item => item.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<ResearchSettingsEntity>(entity =>
         {
             entity.HasKey(settings => settings.Id);
@@ -209,6 +247,8 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(settings => settings.ProfileModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.GroundingModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.DeepResearchModel).HasMaxLength(200).IsRequired();
+            entity.Property(settings => settings.ManagedResearchProvider).HasMaxLength(64).IsRequired();
+            entity.Property(settings => settings.ManagedResearchDepth).HasConversion<string>().HasMaxLength(32).IsRequired();
             // The Day-5.5 migration rewrites the persisted legacy value, but
             // accepting it at the model boundary keeps an interrupted upgrade
             // readable instead of resetting a user's provider priorities.

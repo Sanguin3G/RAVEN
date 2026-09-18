@@ -5,11 +5,15 @@ import { Panel } from "../components/Panel";
 import { getResearchSettings, type ResearchSettings } from "../api/settings";
 import { getApiHealth, getProviderStatus, type ProviderStatus, type ProviderStatusResponse } from "../api/system";
 
-type ServiceState = "operational" | "attention" | "checking";
+type ServiceState = "operational" | "configured" | "attention" | "checking" | "unavailable" | "not-configured";
 
 function providerState(provider: ProviderStatus | undefined): ServiceState {
   if (!provider) return "checking";
-  if (!provider.configured || provider.available === false) return "attention";
+  if (!provider.configured) return "not-configured";
+  if (provider.available === false) return "unavailable";
+  // Remote providers expose configuration immediately; they are not probed
+  // with billable search/generation calls just to paint this page.
+  if (provider.available == null) return "configured";
   return "operational";
 }
 
@@ -18,15 +22,15 @@ function apiState(available: boolean | null): ServiceState {
 }
 
 function StateMark({ state }: { state: ServiceState }) {
-  return state === "operational"
+  return state === "operational" || state === "configured"
     ? <CheckCircle size={19} weight="fill" aria-hidden="true" />
-    : state === "attention"
+    : state === "attention" || state === "unavailable" || state === "not-configured"
       ? <WarningCircle size={19} weight="fill" aria-hidden="true" />
       : <Pulse size={19} weight="bold" aria-hidden="true" />;
 }
 
 function stateLabel(state: ServiceState) {
-  return state === "operational" ? "Operational" : state === "attention" ? "Needs attention" : "Checking";
+  return state === "operational" ? "Operational" : state === "configured" ? "Configured" : state === "unavailable" ? "Unavailable" : state === "not-configured" ? "Not configured" : state === "attention" ? "Needs attention" : "Checking";
 }
 
 function routeLabel(providers: string[] | undefined, fallback: string) {
@@ -55,13 +59,14 @@ export function StatusPage() {
   useEffect(() => { void refresh(); }, []);
 
   const configuredServices = [providers?.brave, providers?.exa, providers?.crawl4Ai, providers?.gemini].filter((provider) => provider?.configured);
-  const systemsOperational = apiAvailable === true && configuredServices.length > 0 && configuredServices.every((provider) => providerState(provider) === "operational");
-  const routeState: ServiceState = settings ? "operational" : apiAvailable === null ? "checking" : "attention";
+  const systemsOperational = apiAvailable === true && configuredServices.length > 0 && configuredServices.every((provider) => ["operational", "configured"].includes(providerState(provider)));
+  const systemsChecking = configuredServices.some((provider) => providerState(provider) === "checking");
+  const routeState: ServiceState = apiAvailable === null ? "checking" : apiAvailable ? "operational" : "attention";
   const services = [
     { name: "Brave Search", detail: "Public-source discovery", provider: providers?.brave, icon: MagnifyingGlass, statusUrl: "https://status.brave.app/" },
-    { name: "Exa", detail: "Semantic discovery and contents", provider: providers?.exa, icon: MagnifyingGlass, statusUrl: "https://status.exa.ai/" },
+    { name: "Exa / Deep Research", detail: "Managed asynchronous investigation", provider: providers?.exa, icon: MagnifyingGlass, statusUrl: "https://status.exa.ai/" },
     { name: "Crawl4AI Local", detail: "Local evidence acquisition", provider: providers?.crawl4Ai, icon: CloudArrowDown },
-    { name: "Gemini", detail: settings ? `Profile: ${settings.profileModel} | Deep: ${settings.deepResearchModel}` : "Evidence normalization", provider: providers?.gemini, icon: Brain },
+    { name: "RAVEN intelligence", detail: "Profile review and evidence normalization", provider: providers?.gemini, icon: Brain },
   ];
 
   return (
@@ -69,7 +74,7 @@ export function StatusPage() {
       <div className="status-page__hero">
         <div>
           <p className="eyebrow">RAVEN OPERATIONS</p>
-          <h1>{systemsOperational ? "Core research systems are operational" : isRefreshing ? "Checking research systems" : "Research systems need attention"}</h1>
+          <h1>{systemsOperational ? "Core research systems are ready" : isRefreshing || systemsChecking ? "Checking research systems" : "Research systems need attention"}</h1>
           <p className="page-intro">A live view of the API, storage path, selected route, and external research capabilities.</p>
         </div>
         <Button tone="secondary" onClick={() => void refresh()} disabled={isRefreshing}><ArrowClockwise size={17} weight="bold" /> {isRefreshing ? "Checking..." : "Refresh status"}</Button>
@@ -77,7 +82,7 @@ export function StatusPage() {
 
       <aside className="status-page__legend" aria-label="How to read this status page">
         <Pulse size={20} weight="duotone" aria-hidden="true" />
-        <div><strong>How to read this page</strong><span>Core health is checked locally. Provider cards show configuration and availability; external status links open the provider's own incident page.</span></div>
+        <div><strong>How to read this page</strong><span>Core health is checked locally. Remote providers show Configured until a real request reports a failure; RAVEN does not spend billable calls on background probes.</span></div>
       </aside>
 
       <Panel title="Core pipeline" eyebrow="RAVEN REQUEST PATH" className="status-flow-panel">
@@ -97,9 +102,8 @@ export function StatusPage() {
           <div><dt>Preset</dt><dd>{presetLabel(settings.providerPreset)}</dd></div>
           <div><dt>Discovery</dt><dd>{routeLabel(settings.searchProviderPriority, "No search provider selected")}</dd></div>
           <div><dt>Acquisition</dt><dd>{routeLabel(settings.crawlerProviderPriority, "No crawler selected")}</dd></div>
-          <div><dt>Grounding</dt><dd>{settings.groundingMode} | {settings.groundingModel}</dd></div>
-          <div><dt>Profile model</dt><dd>{settings.profileModel}</dd></div>
-          <div><dt>Deep Research</dt><dd>{settings.deepResearchModel}</dd></div>
+          <div><dt>Grounding</dt><dd>{settings.groundingMode}</dd></div>
+          <div><dt>Managed research</dt><dd>{settings.managedResearchProvider === "exa-agent" ? "Exa Agent" : settings.managedResearchProvider} · {settings.managedResearchDepth}</dd></div>
         </dl> : <p className="status-page__note">Research settings are unavailable, so this page can only show provider health.</p>}
       </Panel>
 

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Pause, Play, StopCircle } from "@phosphor-icons/react";
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
@@ -19,6 +20,7 @@ import {
 } from "./research-workflow/ResearchWorkflowStages";
 import { useCompanyResearchWorkflow } from "./research-workflow/useCompanyResearchWorkflow";
 import type { WorkspaceView } from "./research-workflow/types";
+import { ExternalResearchAssistModal } from "../components/dossier/ExternalResearchAssistModal";
 
 function activityStage(view: WorkspaceView): ActivityStage {
   switch (view) {
@@ -54,6 +56,7 @@ function activityStage(view: WorkspaceView): ActivityStage {
 
 export function AddCompanyProfilePage() {
   const workflow = useCompanyResearchWorkflow();
+  const [externalAssistOpen, setExternalAssistOpen] = useState(false);
   const { view, company, run, isPaused, loading, canPause, error, identityCandidates, matches, activityCounters, researchStatusDetail } = workflow;
 
   return (
@@ -73,7 +76,7 @@ export function AddCompanyProfilePage() {
           <MatchStage workflow={workflow} />
           <IdentityResolutionStage workflow={workflow} />
           <CandidateReviewStage workflow={workflow} />
-          <EvidenceReviewStage workflow={workflow} />
+          <EvidenceReviewStage workflow={workflow} onOpenExternalResearch={() => setExternalAssistOpen(true)} />
           <GeneratingProfileStage workflow={workflow} />
           <ProfileReviewStage workflow={workflow} />
           <CompletionStage workflow={workflow} />
@@ -108,6 +111,7 @@ export function AddCompanyProfilePage() {
           {company ? <div className={styles.compactContext} aria-label="Company context"><span className={styles.compactContextIcon} aria-hidden="true">{company.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className={styles.compactContextCopy}><small>Research target</small><strong>{company.name}</strong><span>{[company.country, company.legalName || company.website].filter(Boolean).join(" · ") || "Identity details are still being verified"}</span></span></div> : <Panel title="What RAVEN will do" eyebrow="RESEARCH WORKFLOW" className={styles.contextPanel}><ol className={styles.workflowList}><li><strong>Identify</strong><span>Capture a stable company identity and optional hints.</span></li><li><strong>Discover</strong><span>Find and classify public source candidates.</span></li><li><strong>Acquire</strong><span>Let you choose which pages become evidence.</span></li><li><strong>Profile</strong><span>Generate only from acquired, traceable evidence.</span></li></ol></Panel>}
         </aside>
       </div>
+      {workflow.company ? <ExternalResearchAssistModal company={{ id: workflow.company.id, displayName: workflow.company.name, legalName: workflow.company.legalName, registrationNumber: workflow.company.registrationNumber, website: workflow.company.website, country: workflow.company.country, headquarters: workflow.company.headquarters, lastResearchedAt: workflow.company.lastResearchedAt }} target={workflow.strengtheningTargets[0] ?? null} objective={`Strengthen dossier for ${workflow.company.name}`} open={externalAssistOpen} onClose={() => setExternalAssistOpen(false)} /> : null}
     </div>
   );
 }

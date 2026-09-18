@@ -6,6 +6,14 @@ RAVEN is an AI-assisted Company Intelligence Platform. It discovers public compa
 
 ## Current milestone
 
+Day 8 adds three complementary research strategies while preserving RAVEN's evidence boundary:
+
+- Native Research owns search, acquisition, evidence, and profile verification.
+- Managed AI Research launches durable asynchronous Exa Agent investigations.
+- External Research Import creates a focused copyable brief for any external assistant and imports pasted Markdown as untrusted research material.
+
+Deep Research does not block initial profile creation. It may finish before Profile v1 exists, but a completed ProfileImprovement investigation stays muted, locked, and out of Workspace Review until a supported model-created profile exists. Native RAVEN Research remains the fast integrated path; External AI Assist remains unverified review material. Profile creation is user-confirmed only: an LLM, worker, failed run, or navigation restore cannot create a profile on its own. Completed Investigations can be explicitly attached to and removed from a conversation. Actual LLM grounding of attached Investigations remains Hung's Chat-backend integration seam; this branch does not create a parallel Chat agent.
+
 Day 7 closes execution-efficiency work and establishes the Ask RAVEN Chat foundation:
 
 ```text
@@ -18,15 +26,18 @@ Identity preflight resolves explicit identifiers locally or asks one bounded top
 
 Developer execution telemetry is sanitized, bounded, and batch-persisted outside provider-call latency; durable user-visible activity, including Deep Research activity, remains separate. Ask RAVEN is persistent profile-grounded Chat: factual company answers require cited evidence, while greetings and product guidance can respond naturally. Deep Research remains an explicit workflow, and web-enabled Chat is intentionally deferred.
 
+Navigation restore distinguishes a missing/stale run from a failed rehydration request. A known run is preserved with a targeted restore error and retry action rather than being relabeled as a generic RAVEN server failure. Identity-only or name-only profile rows left by an interrupted run are treated as incomplete; supported coverage gaps and model provenance must be present before Profile Improvement is enabled.
+
 ## Stack
 
 - React + TypeScript + Vite + Phosphor icons
 - ASP.NET Core + Entity Framework Core
 - SQLite
 - Brave and Exa Search
-- Crawl4AI Local, Firecrawl, and Exa Contents retrieval
+- Crawl4AI Local and Exa Contents retrieval
+- Exa Agent for managed asynchronous research
 - Gemini structured output
-- Microsoft Agent Framework for bounded Deep Research
+- Provider-neutral external research import
 
 ## Quick start
 

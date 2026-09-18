@@ -300,6 +300,11 @@
   border-color: color-mix(in srgb, var(--warning) 40%, var(--surface-raised));
 }
 
+.statusDot--checking {
+  background: var(--info);
+  border-color: color-mix(in srgb, var(--info) 40%, var(--surface-raised));
+}
+
 .priorityGrid {
   display: grid;
   gap: 0.65rem;

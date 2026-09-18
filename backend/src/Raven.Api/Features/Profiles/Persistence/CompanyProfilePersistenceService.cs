@@ -149,7 +149,8 @@ public sealed class CompanyProfilePersistenceService(
                 .SingleOrDefaultAsync(item => item.Id == persistedCandidate.CompanyId, cancellationToken);
             var run = await dbContext.ResearchRuns
                 .SingleOrDefaultAsync(item => item.Id == persistedCandidate.ResearchRunId, cancellationToken);
-            if (company is null || run is null || run.CompanyId != company.Id)
+            if (company is null || run is null || run.CompanyId != company.Id ||
+                run.Status != ResearchRunStatus.Completed || run.Stage != ResearchStage.AwaitingProfileConfirmation)
             {
                 return null;
             }

@@ -41,6 +41,7 @@ export type WorkspaceView =
   | "cancelled";
 
 export type GroundingOverride = "default" | GroundingMode;
+export type StrengthenDossierMethod = "raven" | "deep" | "external";
 
 export type CompanyResearchWorkflow = {
   form: IdentityForm;
@@ -69,8 +70,12 @@ export type CompanyResearchWorkflow = {
   coverage: EvidenceCoverageResponse | null;
   strengtheningTargets: ResearchTarget[];
   toggleStrengtheningTarget: (target: ResearchTarget) => void;
+  strengthenMethod: StrengthenDossierMethod;
+  setStrengthenMethod: (value: StrengthenDossierMethod) => void;
   loading: boolean;
   error: string | null;
+  restoreError: string | null;
+  notice: string | null;
   selectionError: string | null;
   profileCandidate: CompanyProfileCandidate | null;
   profileWarnings: string[];
@@ -101,7 +106,9 @@ export type CompanyResearchWorkflow = {
   updateCandidateSelection: (id: string, selected: boolean) => void;
   handleAcquire: () => Promise<void>;
   handleStrengthenDossier: () => Promise<void>;
+  handleDeepResearch: () => Promise<void>;
   handleGenerateProfile: () => Promise<void>;
   handleConfirmProfile: () => Promise<void>;
   resetAfterFailure: () => void;
+  retryRestore: () => Promise<void>;
 };

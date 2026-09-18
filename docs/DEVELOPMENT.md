@@ -109,7 +109,7 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
 
-Research Settings persist safe model roles, identity-resolution/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets use Brave/Exa Search and Crawl4AI Local/Exa Contents. Existing Firecrawl priorities are normalized safely on read, but Firecrawl is not an active route. Authentication, configuration, and invalid-request errors never silently fall back.
+Research Settings persist safe model roles, identity-resolution/reranking preferences, provider priorities, and provider-neutral Managed AI Research depth in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets use Brave/Exa Search and Crawl4AI Local/Exa Contents. Existing Firecrawl priorities are normalized safely on read, but Firecrawl is not an active route. Managed Research depth maps internally to Exa Agent effort (`Adaptive=auto`, `Focused=low`, `Standard=medium`, `Thorough=high`, `Exhaustive=xhigh`). Authentication, configuration, and invalid-request errors never silently fall back.
 
 ## Identity preflight API
 
@@ -180,17 +180,19 @@ Monitoring and Deep Research use in-process `BackgroundService` workers. They ex
 
 The background research start endpoint also uses an in-process channel-backed worker. It returns `202 Accepted`, exposes active runs, and supports cancellation. It is not a durable job queue: a process restart drops queued work, by design for this MVP.
 
-The frontend persists only an active, resumable research session for handoff across navigation/reload. Cancelling a run clears that session and resets the research screen to its blank default state. A restored session whose run/company no longer exists, is terminal, or uses a legacy-unrestorable stage is also discarded locally; this is intentional recovery behavior, not an API failure.
+The frontend persists only an active, resumable research session for handoff across navigation/reload. Cancelling a run clears that session and resets the research screen to its blank default state. A missing initial run or deleted company is discarded locally as stale session state; if a known run exists but a related restore request fails, the run stays in session and the UI shows the failing restore step with retry instead of converting it into `RESEARCH FAILED` or the generic API-unavailable message.
 
 ## Workspace lifecycle behavior
 
 `POST /api/companies/merge/confirm` is a user-confirmed, transactional merge. It preserves compatible dependent records and profile history; moved serialized profile and candidate payloads are rewritten to the canonical company and combined profile versions are re-numbered in confirmation-time order. The frontend routes a completed merge to the canonical dossier.
 
-Company List actions are addressable: **Monitor company** opens the Monitoring tab and **Improve profile** opens the targeted enrichment dialog. Both require an accepted profile. When one is unavailable, the company page explains the constraint and links to refresh research or Workspace Review instead of presenting an empty action.
+Company List actions are addressable: **Monitor company** opens the Monitoring tab and **Improve profile** opens the targeted enrichment dialog. Profile Improvement requires a supported model-created baseline with at least one covered research target; an identity-only/name-only row is shown as incomplete and links to create or repair the initial profile. The visible gap count comes from qualitative coverage, so near-total gaps remain diagnosable rather than appearing as a healthy profile.
 
 Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
 
-Managed AI Research uses an asynchronous Exa Agent run and a durable local job row. The client may leave the workspace while a background worker polls the provider. A completed result remains investigation material with provider provenance; it is not accepted profile evidence. The optional Maps Embed key must be restricted in Google Cloud to the deployed frontend origins; missing configuration falls back to a normal Google Maps address link.
+Managed AI Research uses an asynchronous Exa Agent run and a durable local job row. The client may leave the workspace while a background worker polls the provider. The adapter sends Exa's required beta request header. A completed result remains investigation material with provider provenance; it is not accepted profile evidence. The optional Maps Embed key must be restricted in Google Cloud to the deployed frontend origins; missing configuration falls back to a normal Google Maps address link.
+
+Only the explicit profile-confirmation action creates a Company Profile version. Deep Research, normal workers, profile generation, navigation restore, and failed/in-progress run recovery never auto-confirm a candidate. A completed ProfileImprovement investigation without a usable Profile v1 is visible as preserved but locked material, is not clickable from the global ready card, and is excluded from Workspace Review.
 
 ## Git workflow
 

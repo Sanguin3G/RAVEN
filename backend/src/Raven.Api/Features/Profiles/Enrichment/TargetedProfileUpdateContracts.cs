@@ -4,7 +4,9 @@ namespace Raven.Api.Features.Profiles.Enrichment;
 
 public sealed record StartTargetedResearchRequest(
     IReadOnlyList<ResearchTarget>? Targets,
-    Guid? BaseProfileVersionId = null);
+    Guid? BaseProfileVersionId = null,
+    Guid? SavedResearchArtifactId = null,
+    Guid? ManagedResearchInvestigationId = null);
 
 public sealed record ProfilePatchChange(
     string FieldPath,

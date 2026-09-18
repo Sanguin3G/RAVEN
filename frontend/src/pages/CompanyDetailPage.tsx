@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
-import { AskRavenHandoff } from "../components/dossier/AskRavenHandoff";
 import { CompanyDossier } from "../components/dossier/CompanyDossier";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
@@ -26,31 +25,6 @@ const validDossierTabs: DossierTab[] = ["overview", "sources", "investigations",
 
 function parseDossierTab(value: string | null): DossierTab | undefined {
   return value && validDossierTabs.includes(value as DossierTab) ? value as DossierTab : undefined;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(value));
-}
-
-function SparseProfileGuidance({ companyId, mode }: { companyId: string; mode?: "improve" | "monitoring" }) {
-  const heading = mode === "monitoring"
-    ? "Monitoring needs an accepted profile"
-    : mode === "improve"
-      ? "This profile is not ready to improve"
-      : "Build a profile before using workspace actions";
-
-  return (
-    <Panel className="narrow-page sparse-profile-guidance" title={heading} eyebrow="PROFILE NEEDS EVIDENCE">
-      <p>
-        RAVEN does not have an accepted Company Profile for this record yet, so targeted improvement and monitoring are not available.
-        Refresh public-source research first, then review the resulting evidence before using either workspace action.
-      </p>
-      <div className="modal-actions">
-        <Link className="button" to={`/companies/new?refreshCompanyId=${encodeURIComponent(companyId)}`}>Refresh research</Link>
-        <Link className="button button--secondary" to="/companies?review=true">Review workspace</Link>
-      </div>
-    </Panel>
-  );
 }
 
 export function CompanyDetailPage() {
@@ -78,6 +52,10 @@ export function CompanyDetailPage() {
   const researchRunId = searchParams.get("researchRun");
   const improveRequested = searchParams.get("improve") === "true";
   const improveTargets = parseResearchTargets(searchParams.get("targets"));
+  const improveArtifactId = searchParams.get("artifact");
+  const improveManagedInvestigationId = searchParams.get("managedInvestigation");
+  const initialChatCapability = searchParams.get("chat") === "deep" ? "deepResearch" as const : undefined;
+  const initialChatQuestion = searchParams.get("question");
   const requestedTab = parseDossierTab(searchParams.get("tab"));
 
   useEffect(() => {
@@ -175,7 +153,10 @@ export function CompanyDetailPage() {
     setProfileVersions(versions);
     setProfileChanges(changes);
     setCoverage(nextCoverage);
-    navigate(`/companies/${encodeURIComponent(id)}`, { replace: true });
+    const nextParams = new URLSearchParams();
+    if (requestedTab && requestedTab !== "overview") nextParams.set("tab", requestedTab);
+    const query = nextParams.toString();
+    navigate(`/companies/${encodeURIComponent(id)}${query ? `?${query}` : ""}`, { replace: true });
   }
 
   useEffect(() => {
@@ -209,14 +190,17 @@ export function CompanyDetailPage() {
     // dialog after the user has moved to another dossier section.
     nextParams.delete("improve");
     nextParams.delete("targets");
+    nextParams.delete("artifact");
+    nextParams.delete("managedInvestigation");
+    nextParams.delete("chat");
+    nextParams.delete("question");
     const query = nextParams.toString();
     navigate(`/companies/${encodeURIComponent(id)}${query ? `?${query}` : ""}`, { replace: true });
   }
 
-  if (profile) {
-    return <CompanyDossier
-      company={{ id: company.id, displayName: company.name, legalName: company.legalName, registrationNumber: company.registrationNumber, website: company.website, country: company.country, headquarters: company.headquarters, industry: profile.primaryIndustry, lastResearchedAt: company.lastResearchedAt }}
-      profile={{ ...profile, publicLinks: profile.publicLinks?.map((link) => link.url) ?? [], evidenceCount: profile.evidence?.length ?? 0 }}
+  return <CompanyDossier
+      company={{ id: company.id, displayName: company.name, legalName: company.legalName, registrationNumber: company.registrationNumber, website: company.website, country: company.country, headquarters: company.headquarters, industry: profile?.primaryIndustry, lastResearchedAt: company.lastResearchedAt }}
+      profile={profile ? { ...profile, publicLinks: profile.publicLinks?.map((link) => link.url) ?? [], evidenceCount: profile.evidence?.length ?? 0 } : null}
       sources={sources.map((source) => ({ id: source.id, url: source.url, title: source.title, domain: source.sourceDomain, kind: source.sourceKind, iconUrl: source.iconUrl, preview: source.contentPreview, retrievedAt: source.retrievedAt, crawlerProvider: source.crawlerProvider, status: "acquired" }))}
       research={researchRun ? { status: researchRun.stage === "Failed" ? "failed" : researchRun.stage === "Completed" ? "completed" : "waiting", stageLabel: researchRun.stage, runId: researchRun.id, error: researchRun.error, counters: [{ label: "Documents added", value: researchRun.documentsAdded }, { label: "Candidates", value: researchRun.uniqueCandidates }] } : { status: "completed", summary: "Current accepted dossier" }}
       tracking={{
@@ -237,25 +221,23 @@ export function CompanyDetailPage() {
       coverage={{ response: coverage, isLoading: coverageLoading, error: coverageError }}
       openEnrichment={improveRequested}
       initialEnrichmentTargets={improveTargets}
+      initialEnrichmentArtifactId={improveArtifactId}
+      initialManagedResearchInvestigationId={improveManagedInvestigationId}
+      initialChatCapability={initialChatCapability}
+      initialChatQuestion={initialChatQuestion}
       activeTab={requestedTab ?? "overview"}
       onTabChange={handleDossierTabChange}
+      onOpenProfileImprovement={(targets, sourceMaterialId, sourceMaterialKind) => {
+        const params = new URLSearchParams({ improve: "true", targets: targets.join(",") });
+        if (sourceMaterialKind === "managed" && sourceMaterialId) params.set("managedInvestigation", sourceMaterialId);
+        else if (sourceMaterialId) params.set("artifact", sourceMaterialId);
+        navigate(`/companies/${encodeURIComponent(company.id)}?${params.toString()}`);
+      }}
+      onOpenDeepResearch={(objective) => {
+        const params = new URLSearchParams({ tab: "investigations", chat: "deep" });
+        if (objective) params.set("question", objective);
+        navigate(`/companies/${encodeURIComponent(company.id)}?${params.toString()}`);
+      }}
       onProfileConfirmed={(nextProfile) => { void handleProfileConfirmed(nextProfile); }}
     />;
-  }
-
-  const researchStatus = researchRun?.status.toLowerCase();
-  return (
-    <div className="page-stack company-detail-page">
-      <Link className="back-link" to="/companies">← Back to Company List</Link>
-      {researchRun ? <div className={`success-banner research-banner research-banner--${researchStatus}`} role="status"><strong>Research {researchRun.status.toLowerCase()}.</strong> {researchRun.status === "Completed" ? `${researchRun.sourcesCrawled} public source${researchRun.sourcesCrawled === 1 ? " was" : "s were"} acquired.` : researchRun.error || "RAVEN is processing public sources."}</div> : null}
-      {researchError ? <div className="form-error" role="alert">{researchError}</div> : null}
-      <SparseProfileGuidance companyId={company.id} mode={requestedTab === "monitoring" ? "monitoring" : improveRequested ? "improve" : undefined} />
-      <article className="company-detail-card">
-        <header className="company-detail-header"><div className="company-detail-heading"><span className="company-avatar company-avatar--large" aria-hidden="true">{company.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">COMPANY IDENTITY</p><h1>{company.name}</h1><p className="company-detail-subtitle">{company.country || "Country not provided"}</p></div></div></header>
-        <div className="company-detail-body"><Panel title="Company overview" eyebrow="STABLE IDENTITY"><div className="detail-grid"><div><span>Country</span><strong>{company.country || "Not provided"}</strong></div><div><span>Website</span><strong>{company.website || "Not provided"}</strong></div><div><span>Created</span><strong>{formatDate(company.createdAt)}</strong></div><div><span>Last updated</span><strong>{formatDate(company.updatedAt)}</strong></div></div></Panel><Panel title="Identifiers" eyebrow="VERIFICATION"><dl className="definition-list"><div><dt>Website</dt><dd>{company.website ? <a href={company.website} target="_blank" rel="noreferrer">{company.website} ↗</a> : "Not provided"}</dd></div><div><dt>Company ID</dt><dd>{company.id}</dd></div><div><dt>Last updated</dt><dd>{formatDate(company.updatedAt)}</dd></div></dl></Panel></div>
-      </article>
-      {researchRun ? <Panel title="Research evidence" eyebrow="BRAVE SEARCH → CRAWL4AI LOCAL"><dl className="definition-list"><div><dt>Status</dt><dd>{researchRun.status}</dd></div><div><dt>Sources found</dt><dd>{researchRun.sourcesFound}</dd></div><div><dt>Sources acquired</dt><dd>{researchRun.sourcesCrawled}</dd></div><div><dt>Search provider</dt><dd>{researchRun.actualSearchProvider || researchRun.requestedSearchProvider}</dd></div><div><dt>Crawler</dt><dd>{researchRun.actualCrawlerProvider || researchRun.requestedCrawlerProvider}</dd></div></dl>{sources.length ? <ul className="source-list">{sources.map((source) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a><small>{source.sourceDomain || source.crawlerProvider}</small><p>{source.contentPreview}</p></li>)}</ul> : <p className="state-message">No source documents were acquired for this research run.</p>}</Panel> : null}
-      <AskRavenHandoff companyId={company.id} companyName={company.name} lastResearchedAt={company.lastResearchedAt} profileVersion={null} profileVersionId={null} sourceCount={sources.length} />
-    </div>
-  );
 }

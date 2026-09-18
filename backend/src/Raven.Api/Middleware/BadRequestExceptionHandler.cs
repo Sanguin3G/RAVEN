@@ -20,6 +20,7 @@ public sealed class BadRequestExceptionHandler : IExceptionHandler
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Invalid request",
+            Detail = exception.Message,
             Instance = httpContext.Request.Path
         };
         problem.Extensions["code"] = "invalid_request";

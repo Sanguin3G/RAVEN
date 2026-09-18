@@ -23,6 +23,12 @@ public sealed class SavedResearchArtifact
     public required string Summary { get; init; }
 
     /// <summary>
+    /// Original user-supplied research material, when available. It remains
+    /// untrusted material and is never used as accepted profile evidence.
+    /// </summary>
+    public string? RawResponse { get; init; }
+
+    /// <summary>
     /// Read-only vocabulary alias for clients that call the saved answer a
     /// result. The persisted field is <see cref="Summary"/>.
     /// </summary>
@@ -111,6 +117,7 @@ public sealed class SavedResearchArtifact
             Title = Title,
             Question = Question,
             Summary = Summary,
+            RawResponse = RawResponse,
             CreatedAt = CreatedAt,
             ResearchType = ResearchType,
             Origin = Origin,
@@ -174,9 +181,9 @@ public enum SavedResearchOrigin
 }
 
 /// <summary>
-/// A URL lead supplied by research material. A lead is not a persisted
-/// <see cref="Raven.Api.Features.Research.SourceDocument"/> and cannot support
-/// an accepted profile until RAVEN acquires and validates it separately.
+/// A URL lead supplied by research material. A lead is retained as provider
+/// provenance and review context; External Assist does not turn it into a new
+/// crawl or SourceDocument automatically.
 /// </summary>
 public sealed record ResearchSourceLead(
     string Url,

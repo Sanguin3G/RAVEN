@@ -44,6 +44,27 @@ export interface SavedResearchArtifact {
   sourceLeads?: ResearchSourceLead[];
   claims?: ResearchClaim[];
   uncertainties?: string[];
+  rawResponse?: string | null;
+  organization?: InvestigationOrganization | null;
+}
+
+export interface InvestigationOrganizationTheme {
+  name: string;
+  summary: string;
+  claimCount: number;
+}
+
+export interface InvestigationOrganization {
+  id: string;
+  savedResearchArtifactId: string;
+  version: number;
+  createdAt: string;
+  executiveSummary: string;
+  themes: InvestigationOrganizationTheme[];
+  evidenceGaps: string[];
+  suggestedFollowUps: string[];
+  uncertainties: string[];
+  isHumanEdited: boolean;
 }
 
 export function getSavedInvestigations(companyId: string) {
@@ -52,4 +73,16 @@ export function getSavedInvestigations(companyId: string) {
 
 export function getSavedInvestigation(companyId: string, artifactId: string) {
   return request<SavedResearchArtifact>(`/api/companies/${encodeURIComponent(companyId)}/saved-research/${encodeURIComponent(artifactId)}`);
+}
+
+export function getInvestigationOrganization(companyId: string, artifactId: string) {
+  return request<InvestigationOrganization>(`/api/companies/${encodeURIComponent(companyId)}/saved-research/${encodeURIComponent(artifactId)}/organization`);
+}
+
+export function organizeInvestigation(companyId: string, artifactId: string) {
+  return request<InvestigationOrganization>(`/api/companies/${encodeURIComponent(companyId)}/saved-research/${encodeURIComponent(artifactId)}/organization`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
 }

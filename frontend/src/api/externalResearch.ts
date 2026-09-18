@@ -41,6 +41,19 @@ export interface ExternalResearchImportPreview {
   rawMarkdown: string;
 }
 
+export type ExternalResearchAnalysisStatus = "Queued" | "Analyzing" | "Completed" | "Failed";
+
+export interface ExternalResearchAnalysisJob {
+  id: string;
+  companyId: string;
+  question: string;
+  status: ExternalResearchAnalysisStatus;
+  result?: ExternalResearchImportPreview | null;
+  createdAt: string;
+  completedAt?: string | null;
+  error?: string | null;
+}
+
 export function generateExternalResearchBrief(companyId: string, body: GenerateExternalResearchBriefRequest) {
   return request<ExternalResearchBrief>(`/api/companies/${encodeURIComponent(companyId)}/external-research/brief`, {
     method: "POST",
@@ -63,4 +76,16 @@ export function previewExternalResearchImport(companyId: string, body: ImportExt
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+export function startExternalResearchAnalysis(companyId: string, body: ImportExternalResearchRequest) {
+  return request<ExternalResearchAnalysisJob>(`/api/companies/${encodeURIComponent(companyId)}/external-research/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getExternalResearchAnalysis(companyId: string, jobId: string) {
+  return request<ExternalResearchAnalysisJob>(`/api/companies/${encodeURIComponent(companyId)}/external-research/analyze/${encodeURIComponent(jobId)}`);
 }

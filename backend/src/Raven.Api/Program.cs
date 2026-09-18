@@ -17,6 +17,7 @@ using Raven.Api.Features.Companies.Workspace;
 using Raven.Api.Features.Chat;
 using Raven.Api.Features.ManagedResearch;
 using Raven.Api.Features.Research.ExternalImport;
+using Raven.Api.Features.Research.Organization;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -73,6 +74,12 @@ builder.Services.AddScoped<ISavedResearchArtifactStore, EfSavedResearchArtifactS
 builder.Services.AddScoped<ISourceDocumentOwnershipReader, EfSourceDocumentOwnershipReader>();
 builder.Services.AddSingleton<ISavedResearchArtifactClock, SystemSavedResearchArtifactClock>();
 builder.Services.AddScoped<ISavedResearchArtifactService, SavedResearchArtifactService>();
+builder.Services.AddScoped<IInvestigationOrganizationService, InvestigationOrganizationService>();
+builder.Services.AddScoped<IExternalResearchAnalysisJobStore, EfExternalResearchAnalysisJobStore>();
+builder.Services.AddScoped<IExternalResearchAnalysisService, ExternalResearchAnalysisService>();
+builder.Services.AddSingleton<ExternalResearchAnalysisQueue>();
+builder.Services.AddSingleton<IExternalResearchAnalysisQueue>(services => services.GetRequiredService<ExternalResearchAnalysisQueue>());
+builder.Services.AddHostedService<ExternalResearchAnalysisWorker>();
 builder.Services.Configure<ExaAgentOptions>(builder.Configuration.GetSection(ExaAgentOptions.SectionName));
 builder.Services.PostConfigure<ExaAgentOptions>(options => options.ApiKey ??= builder.Configuration[ExaAgentOptions.ApiKeyEnvironmentVariable]);
 builder.Services.AddHttpClient<ExaAgentClient>((services, client) =>
@@ -132,6 +139,7 @@ app.MapDeepResearchEndpoints();
 app.MapChatEndpoints();
 app.MapManagedResearchEndpoints();
 app.MapExternalResearchEndpoints();
+app.MapInvestigationOrganizationEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

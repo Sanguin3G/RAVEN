@@ -2,6 +2,7 @@ import { request } from "./client";
 
 export type GroundingMode = "Auto" | "Always" | "Off";
 export type ProviderPreset = "Resilient" | "LocalFirst" | "Cloud" | "Custom";
+export type ManagedResearchDepth = "Adaptive" | "Focused" | "Standard" | "Thorough" | "Exhaustive";
 
 export interface ResearchSettings {
   groundingMode: GroundingMode;
@@ -12,6 +13,8 @@ export interface ResearchSettings {
   providerPreset: ProviderPreset;
   searchProviderPriority: string[];
   crawlerProviderPriority: string[];
+  managedResearchProvider: string;
+  managedResearchDepth: ManagedResearchDepth;
   updatedAt: string;
 }
 

@@ -33,6 +33,17 @@ public enum ManagedResearchEffort
 }
 
 /// <summary>
+/// Describes how a managed investigation may be used. General investigations
+/// remain useful before a profile exists; profile-improvement investigations
+/// require an accepted Company Profile before they can be reviewed or applied.
+/// </summary>
+public enum ManagedResearchPurpose
+{
+    General,
+    ProfileImprovement
+}
+
+/// <summary>
 /// Durable state for a managed research execution. The result is research
 /// material only; this entity has no profile mutation operation by design.
 /// </summary>
@@ -45,6 +56,7 @@ public sealed class ManagedResearchJob
     public required string Objective { get; init; }
     public required string ProviderQuery { get; init; }
     public string Effort { get; init; } = "auto";
+    public ManagedResearchPurpose Purpose { get; init; } = ManagedResearchPurpose.General;
     public ManagedResearchJobStatus Status { get; set; } = ManagedResearchJobStatus.Queued;
     public string? Provider { get; set; }
     public string? ProviderRunId { get; set; }
@@ -147,7 +159,8 @@ public sealed record StartManagedResearchRequest(
     string Objective,
     Guid? ConversationId = null,
     Guid? ChatMessageId = null,
-    ManagedResearchEffort Effort = ManagedResearchEffort.Auto);
+    ManagedResearchEffort Effort = ManagedResearchEffort.Auto,
+    ManagedResearchPurpose Purpose = ManagedResearchPurpose.General);
 
 /// <summary>Safe, pollable managed research job response.</summary>
 public sealed record ManagedResearchJobResponse(
@@ -167,7 +180,8 @@ public sealed record ManagedResearchJobResponse(
     ManagedResearchResult? Result,
     decimal? ProviderCostDollars,
     Guid? InvestigationId,
-    string? Error);
+    string? Error,
+    ManagedResearchPurpose Purpose = ManagedResearchPurpose.General);
 
 /// <summary>
 /// Read-only company/profile context used to build a focused provider query.

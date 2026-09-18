@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, getApiErrorMessage } from "../../api/client";
 import { getCompanyProfileCandidate, generateCompanyProfile, confirmCompanyProfile } from "../../api/profiles";
-import { createCompany, findCompanyMatches, getCompany } from "../../api/companies";
+import { createCompany, deleteCompanyPermanently, findCompanyMatches, getCompany } from "../../api/companies";
 import {
   acquireResearchCandidates,
   cancelResearchRun,
@@ -13,6 +13,7 @@ import {
   selectResearchIdentityCandidate,
   startBackgroundResearch,
 } from "../../api/research";
+import { startManagedResearch } from "../../api/managedResearch";
 import { getResearchRunCoverage, type EvidenceCoverageResponse } from "../../api/coverage";
 import { getResearchSettings } from "../../api/settings";
 import { resolveCompanyIdentity } from "../../api/identity";
@@ -22,6 +23,7 @@ import type { CompanyProfileCandidate } from "../../types/profile";
 import type { IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
 import { canPauseResearchStage, isRestorableResearch, researchProgressLabel } from "../../utils/researchProgress";
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused } from "../../utils/researchSession";
+import { upsertResearchActivity } from "../../utils/researchActivity";
 import type { CompanyResearchWorkflow, GroundingOverride, IdentityForm, WorkspaceView } from "./types";
 
 export const initialForm: IdentityForm = {
@@ -57,6 +59,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   const [defaultGroundingMode, setDefaultGroundingMode] = useState<GroundingMode>("Auto");
   const [view, setView] = useState<WorkspaceView>("identify");
   const [company, setCompany] = useState<Company | null>(null);
+  const [createdCompanyForResearch, setCreatedCompanyForResearch] = useState(false);
   const [run, setRun] = useState<ResearchRun | null>(null);
   const [matches, setMatches] = useState<CompanyMatchResponse[]>([]);
   const [preflightResponse, setPreflightResponse] = useState<IdentityResolutionResponse | null>(null);
@@ -71,8 +74,11 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   const [sources, setSources] = useState<SourceDocument[]>([]);
   const [coverage, setCoverage] = useState<EvidenceCoverageResponse | null>(null);
   const [strengtheningTargets, setStrengtheningTargets] = useState<ResearchTarget[]>([]);
+  const [strengthenMethod, setStrengthenMethod] = useState<"raven" | "deep" | "external">("raven");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [profileCandidate, setProfileCandidate] = useState<CompanyProfileCandidate | null>(null);
   const [profileWarnings, setProfileWarnings] = useState<string[]>([]);
@@ -157,18 +163,24 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   async function restoreResearchRun(researchRunId: string) {
     setLoading(true);
     setError(null);
+    setRestoreError(null);
+    let restoreStep = "the saved research run";
+    let restoredRunLoaded = false;
     try {
       let restoredRun = await getResearchRun(researchRunId);
+      restoredRunLoaded = true;
       if (!isRestorableResearch(restoredRun)) {
         clearCurrentResearch(restoredRun.id);
         resetResearchState();
         return;
       }
+      restoreStep = "the company details";
       const existingCompany = await getCompany(restoredRun.companyId);
       const savedSession = readCurrentResearch();
       const paused = savedSession?.runId === restoredRun.id && savedSession.paused && canPauseResearchStage(restoredRun.stage);
 
       setCompany(existingCompany);
+      setCreatedCompanyForResearch(false);
       setForm({
         name: existingCompany.name,
         legalName: existingCompany.legalName || "",
@@ -184,9 +196,11 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
 
       if (!paused && ["Identifying", "Discovering", "Grounding"].includes(restoredRun.stage)) {
         setView("discovering");
+        restoreStep = "research progress";
         restoredRun = await waitForDiscovery(restoredRun.id);
       } else if (!paused && restoredRun.stage === "Acquiring") {
         setView("acquiring");
+        restoreStep = "research progress";
         restoredRun = await waitForAcquisition(restoredRun.id);
       }
 
@@ -199,6 +213,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
 
       switch (restoredRun.stage) {
         case "AwaitingIdentitySelection": {
+          restoreStep = "identity choices";
           const identity = await getResearchIdentityCandidates(restoredRun.id);
           setIdentityCandidates(identity);
           setSelectedIdentityCandidateId(identity.find((candidate) => candidate.recommended)?.id || identity.find((candidate) => candidate.selected)?.id || null);
@@ -206,10 +221,12 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
           break;
         }
         case "AwaitingSourceSelection":
+          restoreStep = "source candidates";
           await loadCandidatesForRun(restoredRun.id);
           setView("reviewingSources");
           break;
         case "EvidenceReady":
+          restoreStep = "acquired evidence";
           await loadEvidenceForRun(restoredRun.id);
           setView("reviewingEvidence");
           break;
@@ -217,6 +234,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
           setView("generatingProfile");
           break;
         case "AwaitingProfileConfirmation": {
+          restoreStep = "the profile preview";
           const candidate = await getCompanyProfileCandidate(restoredRun.id);
           if (candidate) {
             setProfileCandidate(candidate);
@@ -237,12 +255,13 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
       // deleted company) is stale session state, not a research failure that
       // should strand the next visit on an error panel. Preserve the session
       // on transient/API failures so a valid active run remains recoverable.
-      if (reason instanceof ApiError && reason.status === 404) {
+      if (!restoredRunLoaded && reason instanceof ApiError && reason.status === 404) {
         clearCurrentResearch(researchRunId);
         resetResearchState();
         return;
       }
-      setError(getApiErrorMessage(reason, "RAVEN could not restore this research run."));
+      setError(null);
+      setRestoreError(`RAVEN restored this run, but could not reload ${restoreStep}. The research is still preserved. Retry restore, or start over if you want to discard it.`);
       setView("failed");
     } finally {
       setLoading(false);
@@ -258,6 +277,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setCompany(nextCompany);
     setMatches([]);
     setError(null);
+    setRestoreError(null);
     setSelectionError(null);
     setIdentityCandidates([]);
     setSelectedIdentityCandidateId(null);
@@ -314,6 +334,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
 
     try {
       const nextCompany = await createCompany(companyRequest(form));
+      setCreatedCompanyForResearch(true);
       await discoverForCompany(nextCompany, false, undefined, pendingResolvedIdentity);
     } catch (reason: unknown) {
       setError(getApiErrorMessage(reason, "RAVEN could not create this company."));
@@ -358,6 +379,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     const foundMatches = await findCompanyMatches(companyRequest(resolvedForm));
     if (foundMatches.length > 0) { setMatches(foundMatches); setLoading(false); return; }
     const nextCompany = await createCompany(companyRequest(resolvedForm));
+    setCreatedCompanyForResearch(true);
     await discoverForCompany(nextCompany, false, undefined, snapshot);
   }
 
@@ -421,6 +443,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setGroundingOverride("default");
     setView("identify");
     setCompany(null);
+    setCreatedCompanyForResearch(false);
     setRun(null);
     setMatches([]);
     setPreflightResponse(null);
@@ -435,12 +458,22 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setSources([]);
     setCoverage(null);
     setStrengtheningTargets([]);
+    setStrengthenMethod("raven");
     setProfileCandidate(null);
     setProfileWarnings([]);
     setSelectionError(null);
     setError(null);
+    setRestoreError(null);
     setLoading(false);
     setIsPaused(false);
+  }
+
+  async function retryRestore() {
+    const savedSession = readCurrentResearch();
+    const researchRunId = run?.id || savedSession?.runId;
+    if (!researchRunId) return;
+    restoredRunRef.current = null;
+    await restoreResearchRun(researchRunId);
   }
 
   function resetResearchForm() {
@@ -467,6 +500,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   }
 
   async function handleResearchExisting(existingCompany: Company) {
+    setCreatedCompanyForResearch(false);
     const identityHint = [
       form.country.trim() ? `Country: ${form.country.trim()}` : "",
       form.legalName.trim() ? `Legal name: ${form.legalName.trim()}` : "",
@@ -492,6 +526,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     refreshStartedRef.current = true;
     getCompany(refreshCompanyId)
       .then((existingCompany) => {
+        setCreatedCompanyForResearch(false);
         setForm({
           name: existingCompany.name,
           legalName: existingCompany.legalName || "",
@@ -519,6 +554,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
 
     setSelectionError(null);
     setError(null);
+    setRestoreError(null);
     setLoading(true);
     setView("discovering");
 
@@ -596,6 +632,9 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setLoading(true);
     try {
       await cancelResearchRun(run.id);
+      if (createdCompanyForResearch && company) {
+        await deleteCompanyPermanently(company.id);
+      }
       clearCurrentResearch(run.id);
       resetResearchState();
     } catch (reason: unknown) {
@@ -751,6 +790,35 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     resetResearchState();
   }
 
+  async function handleDeepResearch() {
+    if (!company || strengtheningTargets.length === 0) return;
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+    const objective = `Strengthen the company profile with current evidence for ${strengtheningTargets.join(", ")}.`;
+    try {
+      const job = await startManagedResearch(company.id, objective, { purpose: "ProfileImprovement" });
+      upsertResearchActivity({
+        id: `deep-${job.id}`,
+        jobId: job.id,
+        origin: "Deep",
+        companyId: company.id,
+        companyName: company.name,
+        objective,
+        detail: job.status === "Completed" ? "Ready for review" : "Researching across sources",
+        status: job.status === "Completed" ? "ready" : "running",
+        locked: job.status === "Completed",
+        href: `/companies/${encodeURIComponent(company.id)}?tab=investigations&research=${encodeURIComponent(job.investigationId ?? job.id)}`,
+        updatedAt: job.completedAt || job.createdAt,
+      });
+      setNotice("Deep Research started · running in the background. Results will appear in Investigations.");
+    } catch (reason: unknown) {
+      setError(getApiErrorMessage(reason, "Deep Research could not be started."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return {
     form,
     groundingOverride,
@@ -778,8 +846,12 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     coverage,
     strengtheningTargets,
     toggleStrengtheningTarget,
+    strengthenMethod,
+    setStrengthenMethod,
     loading,
     error,
+    restoreError,
+    notice,
     selectionError,
     profileCandidate,
     profileWarnings,
@@ -810,8 +882,10 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     updateCandidateSelection,
     handleAcquire,
     handleStrengthenDossier,
+    handleDeepResearch,
     handleGenerateProfile,
     handleConfirmProfile,
     resetAfterFailure,
+    retryRestore,
   };
 }

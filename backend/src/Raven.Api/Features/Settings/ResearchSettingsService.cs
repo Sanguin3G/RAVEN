@@ -15,6 +15,11 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         ResearchSettingsDefaults.DeepResearchModel
     ];
 
+    private static readonly HashSet<string> AllowedManagedResearchProviders =
+    [
+        ResearchSettingsDefaults.ManagedResearchProvider
+    ];
+
     public async Task<ResearchSettingsResponse> GetAsync(CancellationToken cancellationToken = default)
     {
         var persisted = await store.GetAsync(cancellationToken);
@@ -71,6 +76,8 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             ProfileModel = NormalizeModel(request.ProfileModel),
             GroundingModel = NormalizeModel(request.GroundingModel),
             DeepResearchModel = NormalizeModel(request.DeepResearchModel),
+            ManagedResearchProvider = NormalizeManagedResearchProvider(request.ManagedResearchProvider ?? current.ManagedResearchProvider),
+            ManagedResearchDepth = request.ManagedResearchDepth ?? current.ManagedResearchDepth,
             AiSourceRerankingEnabled = request.AiSourceRerankingEnabled,
             ProviderPreset = request.ProviderPreset,
             SearchProviderPriority = NormalizeProviderIds(
@@ -110,6 +117,8 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             ProfileModel = response.ProfileModel,
             GroundingModel = response.GroundingModel,
             DeepResearchModel = response.DeepResearchModel,
+            ManagedResearchProvider = response.ManagedResearchProvider,
+            ManagedResearchDepth = response.ManagedResearchDepth,
             AiSourceRerankingEnabled = response.AiSourceRerankingEnabled,
             ProviderPreset = response.ProviderPreset,
             SearchProviderPriority = [.. response.SearchProviderPriority],
@@ -142,6 +151,16 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             errors.Add("Deep Research model is not supported.");
         }
 
+        if (!AllowedManagedResearchProviders.Contains(request.ManagedResearchProvider?.Trim() ?? ResearchSettingsDefaults.ManagedResearchProvider))
+        {
+            errors.Add("Managed AI research provider is not supported.");
+        }
+
+        if (request.ManagedResearchDepth is not null && !Enum.IsDefined(request.ManagedResearchDepth.Value))
+        {
+            errors.Add("Managed AI research depth is not supported.");
+        }
+
         if (!Enum.IsDefined(request.ProviderPreset))
         {
             errors.Add("Provider preset is not supported.");
@@ -171,7 +190,9 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             settings.AiSourceRerankingEnabled,
             settings.ProviderPreset,
             settings.SearchProviderPriority,
-            settings.CrawlerProviderPriority));
+            settings.CrawlerProviderPriority,
+            settings.ManagedResearchProvider,
+            settings.ManagedResearchDepth));
 
         if (string.IsNullOrWhiteSpace(settings.Id))
         {
@@ -210,6 +231,9 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
 
     private static string NormalizeModel(string model) => model.Trim();
 
+    private static string NormalizeManagedResearchProvider(string provider) =>
+        provider.Trim().ToLowerInvariant();
+
     private static List<string> NormalizeProviderIds(
         IReadOnlyList<string>? providerIds,
         IReadOnlySet<string> supportedProviders,
@@ -232,6 +256,16 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             persisted.CrawlerProviderPriority,
             ResearchSettingsDefaults.SupportedCrawlerProviders,
             [ResearchSettingsDefaults.Crawl4AiLocalProvider]);
+        if (string.IsNullOrWhiteSpace(normalized.ManagedResearchProvider))
+        {
+            normalized.ManagedResearchProvider = ResearchSettingsDefaults.ManagedResearchProvider;
+        }
+
+        if (!Enum.IsDefined(normalized.ManagedResearchDepth))
+        {
+            normalized.ManagedResearchDepth = ManagedResearchDepth.Adaptive;
+        }
+
         return normalized;
     }
 
@@ -243,7 +277,9 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             StringComparer.Ordinal) &&
         left.CrawlerProviderPriority.SequenceEqual(
             right.CrawlerProviderPriority,
-            StringComparer.Ordinal);
+            StringComparer.Ordinal) &&
+        string.Equals(left.ManagedResearchProvider, right.ManagedResearchProvider, StringComparison.OrdinalIgnoreCase) &&
+        left.ManagedResearchDepth == right.ManagedResearchDepth;
 
     private static ResearchSettingsResponse ToResponse(ResearchSettingsEntity entity) => new(
         entity.GroundingMode,
@@ -254,5 +290,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         entity.ProviderPreset,
         entity.SearchProviderPriority.AsReadOnly(),
         entity.CrawlerProviderPriority.AsReadOnly(),
-        entity.UpdatedAt);
+        entity.UpdatedAt,
+        entity.ManagedResearchProvider,
+        entity.ManagedResearchDepth);
 }

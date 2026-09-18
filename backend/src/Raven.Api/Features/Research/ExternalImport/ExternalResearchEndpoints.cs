@@ -50,7 +50,7 @@ public static class ExternalResearchEndpoints
             .WithTags("External Research")
             .WithName("ImportExternalResearch")
             .WithSummary("Save pasted external research as reviewable notes")
-            .WithDescription("Parses pasted Markdown into an untrusted investigation artifact. URLs remain source leads and are not accepted profile evidence.")
+            .WithDescription("Parses pasted Markdown into an untrusted investigation artifact. URLs remain provider citations and are not re-searched by External Assist.")
             .Produces<SavedResearchArtifactResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
@@ -61,6 +61,21 @@ public static class ExternalResearchEndpoints
             .WithSummary("Preview pasted external research without saving it")
             .Produces<ExternalResearchImportResult>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/companies/{companyId:guid}/external-research/analyze", AnalyzeAsync)
+            .WithTags("External Research")
+            .WithName("AnalyzeExternalResearch")
+            .WithSummary("Analyze pasted external research asynchronously")
+            .Produces<ExternalResearchAnalysisResponse>(StatusCodes.Status202Accepted)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/companies/{companyId:guid}/external-research/analyze/{jobId:guid}", GetAnalysisAsync)
+            .WithTags("External Research")
+            .WithName("GetExternalResearchAnalysis")
+            .WithSummary("Poll external research analysis")
+            .Produces<ExternalResearchAnalysisResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
         return app;
@@ -185,6 +200,37 @@ public static class ExternalResearchEndpoints
         return TryParse(request.Markdown, parser, out var parsed)
             ? TypedResults.Ok(parsed)
             : TypedResults.BadRequest();
+    }
+
+    private static async Task<Results<Accepted<ExternalResearchAnalysisResponse>, BadRequest, NotFound>> AnalyzeAsync(
+        Guid companyId,
+        StartExternalResearchAnalysisRequest request,
+        IExternalResearchAnalysisService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await service.StartAsync(companyId, request, cancellationToken);
+            return TypedResults.Accepted($"/api/companies/{companyId:D}/external-research/analyze/{response.Id:D}", response);
+        }
+        catch (KeyNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+        catch (ArgumentException)
+        {
+            return TypedResults.BadRequest();
+        }
+    }
+
+    private static async Task<Results<Ok<ExternalResearchAnalysisResponse>, NotFound>> GetAnalysisAsync(
+        Guid companyId,
+        Guid jobId,
+        IExternalResearchAnalysisService service,
+        CancellationToken cancellationToken)
+    {
+        var response = await service.GetAsync(companyId, jobId, cancellationToken);
+        return response is null ? TypedResults.NotFound() : TypedResults.Ok(response);
     }
 
     private static bool TryParse(string markdown, IExternalResearchImportParser parser, out ExternalResearchImportResult parsed)

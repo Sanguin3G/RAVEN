@@ -4,7 +4,7 @@ import { TargetedEnrichmentPanel } from "./TargetedEnrichmentPanel";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 
 const company: DossierCompany = { id: "company-1", displayName: "Northwind Research", country: "Vietnam" };
-const profile: DossierProfile = { id: "profile-1", productsServices: [{ name: "Existing product" }], locations: [{ name: "Hanoi" }], publicLinks: [] };
+const profile: DossierProfile = { id: "profile-1", aiProvider: "gemini", aiModel: "profile-model", promptTemplateVersion: "company-profile-v1", productsServices: [{ name: "Existing product" }], locations: [{ name: "Hanoi" }], publicLinks: [] };
 
 const run = {
   id: "run-1",

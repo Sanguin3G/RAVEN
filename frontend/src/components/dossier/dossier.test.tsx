@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CompanyDossier } from "./CompanyDossier";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
+import { renderWithRouter } from "../../test/test-utils";
 
 const company: DossierCompany = {
   id: "company-42",
@@ -10,7 +11,12 @@ const company: DossierCompany = {
 };
 
 const sparseProfile: DossierProfile = {
+  id: "profile-42",
+  aiProvider: "gemini",
+  aiModel: "profile-model",
+  promptTemplateVersion: "company-profile-v1",
   summary: null,
+  primaryIndustry: "Technology",
   foundedYear: null,
   productsServices: null,
   markets: [],
@@ -21,7 +27,7 @@ const sparseProfile: DossierProfile = {
 
 describe("CompanyDossier", () => {
   it("renders null and missing profile fields as explicit unknowns", () => {
-    render(<CompanyDossier company={company} profile={sparseProfile} />);
+    renderWithRouter(<CompanyDossier company={company} profile={sparseProfile} />, "/companies/company-42");
 
     expect(screen.getByTestId("dossier-overview")).toBeInTheDocument();
     expect(screen.getByText("Legal identity not verified")).toBeInTheDocument();
@@ -33,7 +39,7 @@ describe("CompanyDossier", () => {
 
   it("switches tabs and supports keyboard tab navigation", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
-    render(<CompanyDossier company={company} profile={sparseProfile} />);
+    renderWithRouter(<CompanyDossier company={company} profile={sparseProfile} />, "/companies/company-42");
 
     const sourcesTab = screen.getByRole("tab", { name: "Sources" });
     fireEvent.click(sourcesTab);

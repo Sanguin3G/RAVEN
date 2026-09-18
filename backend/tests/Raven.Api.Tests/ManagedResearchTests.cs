@@ -46,6 +46,7 @@ public sealed class ManagedResearchTests
         {
             Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
             Assert.Equal("exa-test-key", request.Headers.Authorization?.Parameter);
+            Assert.False(request.Headers.Contains("Exa-Beta"));
         });
         Assert.Equal(HttpMethod.Post, requests[0].Method);
         Assert.Equal("/agent/runs", requests[0].RequestUri!.AbsolutePath);

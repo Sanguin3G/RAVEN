@@ -16,6 +16,11 @@ public interface IResearchCompanyService
         AcquireResearchCandidatesRequest request,
         CancellationToken cancellationToken);
 
+    Task<ResearchRunResponse?> VerifySourceLeadsAsync(
+        Guid companyId,
+        VerifyResearchSourceLeadsRequest request,
+        CancellationToken cancellationToken);
+
     Task<ResearchRunResponse?> GetRunAsync(Guid researchRunId, CancellationToken cancellationToken);
     Task<IReadOnlyList<ResearchRunResponse>> ListRunsAsync(Guid companyId, CancellationToken cancellationToken);
     Task<IReadOnlyList<ResearchCandidateResponse>?> ListCandidatesAsync(

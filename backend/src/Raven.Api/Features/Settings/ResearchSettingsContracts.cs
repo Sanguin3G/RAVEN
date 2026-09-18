@@ -10,6 +10,15 @@ public enum ProviderPreset
     Custom
 }
 
+public enum ManagedResearchDepth
+{
+    Adaptive,
+    Focused,
+    Standard,
+    Thorough,
+    Exhaustive
+}
+
 public sealed record ResearchSettingsResponse(
     GroundingMode GroundingMode,
     string ProfileModel,
@@ -19,7 +28,9 @@ public sealed record ResearchSettingsResponse(
     ProviderPreset ProviderPreset,
     IReadOnlyList<string> SearchProviderPriority,
     IReadOnlyList<string> CrawlerProviderPriority,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string ManagedResearchProvider = ResearchSettingsDefaults.ManagedResearchProvider,
+    ManagedResearchDepth ManagedResearchDepth = ManagedResearchDepth.Adaptive);
 
 public sealed record UpdateResearchSettingsRequest(
     GroundingMode GroundingMode,
@@ -29,7 +40,9 @@ public sealed record UpdateResearchSettingsRequest(
     bool AiSourceRerankingEnabled,
     ProviderPreset ProviderPreset,
     IReadOnlyList<string>? SearchProviderPriority = null,
-    IReadOnlyList<string>? CrawlerProviderPriority = null);
+    IReadOnlyList<string>? CrawlerProviderPriority = null,
+    string? ManagedResearchProvider = null,
+    ManagedResearchDepth? ManagedResearchDepth = null);
 
 public interface IResearchSettingsService
 {

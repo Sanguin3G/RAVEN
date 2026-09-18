@@ -1,68 +1,97 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSavedInvestigations } from "../../api/investigations";
+import { getInvestigationOrganization, getSavedInvestigations, organizeInvestigation } from "../../api/investigations";
 import { getManagedResearchJobs } from "../../api/managedResearch";
-import { generateExternalResearchBrief, importExternalResearch, previewExternalResearchImport } from "../../api/externalResearch";
 import { CompanyInvestigationsTab } from "./CompanyInvestigationsTab";
 
-vi.mock("../../api/investigations", () => ({ getSavedInvestigations: vi.fn() }));
-vi.mock("../../api/managedResearch", () => ({ getManagedResearchJobs: vi.fn() }));
-vi.mock("../../api/externalResearch", () => ({
-  generateExternalResearchBrief: vi.fn(),
-  previewExternalResearchImport: vi.fn(),
-  importExternalResearch: vi.fn(),
+vi.mock("../../api/investigations", () => ({
+  getSavedInvestigations: vi.fn(),
+  getInvestigationOrganization: vi.fn(),
+  organizeInvestigation: vi.fn(),
 }));
+vi.mock("../../api/managedResearch", () => ({ getManagedResearchJobs: vi.fn() }));
 
-describe("CompanyInvestigationsTab external research", () => {
+describe("CompanyInvestigationsTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getSavedInvestigations).mockResolvedValue([]);
     vi.mocked(getManagedResearchJobs).mockResolvedValue([]);
+    vi.mocked(getInvestigationOrganization).mockRejectedValue(new Error("not organized yet"));
   });
 
-  it("prepares a brief, previews pasted claims and saves them as reviewable material", async () => {
-    vi.mocked(generateExternalResearchBrief).mockResolvedValue({
-      objective: "Recent expansion",
-      focusedTargets: ["Markets"],
-      markdown: "## Research Summary\nA focused note.",
-    });
-    vi.mocked(previewExternalResearchImport).mockResolvedValue({
-      summary: "A pasted summary.",
-      claims: [{ field: "Markets", statement: "The company entered Japan." }],
-      sourceLeads: [{ id: "lead-1", url: "https://example.com/japan", title: "Japan update" }],
-      uncertainties: ["Date needs confirmation."],
-      suggestedFollowUps: [],
-      rawMarkdown: "Research Summary\nA pasted summary.",
-    });
-    vi.mocked(importExternalResearch).mockResolvedValue({
+  it("presents an investigation-first workspace and preserves raw material", async () => {
+    vi.mocked(getSavedInvestigations).mockResolvedValue([{
       id: "artifact-1",
       companyId: "company-1",
-      title: "External research: Japan",
-      question: "What changed in Japan?",
-      summary: "A pasted summary.",
+      title: "Japan expansion",
+      question: "How has the company expanded in Japan?",
+      objective: "How has the company expanded in Japan?",
+      summary: "The company announced a Japan partnership.",
+      result: "Original imported response",
+      rawResponse: "## Research Summary\nOriginal imported response",
+      createdAt: "2026-09-18T10:00:00Z",
+      researchType: "Deep",
+      sourceCount: 1,
+      sourceDocumentIds: [],
+      origin: "ExternalImport",
+      sourceLeads: [{ id: "lead-1", url: "https://example.com/japan", title: "Japan update" }],
+      claims: [{ field: "Markets", statement: "The company entered Japan.", supportingSourceLeadIds: ["lead-1"] }],
+      uncertainties: ["Date needs confirmation."],
+    }]);
+
+    render(<MemoryRouter><CompanyInvestigationsTab companyId="company-1" companyName="Northwind" /></MemoryRouter>);
+
+    expect(await screen.findByRole("heading", { name: "Investigations" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Current investigations" })).toHaveValue("artifact-1");
+    expect(await screen.findByRole("heading", { name: "Executive summary" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Markets" })).toBeInTheDocument();
+    expect(screen.getByText("Source leads available")).toBeInTheDocument();
+    expect(screen.getByText("External AI Assist")).toBeInTheDocument();
+    expect(screen.getByText("Preserved original material · not accepted evidence")).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByText("Raw research material / activity"));
+    expect(screen.getByText(/Original imported response/)).toBeInTheDocument();
+  });
+
+  it("organizes existing material without replacing the raw investigation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getSavedInvestigations).mockResolvedValue([{
+      id: "artifact-1",
+      companyId: "company-1",
+      title: "Leadership verification",
+      question: "Who leads the company?",
+      summary: "A leadership note.",
+      result: "Raw leadership response",
       createdAt: "2026-09-18T10:00:00Z",
       researchType: "Deep",
       sourceCount: 0,
       sourceDocumentIds: [],
       origin: "ExternalImport",
-      sourceLeads: [{ id: "lead-1", url: "https://example.com/japan", title: "Japan update" }],
-      claims: [{ field: "Markets", statement: "The company entered Japan." }],
+      claims: [{ field: "Leadership", statement: "Jane Doe is CEO." }],
+      sourceLeads: [],
+      uncertainties: [],
+    }]);
+    vi.mocked(organizeInvestigation).mockResolvedValue({
+      id: "organization-1",
+      savedResearchArtifactId: "artifact-1",
+      version: 1,
+      createdAt: "2026-09-18T10:02:00Z",
+      executiveSummary: "Organized leadership findings.",
+      themes: [{ name: "Leadership", summary: "Current executive leadership.", claimCount: 1 }],
+      evidenceGaps: ["No source lead was attached."],
+      suggestedFollowUps: ["Verify the current CEO on an official source."],
+      uncertainties: [],
+      isHumanEdited: false,
     });
 
-    render(<CompanyInvestigationsTab companyId="company-1" />);
-    fireEvent.change(screen.getByLabelText("Optional research objective"), { target: { value: "Recent expansion" } });
-    fireEvent.click(screen.getByRole("button", { name: "Prepare and copy brief" }));
-    await waitFor(() => expect(screen.getAllByDisplayValue(/Research Summary/).length).toBeGreaterThan(0));
+    render(<MemoryRouter><CompanyInvestigationsTab companyId="company-1" companyName="Northwind" /></MemoryRouter>);
+    await screen.findByRole("heading", { name: "Leadership verification" });
+    await user.click(screen.getByRole("button", { name: /Organize investigations/ }));
 
-    fireEvent.change(screen.getByLabelText("Research question"), { target: { value: "What changed in Japan?" } });
-    fireEvent.change(screen.getByLabelText("Paste external response"), { target: { value: "## Research Summary\nA pasted summary." } });
-    fireEvent.click(screen.getByRole("button", { name: "Preview notes" }));
-    await waitFor(() => expect(screen.getByTestId("external-research-preview")).toHaveTextContent("The company entered Japan."));
-    expect(screen.getByRole("link", { name: "Japan update" })).toHaveAttribute("href", "https://example.com/japan");
-
-    fireEvent.click(screen.getByRole("button", { name: "Save to Investigations" }));
-    await waitFor(() => expect(screen.getByText(/Saved as reviewable research notes/)).toBeInTheDocument());
-    expect(importExternalResearch).toHaveBeenCalledWith("company-1", expect.objectContaining({ question: "What changed in Japan?" }));
-    expect(screen.getByText("External research: Japan")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Organized leadership findings.")).toBeInTheDocument());
+    await user.click(screen.getByText("Raw research material / activity"));
+    expect(screen.getByText("Raw leadership response")).toBeInTheDocument();
+    expect(organizeInvestigation).toHaveBeenCalledWith("company-1", "artifact-1");
   });
 });

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Raven.Api.Features.Settings;
 
 namespace Raven.Api.Features.ManagedResearch;
 
@@ -23,7 +24,8 @@ public sealed class ManagedResearchJobService(
     IManagedResearchAgentClient client,
     IManagedResearchInvestigationStore investigations,
     IManagedResearchClock clock,
-    IManagedResearchJobQueue queue) : IManagedResearchJobService
+    IManagedResearchJobQueue queue,
+    IResearchSettingsService? settings = null) : IManagedResearchJobService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -60,6 +62,10 @@ public sealed class ManagedResearchJobService(
             throw new InvalidOperationException("The company context does not match the requested company.");
         }
 
+        var configuredDepth = settings is null
+            ? ManagedResearchDepth.Adaptive
+            : (await settings.GetAsync(cancellationToken)).ManagedResearchDepth;
+
         var job = new ManagedResearchJob
         {
             CompanyId = companyId,
@@ -67,7 +73,8 @@ public sealed class ManagedResearchJobService(
             ChatMessageId = request.ChatMessageId,
             Objective = objective,
             ProviderQuery = ManagedResearchQueryBuilder.Build(context, objective),
-            Effort = ToEffortValue(request.Effort),
+            Effort = ToEffortValue(request.Effort == ManagedResearchEffort.Auto ? ToProviderEffort(configuredDepth) : request.Effort),
+            Purpose = request.Purpose,
             CreatedAt = clock.UtcNow,
             Provider = ExaAgentClient.ProviderId
         };
@@ -76,6 +83,15 @@ public sealed class ManagedResearchJobService(
         await queue.EnqueueAsync(job.Id, cancellationToken);
         return ToResponse(job);
     }
+
+    private static ManagedResearchEffort ToProviderEffort(ManagedResearchDepth depth) => depth switch
+    {
+        ManagedResearchDepth.Focused => ManagedResearchEffort.Low,
+        ManagedResearchDepth.Standard => ManagedResearchEffort.Medium,
+        ManagedResearchDepth.Thorough => ManagedResearchEffort.High,
+        ManagedResearchDepth.Exhaustive => ManagedResearchEffort.XHigh,
+        _ => ManagedResearchEffort.Auto
+    };
 
     public async Task<ManagedResearchJobResponse?> GetAsync(
         Guid companyId,
@@ -292,7 +308,8 @@ public sealed class ManagedResearchJobService(
             DeserializeResult(job.ResultJson),
             job.ProviderCostDollars,
             job.InvestigationId,
-            job.Error);
+            job.Error,
+            job.Purpose);
 
     private static ManagedResearchResult? DeserializeResult(string? resultJson)
     {

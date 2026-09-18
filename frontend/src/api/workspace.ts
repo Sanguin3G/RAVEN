@@ -70,12 +70,26 @@ export interface WorkspaceReviewRecommendation {
   isAiGenerated: boolean;
 }
 
+export interface WorkspaceResearchReviewItem {
+  itemId: string;
+  companyId: string;
+  companyName: string;
+  method: "RAVEN Research" | "Deep Research" | "External AI Assist" | string;
+  title: string;
+  state: "Ready" | "Issue" | string;
+  updatedAt: string;
+  detail?: string | null;
+  investigationId?: string | null;
+}
+
 export interface WorkspaceReviewResponse {
   companies: WorkspaceReviewCompany[];
   duplicateGroups: CompanyDuplicateGroup[];
   recommendations: WorkspaceReviewRecommendation[];
   aiUsed: boolean;
   aiWarning?: string | null;
+  researchReady?: WorkspaceResearchReviewItem[];
+  researchIssues?: WorkspaceResearchReviewItem[];
 }
 
 export interface CompanyMergePreview {

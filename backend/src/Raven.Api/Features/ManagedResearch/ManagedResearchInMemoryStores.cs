@@ -92,6 +92,7 @@ public sealed class InMemoryManagedResearchJobStore : IManagedResearchJobStore
         Objective = job.Objective,
         ProviderQuery = job.ProviderQuery,
         Effort = job.Effort,
+        Purpose = job.Purpose,
         Status = job.Status,
         Provider = job.Provider,
         ProviderRunId = job.ProviderRunId,

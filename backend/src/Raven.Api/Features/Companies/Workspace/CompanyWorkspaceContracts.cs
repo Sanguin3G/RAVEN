@@ -171,12 +171,28 @@ public sealed record WorkspaceReviewRecommendation(
     CompanyHealthStatus? HealthStatus = null,
     bool IsAiGenerated = false);
 
+/// <summary>Compact durable research state shown in Workspace Review.</summary>
+public sealed record WorkspaceResearchReviewItem(
+    Guid ItemId,
+    Guid CompanyId,
+    string CompanyName,
+    string Method,
+    string Title,
+    string State,
+    DateTimeOffset UpdatedAt,
+    string? Detail = null,
+    Guid? InvestigationId = null);
+
 public sealed record WorkspaceReviewResponse(
     IReadOnlyList<WorkspaceReviewCompany> Companies,
     IReadOnlyList<CompanyDuplicateGroup> DuplicateGroups,
     IReadOnlyList<WorkspaceReviewRecommendation> Recommendations,
     bool AiUsed = false,
-    string? AiWarning = null);
+    string? AiWarning = null)
+{
+    public IReadOnlyList<WorkspaceResearchReviewItem> ResearchReady { get; init; } = [];
+    public IReadOnlyList<WorkspaceResearchReviewItem> ResearchIssues { get; init; } = [];
+}
 
 /// <summary>Read-only grouping seam; implementations must not mutate companies.</summary>
 public interface ICompanyDuplicateGroupingService

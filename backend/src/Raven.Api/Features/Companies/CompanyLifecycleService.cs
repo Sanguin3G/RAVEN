@@ -10,6 +10,7 @@ using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Features.Companies;
@@ -172,6 +173,8 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             await ReassignCompanyAsync(dbContext.ProfileChanges, change => change.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.DeepResearchRuns, run => run.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.SavedResearchArtifacts, artifact => artifact.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.InvestigationOrganizationRevisions, revision => revision.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.ExternalResearchAnalysisJobs, job => job.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await RewriteMovedProfilePayloadsAsync(
                 canonical.Id,
                 duplicateProfileCandidateIds,
@@ -282,6 +285,12 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
 
         deleted += await dbContext.SourceDocuments
             .Where(source => source.CompanyId == companyId)
+            .ExecuteDeleteAsync(cancellationToken);
+        deleted += await dbContext.InvestigationOrganizationRevisions
+            .Where(revision => revision.CompanyId == companyId)
+            .ExecuteDeleteAsync(cancellationToken);
+        deleted += await dbContext.ExternalResearchAnalysisJobs
+            .Where(job => job.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.SavedResearchArtifacts
             .Where(artifact => artifact.CompanyId == companyId)

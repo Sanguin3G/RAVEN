@@ -6,6 +6,8 @@ import type { ResearchRun } from "../types/research";
 export interface StartTargetedResearchRequest {
   targets: ResearchTarget[];
   baseProfileVersionId?: string | null;
+  savedResearchArtifactId?: string | null;
+  managedResearchInvestigationId?: string | null;
 }
 
 export interface ProfilePatchChange {

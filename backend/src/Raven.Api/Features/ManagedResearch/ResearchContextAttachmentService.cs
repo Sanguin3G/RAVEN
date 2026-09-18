@@ -48,10 +48,11 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
         Guid companyId,
         Guid conversationId,
         CancellationToken cancellationToken = default) =>
-        await db.ResearchContextAttachments.AsNoTracking()
+        (await db.ResearchContextAttachments.AsNoTracking()
             .Where(item => item.CompanyId == companyId && item.ConversationId == conversationId)
-            .OrderByDescending(item => item.AttachedAt)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken))
+        .OrderByDescending(item => item.AttachedAt)
+        .ToArray();
 }
 
 /// <summary>

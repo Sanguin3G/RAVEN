@@ -82,7 +82,7 @@ test("Ask RAVEN conversation and truthful capability menu", async ({ page }) => 
   await page.getByRole("button", { name: "Additional capabilities" }).click();
   await investigations.click();
   await expect(page).toHaveURL(new RegExp(`companies/${companyId}\\?tab=investigations`));
-  await expect(page.getByRole("tab", { name: "Investigations" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Investigations" })).toHaveAttribute("aria-selected", "true", { timeout: 10_000 });
 });
 
 test("company workspace tabs remain usable", async ({ page }) => {

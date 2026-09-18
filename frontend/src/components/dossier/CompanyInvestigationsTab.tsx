@@ -1,231 +1,189 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Sparkle } from "@phosphor-icons/react";
 import { getApiErrorMessage } from "../../api/client";
-import { getSavedInvestigations, type SavedResearchArtifact } from "../../api/investigations";
+import { getSavedInvestigations, getInvestigationOrganization, organizeInvestigation, type ResearchClaim, type ResearchSourceLead, type SavedResearchArtifact } from "../../api/investigations";
 import { getManagedResearchJobs, type ManagedResearchJob } from "../../api/managedResearch";
-import { generateExternalResearchBrief, importExternalResearch, previewExternalResearchImport, type ExternalResearchBrief, type ExternalResearchImportPreview } from "../../api/externalResearch";
+import type { ResearchTarget } from "../../api/coverage";
+import type { DossierInvestigations, DossierProfile } from "./dossierTypes";
+import { InvestigationWorkspace } from "./InvestigationWorkspace";
+import type { InvestigationCategory, WorkspaceInvestigation } from "./investigationTypes";
+import { artifactToWorkspace, classifyInvestigation } from "./investigationTypes";
+import { dismissResearchActivity, hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
+import { acknowledgeResearchReview } from "../../utils/researchReviewState";
+import { hasUsableAcceptedProfile } from "../../utils/profileReadiness";
 import styles from "./dossier.module.css";
-import type { DossierInvestigations } from "./dossierTypes";
 
 export interface CompanyInvestigationsTabProps {
   companyId: string;
+  companyName?: string;
+  profile?: DossierProfile | null;
   investigations?: DossierInvestigations | null;
+  onOpenExternalResearch?: (objective: string) => void;
+  onOpenDeepResearch?: (objective?: string) => void;
+  onImproveProfile?: (targets: ResearchTarget[], sourceMaterialId?: string, sourceMaterialKind?: "saved" | "managed") => void;
+  profileImprovedMaterialIds?: ReadonlySet<string>;
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date unavailable";
-  return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(date);
+function inferProfileTargets(investigation: WorkspaceInvestigation): ResearchTarget[] {
+  const text = investigation.claims.map((claim) => claim.field).join(" ").toLowerCase();
+  const matches: Array<[ResearchTarget, string[]]> = [
+    ["Leadership", ["leadership", "leader", "executive", "ceo", "director"]],
+    ["EmployeeScale", ["employee", "headcount", "workforce", "company scale", "scale"]],
+    ["Markets", ["market", "expansion", "customer", "geograph"]],
+    ["Locations", ["location", "office", "headquarter", "footprint"]],
+    ["ProductsServices", ["product", "service", "industry"]],
+    ["FoundedHistory", ["founded", "history", "established"]],
+    ["LegalIdentity", ["legal", "identity", "registration", "tax"]],
+  ];
+  const targets = matches.filter(([, terms]) => terms.some((term) => text.includes(term))).map(([target]) => target);
+  return targets.length ? targets : ["Markets"];
 }
 
-function researchTypeLabel(type: SavedResearchArtifact["researchType"]) {
-  return type === "Deep" ? "Deep Research" : "Research";
+function syncManagedResearchActivity(companyName: string, job: ManagedResearchJob, hasAcceptedProfile: boolean) {
+  const activityId = `deep-${job.id}`;
+  if ((job.status === "Completed" || job.status === "Failed" || job.status === "Cancelled") && !hasResearchActivity(activityId)) return;
+  const status = job.status === "Completed" ? "ready" : job.status === "Failed" || job.status === "Cancelled" ? "failed" : "running";
+  const locked = job.status === "Completed" && job.purpose === "ProfileImprovement" && !hasAcceptedProfile;
+  const detail = locked ? "Profile required · create the company profile to unlock review" : job.status === "Queued" ? "Starting investigation" : job.status === "Researching" ? "Researching across sources" : job.status === "Completed" ? "Ready for review" : "Deep Research could not complete";
+  upsertResearchActivity({
+    id: activityId,
+    jobId: job.id,
+    origin: "Deep",
+    companyId: job.companyId,
+    companyName,
+    objective: job.objective,
+    detail,
+    status,
+    locked,
+    href: `/companies/${encodeURIComponent(job.companyId)}?tab=investigations&research=${encodeURIComponent(job.investigationId ?? job.id)}`,
+    updatedAt: job.completedAt || job.createdAt,
+  });
 }
 
-function artifactCountLabel(count: number) {
-  return `${count} source${count === 1 ? "" : "s"}`;
+function formatManagedJob(job: ManagedResearchJob, hasAcceptedProfile: boolean): WorkspaceInvestigation {
+  const result = (job.result && typeof job.result === "object" ? job.result : {}) as { summary?: string; claims?: Array<{ topic?: string; field?: string; statement?: string; supportingSourceUrls?: string[] }>; sources?: Array<{ title?: string; url?: string; publisher?: string }>; uncertainties?: string[] };
+  const sourceLeads: ResearchSourceLead[] = (result.sources ?? []).filter((source) => source.url).map((source, index) => ({ id: `${job.id}-source-${index}`, url: source.url!, title: source.title, publisher: source.publisher }));
+  const sourceIdsByUrl = new Map(sourceLeads.map((source) => [source.url, source.id]));
+  const claims: ResearchClaim[] = (result.claims ?? []).filter((claim) => claim.statement).map((claim) => ({ field: claim.topic || claim.field || "Research", statement: claim.statement!, supportingSourceLeadIds: (claim.supportingSourceUrls ?? []).map((url) => sourceIdsByUrl.get(url)).filter((id): id is string => Boolean(id)) }));
+  return {
+    id: job.investigationId ?? job.id,
+    materialId: job.investigationId ?? undefined,
+    materialKind: "managed",
+    title: job.objective,
+    objective: job.objective,
+    summary: result.summary || "Managed research is still running or did not return a summary yet.",
+    origin: "Deep Research",
+    category: classifyInvestigation(job.objective, claims),
+    status: job.status === "Completed" ? "Ready for review" : job.status === "Failed" ? "Failed" : "Running",
+    updatedAt: job.completedAt || job.createdAt,
+    provider: job.provider,
+    claims,
+    sourceLeads,
+    uncertainties: result.uncertainties ?? [],
+    rawMaterial: result.summary || job.error || undefined,
+    locked: job.status === "Completed" && job.purpose === "ProfileImprovement" && !hasAcceptedProfile,
+  };
 }
 
-export function CompanyInvestigationsTab({ companyId, investigations }: CompanyInvestigationsTabProps) {
+export function CompanyInvestigationsTab({ companyId, companyName = "Company", profile, investigations, onOpenExternalResearch, onOpenDeepResearch, onImproveProfile, profileImprovedMaterialIds }: CompanyInvestigationsTabProps) {
+  const [searchParams] = useSearchParams();
+  const requestedInvestigationId = searchParams.get("research");
   const [localArtifacts, setLocalArtifacts] = useState<SavedResearchArtifact[] | null>(null);
-  const [localLoading, setLocalLoading] = useState(!investigations?.artifacts);
-  const [localError, setLocalError] = useState<string | null>(null);
   const [managedJobs, setManagedJobs] = useState<ManagedResearchJob[]>([]);
-  const [externalObjective, setExternalObjective] = useState("");
-  const [externalBrief, setExternalBrief] = useState<ExternalResearchBrief | null>(null);
-  const [externalMarkdown, setExternalMarkdown] = useState("");
-  const [externalQuestion, setExternalQuestion] = useState("");
-  const [externalPreview, setExternalPreview] = useState<ExternalResearchImportPreview | null>(null);
-  const [externalBusy, setExternalBusy] = useState(false);
-  const [externalMessage, setExternalMessage] = useState<string | null>(null);
-  const [externalError, setExternalError] = useState<string | null>(null);
-  const [importedArtifacts, setImportedArtifacts] = useState<SavedResearchArtifact[]>([]);
+  const [loading, setLoading] = useState(!investigations?.artifacts);
+  const [error, setError] = useState<string | null>(investigations?.error || null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<InvestigationCategory | "All">("All");
+  const [organizations, setOrganizations] = useState<Record<string, NonNullable<WorkspaceInvestigation["organization"]>>>({});
+  const [organizingAll, setOrganizingAll] = useState(false);
+  const [pageOrganizationNotice, setPageOrganizationNotice] = useState<string | null>(null);
+  const hasAcceptedProfile = hasUsableAcceptedProfile(profile);
 
   useEffect(() => {
     if (investigations?.artifacts) return;
     let active = true;
-    setLocalLoading(true);
-    setLocalError(null);
-    getSavedInvestigations(companyId)
-      .then((result) => { if (active) setLocalArtifacts(result); })
-      .catch((reason: unknown) => { if (active) setLocalError(getApiErrorMessage(reason, "Could not load saved investigations.")); })
-      .finally(() => { if (active) setLocalLoading(false); });
+    setLoading(true);
+    setError(null);
+    void getSavedInvestigations(companyId).then((result) => { if (active) setLocalArtifacts(result); }).catch((reason: unknown) => { if (active) setError(getApiErrorMessage(reason, "Could not load investigations.")); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [companyId, investigations?.artifacts]);
 
   useEffect(() => {
     let active = true;
-    void getManagedResearchJobs(companyId).then((jobs) => {
-      if (active) setManagedJobs(jobs);
-    }).catch(() => {
-      // Saved investigations remain available if managed research is unavailable.
-    });
-    return () => { active = false; };
-  }, [companyId]);
+    const loadJobs = () => getManagedResearchJobs(companyId).then((result) => { if (active) setManagedJobs(result); result.forEach((job) => syncManagedResearchActivity(companyName, job, hasAcceptedProfile)); }).catch(() => undefined);
+    void loadJobs();
+    const interval = window.setInterval(() => { void loadJobs(); }, 8_000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [companyId, companyName, hasAcceptedProfile]);
 
   const artifacts = investigations?.artifacts ?? localArtifacts ?? [];
-  const isLoading = investigations?.isLoading ?? localLoading;
-  const error = investigations?.error ?? localError;
-  const completedManagedJobs = managedJobs.filter((job) => job.status === "Completed" || job.status === "Researching" || job.status === "Queued");
-  const visibleArtifacts = [...importedArtifacts, ...artifacts.filter((artifact) => !importedArtifacts.some((item) => item.id === artifact.id))];
+  const items = useMemo<WorkspaceInvestigation[]>(() => [...managedJobs.map((job) => formatManagedJob(job, hasAcceptedProfile)), ...artifacts.map(artifactToWorkspace)].filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index).sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)), [artifacts, hasAcceptedProfile, managedJobs]);
+  const visibleItems = useMemo(() => categoryFilter === "All" ? items : items.filter((item) => item.category === categoryFilter), [categoryFilter, items]);
+  const categoryCounts = useMemo(() => items.reduce<Record<string, number>>((counts, item) => { counts[item.category] = (counts[item.category] || 0) + 1; return counts; }, {}), [items]);
 
-  const prepareExternalBrief = async () => {
-    setExternalBusy(true);
-    setExternalError(null);
-    setExternalMessage(null);
-    try {
-      const result = await generateExternalResearchBrief(companyId, { researchObjective: externalObjective.trim() || undefined });
-      setExternalBrief(result);
-      setExternalMarkdown(result.markdown);
-      try {
-        await navigator.clipboard.writeText(result.markdown);
-        setExternalMessage("Brief prepared and copied. Run it in the assistant you prefer, then paste the response below.");
-      } catch {
-        setExternalMessage("Brief prepared. Copy it from the text area, run it externally, then paste the response below.");
-      }
-    } catch (reason: unknown) {
-      setExternalError(getApiErrorMessage(reason, "Could not prepare an external research brief."));
-    } finally {
-      setExternalBusy(false);
+  useEffect(() => {
+    if (!visibleItems.length) { setSelectedId(null); return; }
+    setSelectedId((current) => {
+      if (requestedInvestigationId && visibleItems.some((item) => item.id === requestedInvestigationId)) return requestedInvestigationId;
+      return current && visibleItems.some((item) => item.id === current) ? current : visibleItems[0].id;
+    });
+  }, [requestedInvestigationId, visibleItems]);
+
+  const selected = items.find((item) => item.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!selected?.artifactId || organizations[selected.artifactId]) return;
+    let active = true;
+    void getInvestigationOrganization(companyId, selected.artifactId).then((organization) => { if (active) setOrganizations((current) => ({ ...current, [selected.artifactId!]: organization })); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [companyId, organizations, selected]);
+
+  const selectedWithOrganization = selected && selected.artifactId && organizations[selected.artifactId] ? { ...selected, organization: organizations[selected.artifactId] } : selected;
+
+  useEffect(() => {
+    const selectedManagedJob = selected && managedJobs.find((job) => (job.investigationId ?? job.id) === selected.id);
+    if (selectedManagedJob?.status === "Completed") {
+      dismissResearchActivity(`deep-${selectedManagedJob.id}`);
+      if (requestedInvestigationId && selected?.id === requestedInvestigationId) acknowledgeResearchReview(`Deep Research:${selectedManagedJob.id}`);
     }
+    if (requestedInvestigationId && selected?.id === requestedInvestigationId && selected.status === "Ready for review") {
+      acknowledgeResearchReview(`${selected.origin}:${selected.id}`);
+    }
+  }, [managedJobs, requestedInvestigationId, selected]);
+
+  const refresh = async () => {
+    if (investigations?.onRefresh) { await investigations.onRefresh(); return; }
+    setLocalArtifacts(await getSavedInvestigations(companyId));
   };
 
-  const previewExternal = async () => {
-    setExternalBusy(true);
-    setExternalError(null);
-    setExternalMessage(null);
-    try {
-      const result = await previewExternalResearchImport(companyId, { question: externalQuestion.trim(), markdown: externalMarkdown });
-      setExternalPreview(result);
-    } catch (reason: unknown) {
-      setExternalError(getApiErrorMessage(reason, "Could not parse the pasted research."));
-    } finally {
-      setExternalBusy(false);
-    }
+  const organizeAll = async () => {
+    const savedItems = items.filter((item) => item.artifactId);
+    if (!savedItems.length) { setPageOrganizationNotice("These results are already grouped by investigation. More organization becomes available after saved research material is added."); return; }
+    setOrganizingAll(true);
+    setError(null);
+    setPageOrganizationNotice(null);
+    const results = await Promise.allSettled(savedItems.map((item) => organizeInvestigation(companyId, item.artifactId!)));
+    const successful = results.filter((result): result is PromiseFulfilledResult<NonNullable<WorkspaceInvestigation["organization"]>> => result.status === "fulfilled");
+    if (successful.length) setOrganizations((current) => ({ ...current, ...Object.fromEntries(successful.map((result) => [result.value.savedResearchArtifactId, result.value])) }));
+    const failed = results.length - successful.length;
+    setPageOrganizationNotice(failed ? `Organized ${successful.length} investigation${successful.length === 1 ? "" : "s"}; ${failed} could not be refreshed. Original material is unchanged.` : `Organized ${successful.length} investigation${successful.length === 1 ? "" : "s"}. Original material is unchanged.`);
+    setOrganizingAll(false);
   };
 
-  const saveExternalImport = async () => {
-    setExternalBusy(true);
-    setExternalError(null);
-    setExternalMessage(null);
-    try {
-      const artifact = await importExternalResearch(companyId, { question: externalQuestion.trim(), markdown: externalMarkdown });
-      setImportedArtifacts((current) => [artifact, ...current]);
-      setExternalMessage("Saved as reviewable research notes. Nothing was added to the accepted profile.");
-      if (investigations?.onRefresh) void investigations.onRefresh();
-    } catch (reason: unknown) {
-      setExternalError(getApiErrorMessage(reason, "Could not save the external research."));
-    } finally {
-      setExternalBusy(false);
-    }
-  };
-
-  const refresh = () => {
-    if (investigations?.onRefresh) {
-      void investigations.onRefresh();
-      return;
-    }
-
-    setLocalLoading(true);
-    setLocalError(null);
-    void getSavedInvestigations(companyId)
-      .then(setLocalArtifacts)
-      .catch((reason: unknown) => setLocalError(getApiErrorMessage(reason, "Could not load saved investigations.")))
-      .finally(() => setLocalLoading(false));
-  };
-
-  return (
-    <section className={styles.section} data-testid="dossier-investigations" aria-labelledby="dossier-investigations-heading">
-      <div className={styles.sectionHeader}>
-        <div>
-          <h2 id="dossier-investigations-heading">Investigations</h2>
-          <p className={styles.tabIntro}>Saved research results remain reference material until a human uses evidence in a profile improvement workflow.</p>
-        </div>
-        <span>{visibleArtifacts.length + completedManagedJobs.length} available</span>
+  return <section className={styles.investigationsPage} data-testid="dossier-investigations" aria-labelledby="dossier-investigations-heading">
+    <header className={styles.investigationsPageHeader}><div><p className={styles.eyebrow}>COMPANY · INVESTIGATIONS</p><h2 id="dossier-investigations-heading">Investigations</h2><p className={styles.tabIntro}>Research questions, findings, and evidence leads — organized around the investigation itself.</p></div><span className={styles.contextNote}>Research from RAVEN, Deep Research, and External Assist lands here.</span></header>
+    {loading ? <p className={styles.contextNote} role="status">Loading investigations…</p> : null}
+    {error ? <p className={styles.errorMessage} role="alert">{error}</p> : null}
+    {!loading && !items.length ? <div className={styles.emptyState}><h3>No investigations yet</h3><p>Research a focused question to build a reusable record of findings, sources, and uncertainties.</p>{onOpenDeepResearch ? <button className="button" type="button" onClick={() => onOpenDeepResearch()}>Open Deep Research in Ask RAVEN</button> : <Link className="button" to={`/companies/${encodeURIComponent(companyId)}?tab=investigations&chat=deep`}>Open Deep Research in Ask RAVEN</Link>}</div> : null}
+    {!loading && items.length ? <>
+      <div className={styles.investigationPageActions}><button className="button button--ai" type="button" onClick={() => void organizeAll()} disabled={organizingAll}><Sparkle size={16} weight="fill" aria-hidden="true" /> {organizingAll ? "Organizing investigations…" : "Organize investigations"}</button><span className={styles.investigationPageHint}>Refresh the organized view across this company’s saved material.</span>{pageOrganizationNotice ? <p className={styles.investigationPageNotice} role="status">{pageOrganizationNotice}</p> : null}</div>
+      <div className={styles.investigationWorkspaceLayout}>
+        <div className={styles.investigationPicker}><label htmlFor="investigation-picker"><span>Current investigations</span><select id="investigation-picker" value={selectedId ?? ""} onChange={(event) => setSelectedId(event.target.value)}>{visibleItems.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.category}</option>)}</select></label><label htmlFor="investigation-category"><span>View</span><select id="investigation-category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as InvestigationCategory | "All")}><option value="All">All categories ({items.length})</option><option value="Profile improvement">Profile improvement ({categoryCounts["Profile improvement"] || 0})</option><option value="Financial / performance">Financial / performance ({categoryCounts["Financial / performance"] || 0})</option><option value="Market / strategy">Market / strategy ({categoryCounts["Market / strategy"] || 0})</option><option value="General research">General research ({categoryCounts["General research"] || 0})</option></select></label><small>{visibleItems.length} shown · Select one to review</small></div>
+        {!visibleItems.length ? <p className={styles.contextNote} role="status">No investigations match this category.</p> : null}
+        {selectedWithOrganization ? <InvestigationWorkspace companyName={companyName} profile={profile} investigation={selectedWithOrganization} onResearchFurther={() => onOpenDeepResearch?.(selectedWithOrganization.objective)} onOpenExternalResearch={() => onOpenExternalResearch?.(selectedWithOrganization.objective)} profileImproved={Boolean(selectedWithOrganization.materialId && profileImprovedMaterialIds?.has(selectedWithOrganization.materialId))} onImproveProfile={onImproveProfile && !selectedWithOrganization.locked && selectedWithOrganization.category === "Profile improvement" ? () => onImproveProfile(inferProfileTargets(selectedWithOrganization), selectedWithOrganization.materialId, selectedWithOrganization.materialKind) : undefined} /> : null}
       </div>
-
-      <div className={styles.externalResearchPanel} data-testid="external-research-import">
-        <div>
-          <h3>External research</h3>
-          <p className={styles.contextNote}>Prepare a focused brief for another assistant, then bring the notes back for review. Imported URLs remain leads until RAVEN acquires and validates them.</p>
-        </div>
-        <label className={styles.externalResearchField}>
-          <span>Optional research objective</span>
-          <input value={externalObjective} onChange={(event) => setExternalObjective(event.target.value)} placeholder="e.g. Recent expansion in Japan" />
-        </label>
-        <button className="button button--secondary" type="button" onClick={() => void prepareExternalBrief()} disabled={externalBusy}>
-          {externalBusy && !externalPreview ? "Preparing…" : "Prepare and copy brief"}
-        </button>
-        {externalBrief && <label className={styles.externalResearchField}>
-          <span>Brief (editable before copying)</span>
-          <textarea rows={8} value={externalBrief.markdown} onChange={(event) => { setExternalBrief({ ...externalBrief, markdown: event.target.value }); setExternalMarkdown(event.target.value); }} />
-        </label>}
-        <label className={styles.externalResearchField}>
-          <span>Research question</span>
-          <input value={externalQuestion} onChange={(event) => setExternalQuestion(event.target.value)} placeholder="What should RAVEN review?" />
-        </label>
-        <label className={styles.externalResearchField}>
-          <span>Paste external response</span>
-          <textarea rows={7} value={externalMarkdown} onChange={(event) => { setExternalMarkdown(event.target.value); setExternalPreview(null); }} placeholder="Paste the assistant's Markdown response here…" />
-        </label>
-        <div className={styles.externalResearchActions}>
-          <button className="button button--secondary" type="button" onClick={() => void previewExternal()} disabled={externalBusy || !externalQuestion.trim() || !externalMarkdown.trim()}>Preview notes</button>
-          <button className="button" type="button" onClick={() => void saveExternalImport()} disabled={externalBusy || !externalQuestion.trim() || !externalMarkdown.trim() || !externalPreview}>Save to Investigations</button>
-        </div>
-        {externalMessage && <p className={styles.successMessage} role="status">{externalMessage}</p>}
-        {externalError && <p className={styles.errorMessage} role="alert">{externalError}</p>}
-        {externalPreview && <div className={styles.externalResearchPreview} data-testid="external-research-preview">
-          <strong>Preview — review before saving</strong>
-          {externalPreview.summary && <p className={styles.summary}>{externalPreview.summary}</p>}
-          {externalPreview.claims.length > 0 && <div><h4>Claims</h4><ul className={styles.plainList}>{externalPreview.claims.map((claim, index) => <li key={`${claim.field}-${index}`}><strong>{claim.field}:</strong> {claim.statement}{claim.notes && <small>{claim.notes}</small>}</li>)}</ul></div>}
-          {externalPreview.sourceLeads.length > 0 && <div><h4>Source leads</h4><ul className={styles.plainList}>{externalPreview.sourceLeads.map((source) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a>{source.publisher && <small>{source.publisher}</small>}</li>)}</ul></div>}
-          {externalPreview.uncertainties.length > 0 && <p className={styles.contextNote}><strong>Uncertainties:</strong> {externalPreview.uncertainties.join(" ")}</p>}
-        </div>}
-      </div>
-
-      {isLoading && <p className={styles.contextNote} role="status">Loading saved investigations…</p>}
-      {error && <p className={styles.errorMessage} role="alert">{error}</p>}
-      {!isLoading && !error && !visibleArtifacts.length && !completedManagedJobs.length && (
-        <div className={styles.emptyState}>
-          <h3>No saved investigations</h3>
-          <p>Deep Research results become visible here only after someone explicitly saves them.</p>
-        </div>
-      )}
-      {completedManagedJobs.length > 0 && (
-        <div className={styles.investigationList}>
-          {completedManagedJobs.map((job) => (
-            <article className={styles.investigationCard} key={job.id}>
-              <div className={styles.investigationMeta}><span className={styles.investigationType}>Managed AI Research</span><time dateTime={job.createdAt}>{formatDate(job.createdAt)}</time></div>
-              <h3>{job.objective}</h3>
-              <p className={styles.investigationQuestion}>{job.status === "Completed" ? "Completed research material. Review cited source leads before using it to improve the profile." : "Research is running in the background. You may keep using RAVEN."}</p>
-              {job.status === "Completed" && job.result && typeof job.result === "object" && "summary" in job.result ? <details className={styles.investigationDetails}><summary>View research result</summary><div className={styles.investigationResult}>{String((job.result as { summary?: unknown }).summary ?? "No summary returned.")}</div></details> : null}
-              <div className={styles.investigationFooter}><span>{job.provider ?? "Managed provider"}</span><span>{job.status}</span></div>
-            </article>
-          ))}
-        </div>
-      )}
-      {visibleArtifacts.length > 0 && (
-        <div className={styles.investigationList}>
-          {visibleArtifacts.map((artifact) => (
-            <article className={styles.investigationCard} key={artifact.id}>
-              <div className={styles.investigationMeta}>
-                <span className={styles.investigationType}>{researchTypeLabel(artifact.researchType)}</span>
-                <time dateTime={artifact.createdAt}>{formatDate(artifact.createdAt)}</time>
-              </div>
-              <h3>{artifact.title}</h3>
-              <p className={styles.investigationQuestion}><strong>Question:</strong> {artifact.question}</p>
-              <details className={styles.investigationDetails}>
-                <summary>View saved result</summary>
-                <div className={styles.investigationResult}>{artifact.summary || artifact.result || "No saved result text was returned."}</div>
-              </details>
-              <div className={styles.investigationFooter}>
-                <span>{artifactCountLabel(artifact.sourceCount)}</span>
-                {artifact.model && <span>{artifact.model}</span>}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-      {!isLoading && investigations?.onRefresh && <button className="button button--secondary" type="button" onClick={refresh}>Refresh investigations</button>}
-    </section>
-  );
+    </> : null}
+    {!loading && items.length && investigations?.onRefresh ? <button className="button button--secondary" type="button" onClick={() => void refresh()}>Refresh investigations</button> : null}
+  </section>;
 }

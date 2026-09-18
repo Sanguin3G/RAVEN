@@ -33,8 +33,9 @@ public sealed record ExternalResearchImportResult(
 {
     /// <summary>
     /// Converts the parsed notes into an artifact request. This deliberately
-    /// leaves SourceDocumentIds empty: imported URLs are source leads until a
-    /// user or a RAVEN acquisition workflow validates them separately.
+    /// leaves SourceDocumentIds empty: imported URLs remain provider citations
+    /// and review context; the External Assist flow does not re-search or
+    /// re-crawl them.
     /// </summary>
     public SavedResearchArtifactRequest ToArtifactRequest(
         Guid companyId,
@@ -55,7 +56,8 @@ public sealed record ExternalResearchImportResult(
             CompletedAt: completedAt,
             SourceLeads: SourceLeads,
             Claims: Claims,
-            Uncertainties: Uncertainties);
+            Uncertainties: Uncertainties,
+            RawResponse: RawMarkdown);
 }
 
 public interface IExternalResearchBriefGenerator

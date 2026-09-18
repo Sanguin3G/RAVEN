@@ -62,6 +62,7 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
             Title = request.Title.Trim(),
             Question = request.Question.Trim(),
             Summary = request.Summary.Trim(),
+            RawResponse = NormalizeOptionalRawResponse(request.RawResponse),
             CreatedAt = clock.UtcNow,
             ResearchType = request.ResearchType,
             Origin = request.Origin,
@@ -137,6 +138,12 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
     private static string? NormalizeOptionalModel(string? model)
     {
         var normalized = model?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static string? NormalizeOptionalRawResponse(string? value)
+    {
+        var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 

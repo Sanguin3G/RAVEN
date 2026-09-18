@@ -99,6 +99,15 @@ public static class ResearchEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
+        app.MapPost("/api/companies/{companyId:guid}/research/verify-source-leads", VerifySourceLeadsAsync)
+            .WithTags("Sources")
+            .WithName("VerifyResearchSourceLeads")
+            .WithSummary("Send selected investigation source leads through normal RAVEN acquisition")
+            .WithDescription("Source leads become evidence only after RAVEN persists and acquires them through the standard research pipeline.")
+            .Produces<ResearchRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapGet("/api/research-runs/{researchRunId:guid}/sources", ListResearchSourcesAsync)
             .WithTags("Sources")
             .WithName("ListResearchRunSources")
@@ -188,6 +197,27 @@ public static class ResearchEndpoints
     {
         var run = await research.AcquireAsync(researchRunId, request, cancellationToken);
         return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+    }
+
+    private static async Task<Results<Ok<ResearchRunResponse>, BadRequest, NotFound>> VerifySourceLeadsAsync(
+        Guid companyId,
+        VerifyResearchSourceLeadsRequest request,
+        IResearchCompanyService research,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var run = await research.VerifySourceLeadsAsync(companyId, request, cancellationToken);
+            return run is null ? TypedResults.NotFound() : TypedResults.Ok(run);
+        }
+        catch (BadHttpRequestException)
+        {
+            return TypedResults.BadRequest();
+        }
+        catch (ArgumentException)
+        {
+            return TypedResults.BadRequest();
+        }
     }
 
     private static async Task<Results<Ok<ResearchRunResponse>, NotFound>> GetResearchRunAsync(

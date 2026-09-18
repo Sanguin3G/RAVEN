@@ -21,11 +21,16 @@ public sealed class EfSavedResearchArtifactStore(RavenDbContext dbContext) : ISa
 
     public async Task<IReadOnlyList<SavedResearchArtifact>> ListAsync(Guid companyId, CancellationToken cancellationToken = default)
     {
+        // SQLite cannot translate DateTimeOffset ordering. The list is company
+        // scoped and intentionally small, so preserve a deterministic newest-
+        // first result after the safe SQL filter has materialized the rows.
         var artifacts = await dbContext.SavedResearchArtifacts.AsNoTracking()
             .Where(item => item.CompanyId == companyId)
-            .OrderByDescending(item => item.CreatedAt)
             .ToListAsync(cancellationToken);
-        return artifacts.Select(Hydrate).ToArray();
+        return artifacts
+            .OrderByDescending(item => item.CreatedAt)
+            .Select(Hydrate)
+            .ToArray();
     }
 
     private static SavedResearchArtifact Hydrate(SavedResearchArtifact artifact)

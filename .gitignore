@@ -16,3 +16,5 @@ dist/
 /backend/.playwright-cli/
 /frontend/.playwright-cli/
 /output/playwright/
+/frontend/output/
+/frontend/test-results/

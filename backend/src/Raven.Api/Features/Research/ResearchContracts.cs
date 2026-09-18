@@ -97,6 +97,17 @@ public sealed record ResearchCandidateResponse(
 
 public sealed record AcquireResearchCandidatesRequest(IReadOnlyList<Guid> CandidateIds);
 
+/// <summary>
+/// User-selected source leads from an investigation. The server turns these
+/// URLs into persisted candidates before the normal acquisition path runs;
+/// they never become evidence by virtue of being pasted into the browser.
+/// </summary>
+public sealed record VerifyResearchSourceLeadsRequest(
+    string Objective,
+    IReadOnlyList<string> Urls,
+    IReadOnlyList<ResearchTarget>? Targets = null,
+    Guid? BaseProfileVersionId = null);
+
 public sealed record SourceDocumentResponse(
     Guid Id,
     Guid CompanyId,
