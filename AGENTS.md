@@ -93,6 +93,44 @@ Stay inside the assigned scope. Avoid modifying shared integration hotspots unle
 
 Prefer self-contained modules and narrow registration helpers so the integration owner can complete final wiring. Do not silently redesign shared contracts; report architectural conflicts.
 
+## Codex execution policy
+
+### Default behavior
+
+The normal root model is GPT-5.6 Luna at xhigh reasoning. Work directly by default.
+
+Do not spawn subagents merely because they are available, because a task is large, or because deeper investigation was requested. The root agent owns task understanding, implementation, integration, normal debugging, testing, and ordinary review.
+
+### Delegating routine work
+
+Use a Luna High subagent only when a subtask is clearly bounded, substantially independent of the root's immediate next step, and useful for real parallel progress or context isolation.
+
+Good targets include independent subsystem exploration, repository-wide callsite inventories, independent log or test-failure inspection, isolated straightforward tests, mechanical changes in an isolated area, and low-risk large-code summaries.
+
+Do not delegate tiny immediate changes, work whose result blocks the root's next step, tightly coupled edits, or ordinary implementation merely to reduce the root's workload. Prefer zero subagents for ordinary tasks and at most one or two routine workers unless the work naturally decomposes further.
+
+### Escalating difficult judgment
+
+Use Terra Medium as a consultant, not the normal implementation agent, when architecture is materially ambiguous; tradeoffs are consequential; normal investigation leaves the root cause unclear; two serious attempts have failed; correctness depends on subtle cross-module invariants; or the root remains low-confidence despite relevant evidence.
+
+The consultant should diagnose, compare approaches, identify invariants and risks, and recommend a direction. Luna xhigh resumes ownership for implementation and verification.
+
+Use Terra High only for unusually difficult or high-cost correctness questions, such as subtle concurrency, security-sensitive design, destructive migrations or data-loss risk, complex transactional correctness, or a problem unresolved after Terra Medium. Do not use Terra High for routine implementation.
+
+### Context passed to consultants
+
+Give consultants the smallest useful handoff: problem statement, relevant files or components, observed evidence, approaches already tried, and the exact decision required. Prefer fresh or minimally forked consultant context over a huge conversation history when the runtime permits it.
+
+### Review policy
+
+Do not automatically spawn a reviewer after every task. Luna xhigh normally reviews its own diff and runs the appropriate tests. Consider an independent Terra Medium review only for architectural decisions, public contracts, persistent data or migrations, concurrency/security/transaction semantics, difficult or uncertain debugging, or material residual uncertainty after tests pass.
+
+### Runtime capability fallback
+
+Do not assume a requested subagent model or reasoning override succeeded. If the runtime does not expose or honor it, do not describe a same-model agent as Terra or Luna High; continue with Luna xhigh where possible and report that stronger-model escalation could not be performed. Correctness matters more than pretending the routing policy was followed.
+
+See [Codex Agent Workflow](docs/codex-workflow.md) for the rationale, examples, decision tree, and consultant handoff format.
+
 ## Documentation
 
 Do not update every document for every code change. Update `PROJECT.md` for material scope changes, `ARCHITECTURE.md` for material architecture changes, `PLAN.md` for milestone or ownership changes, and `DEVELOPMENT.md` for setup or workflow changes. Only the integration/orchestration owner normally updates `STATUS.md`. Avoid new Markdown files unless established documents genuinely cannot hold the information.
