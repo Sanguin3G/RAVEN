@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace Raven.Api.Features.Research.SavedArtifacts;
@@ -30,7 +31,47 @@ public sealed class SavedResearchArtifact
 
     public DateTimeOffset CreatedAt { get; init; }
     public SavedResearchType ResearchType { get; init; }
+    /// <summary>
+    /// Describes where the research material came from. This is provenance,
+    /// not a trust ranking: managed and imported material is still reviewable
+    /// research material and is never an accepted profile fact by itself.
+    /// </summary>
+    [NotMapped]
+    public SavedResearchOrigin Origin { get; init; } = SavedResearchOrigin.RavenNative;
     public string? Model { get; init; }
+    [NotMapped]
+    public string? Provider { get; init; }
+    [NotMapped]
+    public string? Objective { get; init; }
+    [NotMapped]
+    public DateTimeOffset? CompletedAt { get; init; }
+    [NotMapped]
+    public string? ManagedResearchJobId { get; init; }
+
+    /// <summary>
+    /// Optional provider metadata that is useful for diagnostics (for example a
+    /// remote request ID or usage summary). It is intentionally not mapped by
+    /// the current EF adapter; persistence wiring can choose a bounded JSON
+    /// representation without changing this domain contract.
+    /// </summary>
+    [NotMapped]
+    public IDictionary<string, string> ProviderMetadata { get; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// URLs and descriptive details supplied by a managed provider or imported
+    /// assistant answer. These are source leads, not SourceDocument evidence.
+    /// </summary>
+    [NotMapped]
+    public ICollection<ResearchSourceLead> SourceLeads { get; } = new List<ResearchSourceLead>();
+
+    /// <summary>Reviewable claims linked to source leads, never profile evidence.</summary>
+    [NotMapped]
+    public ICollection<ResearchClaim> Claims { get; } = new List<ResearchClaim>();
+
+    /// <summary>Unresolved caveats reported by the researcher/provider.</summary>
+    [NotMapped]
+    public ICollection<string> Uncertainties { get; } = new List<string>();
 
     /// <summary>
     /// Server-derived count. Callers provide source IDs; they never provide this
@@ -61,7 +102,12 @@ public sealed class SavedResearchArtifact
             Summary = Summary,
             CreatedAt = CreatedAt,
             ResearchType = ResearchType,
+            Origin = Origin,
             Model = Model,
+            Provider = Provider,
+            Objective = Objective,
+            CompletedAt = CompletedAt,
+            ManagedResearchJobId = ManagedResearchJobId,
             SourceCount = SourceCount,
             SourceDocumentIdsJson = SourceDocumentIdsJson
         };
@@ -69,6 +115,29 @@ public sealed class SavedResearchArtifact
         foreach (var sourceDocumentId in SourceDocumentIds)
         {
             clone.SourceDocumentIds.Add(sourceDocumentId);
+        }
+
+        foreach (var sourceLead in SourceLeads)
+        {
+            clone.SourceLeads.Add(sourceLead with { });
+        }
+
+        foreach (var claim in Claims)
+        {
+            clone.Claims.Add(claim with
+            {
+                SupportingSourceLeadIds = claim.SupportingSourceLeadIds?.ToArray()
+            });
+        }
+
+        foreach (var uncertainty in Uncertainties)
+        {
+            clone.Uncertainties.Add(uncertainty);
+        }
+
+        foreach (var metadata in ProviderMetadata)
+        {
+            clone.ProviderMetadata[metadata.Key] = metadata.Value;
         }
 
         return clone;
@@ -80,3 +149,39 @@ public enum SavedResearchType
     Fast,
     Deep
 }
+
+/// <summary>Provenance of saved research material, independent of provider.</summary>
+public enum SavedResearchOrigin
+{
+    RavenNative,
+    ManagedAi,
+    ExternalImport
+}
+
+/// <summary>
+/// A URL lead supplied by research material. A lead is not a persisted
+/// <see cref="Raven.Api.Features.Research.SourceDocument"/> and cannot support
+/// an accepted profile until RAVEN acquires and validates it separately.
+/// </summary>
+public sealed record ResearchSourceLead(
+    string Url,
+    string? Title = null,
+    string? Publisher = null,
+    DateTimeOffset? PublishedAt = null,
+    string? SourceType = null,
+    string? Supports = null)
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+}
+
+/// <summary>
+/// A factual statement from a managed or imported result. Source lead IDs are
+/// provenance links only; they are deliberately distinct from profile evidence
+/// source-document IDs.
+/// </summary>
+public sealed record ResearchClaim(
+    string Field,
+    string Statement,
+    IReadOnlyList<Guid>? SupportingSourceLeadIds = null,
+    string? Confidence = null,
+    string? Notes = null);

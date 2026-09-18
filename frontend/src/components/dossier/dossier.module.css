@@ -263,6 +263,27 @@
   overflow-wrap: anywhere;
 }
 
+.companyMap {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.companyMapFrame {
+  border: 0;
+  border-radius: 4px;
+  display: block;
+  min-height: 16rem;
+  width: 100%;
+}
+
+.companyMap a {
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  width: fit-content;
+}
+
 .sectionTitle {
   color: var(--text);
   font-size: 0.86rem;

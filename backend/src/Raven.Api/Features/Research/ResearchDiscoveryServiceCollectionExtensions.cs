@@ -61,32 +61,18 @@ public static class ResearchDiscoveryServiceCollectionExtensions
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 120));
         });
-        services.AddHttpClient<FirecrawlSearchProvider>((serviceProvider, client) =>
-        {
-            var options = serviceProvider.GetRequiredService<IOptions<FirecrawlOptions>>().Value;
-            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
-        });
         services.AddHttpClient<Crawl4AiLocalProvider>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<Crawl4AiLocalOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
         });
-        services.AddHttpClient<FirecrawlCrawlerProvider>((serviceProvider, client) =>
-        {
-            var options = serviceProvider.GetRequiredService<IOptions<FirecrawlOptions>>().Value;
-            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
-        });
         services.AddScoped<IProviderCatalog<ISearchProvider>>(serviceProvider => new ProviderCatalog<ISearchProvider>([
             serviceProvider.GetRequiredService<BraveSearchProvider>(),
-            serviceProvider.GetRequiredService<ExaSearchProvider>(),
-            serviceProvider.GetRequiredService<FirecrawlSearchProvider>()
+            serviceProvider.GetRequiredService<ExaSearchProvider>()
         ]));
         services.AddScoped<IProviderCatalog<ICrawlerProvider>>(serviceProvider => new ProviderCatalog<ICrawlerProvider>([
             serviceProvider.GetRequiredService<Crawl4AiLocalProvider>(),
-            serviceProvider.GetRequiredService<FirecrawlCrawlerProvider>(),
             serviceProvider.GetRequiredService<ExaCrawlerProvider>()
         ]));
         services.AddScoped<IResearchExecutionContext, ResearchExecutionContext>();

@@ -209,6 +209,20 @@
   overflow-wrap: anywhere;
 }
 
+.researchMessageLink {
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  justify-self: start;
+  margin-top: 0.2rem;
+  text-decoration: none;
+}
+
+.researchMessageLink:hover,
+.researchMessageLink:focus-visible {
+  text-decoration: underline;
+}
+
 .assistantComposer {
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
@@ -217,6 +231,31 @@
   gap: 0.35rem;
   margin-top: 0;
   padding: 0.55rem 0.6rem;
+}
+
+.composerMode {
+  align-items: center;
+  background: color-mix(in srgb, var(--ai) 10%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 32%, var(--border));
+  border-radius: 0.45rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.composerMode svg {
+  color: var(--ai);
+}
+
+.composerMode strong {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+.composerMode span {
+  font-size: 0.66rem;
 }
 
 .assistantComposer textarea {
@@ -340,6 +379,11 @@ a.capabilityAction {
   color: var(--text);
 }
 
+.capabilitySelected {
+  border-color: var(--ai);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ai) 35%, transparent);
+}
+
 .capabilityAction span {
   font-size: 0.72rem;
   font-weight: 800;
@@ -354,6 +398,88 @@ a.capabilityAction {
 .capabilityUnavailable {
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.capabilityChip {
+  align-items: center;
+  background: color-mix(in srgb, var(--ai) 12%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 42%, var(--border));
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 800;
+  max-inline-size: 13rem;
+  overflow: hidden;
+  padding: 0.28rem 0.48rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capabilityChip:hover,
+.capabilityChip:focus-visible {
+  border-color: var(--primary);
+}
+
+.researchToast {
+  align-items: center;
+  background: var(--surface-raised);
+  border: 1px solid color-mix(in srgb, var(--ai) 42%, var(--border));
+  border-radius: 0.65rem;
+  bottom: 1rem;
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--shadow) 80%, transparent);
+  color: var(--text);
+  display: flex;
+  gap: 0.65rem;
+  inset-inline: auto 1rem;
+  max-inline-size: min(25rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.7rem;
+  position: fixed;
+  z-index: 20;
+}
+
+.researchToast > div {
+  display: grid;
+  gap: 0.12rem;
+  min-inline-size: 0;
+}
+
+.researchToast strong {
+  font-size: 0.74rem;
+}
+
+.researchToast span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.researchToast a {
+  color: var(--primary);
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.researchToast button {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.15rem;
+}
+
+.researchToast button:hover,
+.researchToast button:focus-visible {
+  color: var(--text);
 }
 
 .assistantProfileBoundary {

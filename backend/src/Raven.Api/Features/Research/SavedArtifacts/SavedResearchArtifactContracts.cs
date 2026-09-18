@@ -14,7 +14,16 @@ public record SavedResearchArtifactRequest(
     string? Model = null,
     IReadOnlyList<Guid>? SourceDocumentIds = null,
     Guid? ConversationId = null,
-    Guid? DeepResearchRunId = null)
+    Guid? DeepResearchRunId = null,
+    SavedResearchOrigin Origin = SavedResearchOrigin.RavenNative,
+    string? Provider = null,
+    string? Objective = null,
+    DateTimeOffset? CompletedAt = null,
+    string? ManagedResearchJobId = null,
+    IReadOnlyDictionary<string, string>? ProviderMetadata = null,
+    IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
+    IReadOnlyList<ResearchClaim>? Claims = null,
+    IReadOnlyList<string>? Uncertainties = null)
 {
     /// <summary>Vocabulary alias for callers that use Result instead of Summary.</summary>
     public string Result => Summary;
@@ -30,7 +39,16 @@ public sealed record CreateSavedResearchArtifactRequest(
     string? Model = null,
     IReadOnlyList<Guid>? SourceDocumentIds = null,
     Guid? ConversationId = null,
-    Guid? DeepResearchRunId = null)
+    Guid? DeepResearchRunId = null,
+    SavedResearchOrigin Origin = SavedResearchOrigin.RavenNative,
+    string? Provider = null,
+    string? Objective = null,
+    DateTimeOffset? CompletedAt = null,
+    string? ManagedResearchJobId = null,
+    IReadOnlyDictionary<string, string>? ProviderMetadata = null,
+    IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
+    IReadOnlyList<ResearchClaim>? Claims = null,
+    IReadOnlyList<string>? Uncertainties = null)
     : SavedResearchArtifactRequest(
         CompanyId,
         Title,
@@ -40,7 +58,16 @@ public sealed record CreateSavedResearchArtifactRequest(
         Model,
         SourceDocumentIds,
         ConversationId,
-        DeepResearchRunId);
+        DeepResearchRunId,
+        Origin,
+        Provider,
+        Objective,
+        CompletedAt,
+        ManagedResearchJobId,
+        ProviderMetadata,
+        SourceLeads,
+        Claims,
+        Uncertainties);
 
 /// <summary>
 /// Response-shaped contract for a future endpoint. The current domain service
@@ -58,7 +85,16 @@ public sealed record SavedResearchArtifactResponse(
     SavedResearchType ResearchType,
     string? Model,
     int SourceCount,
-    IReadOnlyList<Guid> SourceDocumentIds)
+    IReadOnlyList<Guid> SourceDocumentIds,
+    SavedResearchOrigin Origin = SavedResearchOrigin.RavenNative,
+    string? Provider = null,
+    string? Objective = null,
+    DateTimeOffset? CompletedAt = null,
+    string? ManagedResearchJobId = null,
+    IReadOnlyDictionary<string, string>? ProviderMetadata = null,
+    IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
+    IReadOnlyList<ResearchClaim>? Claims = null,
+    IReadOnlyList<string>? Uncertainties = null)
 {
     public string Result => Summary;
 
@@ -78,7 +114,16 @@ public sealed record SavedResearchArtifactResponse(
             artifact.ResearchType,
             artifact.Model,
             artifact.SourceCount,
-            artifact.SourceDocumentIds.ToArray());
+            artifact.SourceDocumentIds.ToArray(),
+            artifact.Origin,
+            artifact.Provider,
+            artifact.Objective,
+            artifact.CompletedAt,
+            artifact.ManagedResearchJobId,
+            new Dictionary<string, string>(artifact.ProviderMetadata, StringComparer.OrdinalIgnoreCase),
+            artifact.SourceLeads.ToArray(),
+            artifact.Claims.ToArray(),
+            artifact.Uncertainties.ToArray());
     }
 }
 

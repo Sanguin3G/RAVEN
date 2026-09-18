@@ -24,6 +24,31 @@ function FieldValue({ value }: { value?: number | string | null }) {
   return value === null || value === undefined || value === "" ? <UnknownValue /> : <>{value}</>;
 }
 
+function CompanyMapEmbed({ address }: { address?: string | null }) {
+  const normalizedAddress = address?.trim();
+  if (!normalizedAddress) return null;
+
+  const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(normalizedAddress)}`;
+  const embedKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY?.trim();
+
+  return (
+    <div className={styles.companyMap}>
+      {embedKey ? (
+        <iframe
+          className={styles.companyMapFrame}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          src={`https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(embedKey)}&q=${encodeURIComponent(normalizedAddress)}`}
+          title={`Map for ${normalizedAddress}`}
+        />
+      ) : null}
+      <a href={mapsSearchUrl} rel="noreferrer noopener" target="_blank">
+        {embedKey ? "Open in Google Maps" : "View address in Google Maps"}
+      </a>
+    </div>
+  );
+}
+
 function locationLabel(location: DossierLocation): string {
   return [location.name, location.address, location.country].filter(Boolean).join(" - ") || "Location not verified";
 }
@@ -91,6 +116,7 @@ export function CompanyOverview({ company, profile, coverage, initialEnrichmentT
   const locations = current.locations ?? [];
   const links = current.publicLinks ?? [];
   const website = safeExternalUrl(current.website || company.website);
+  const headquarters = current.headquarters || company.headquarters;
 
   return (
     <div className={styles.contentGrid} data-testid="dossier-overview">
@@ -105,10 +131,11 @@ export function CompanyOverview({ company, profile, coverage, initialEnrichmentT
           <dl className={styles.atAGlance}>
             <div><dt>Founded</dt><dd><FieldValue value={current.foundedYear} /></dd></div>
             <div><dt>Employees / scale</dt><dd><FieldValue value={current.employeeCountRange || current.companySize || current.employeeCount} /></dd></div>
-            <div><dt>Headquarters</dt><dd><FieldValue value={current.headquarters || company.headquarters} /></dd></div>
+            <div><dt>Headquarters</dt><dd><FieldValue value={headquarters} /></dd></div>
             <div><dt>Industry</dt><dd><FieldValue value={current.primaryIndustry || company.industry} /></dd></div>
             <div><dt>Country</dt><dd><FieldValue value={current.country || company.country} /></dd></div>
           </dl>
+          <CompanyMapEmbed address={headquarters} />
           <div className={styles.coverageActions}>
             <ResearchAction target="FoundedHistory" level={coverageLevel(coverage?.response, "FoundedHistory")} onClick={() => beginEnrichment(["FoundedHistory"])} />
             <ResearchAction target="EmployeeScale" level={coverageLevel(coverage?.response, "EmployeeScale")} onClick={() => beginEnrichment(["EmployeeScale"])} />

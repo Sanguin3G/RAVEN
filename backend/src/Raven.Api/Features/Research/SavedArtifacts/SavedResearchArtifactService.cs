@@ -64,7 +64,12 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
             Summary = request.Summary.Trim(),
             CreatedAt = clock.UtcNow,
             ResearchType = request.ResearchType,
+            Origin = request.Origin,
             Model = NormalizeOptionalModel(request.Model),
+            Provider = NormalizeOptionalText(request.Provider),
+            Objective = NormalizeOptionalText(request.Objective),
+            CompletedAt = request.CompletedAt,
+            ManagedResearchJobId = NormalizeOptionalText(request.ManagedResearchJobId),
             SourceCount = sourceDocumentIds.Length,
             SourceDocumentIdsJson = JsonSerializer.Serialize(sourceDocumentIds)
         };
@@ -72,6 +77,31 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
         foreach (var sourceDocumentId in sourceDocumentIds)
         {
             artifact.SourceDocumentIds.Add(sourceDocumentId);
+        }
+
+        foreach (var sourceLead in request.SourceLeads ?? [])
+        {
+            artifact.SourceLeads.Add(NormalizeSourceLead(sourceLead));
+        }
+
+        foreach (var claim in request.Claims ?? [])
+        {
+            artifact.Claims.Add(new ResearchClaim(
+                claim.Field.Trim(),
+                claim.Statement.Trim(),
+                claim.SupportingSourceLeadIds?.Distinct().ToArray(),
+                NormalizeOptionalText(claim.Confidence),
+                NormalizeOptionalText(claim.Notes)));
+        }
+
+        foreach (var uncertainty in request.Uncertainties ?? [])
+        {
+            artifact.Uncertainties.Add(uncertainty.Trim());
+        }
+
+        foreach (var metadata in request.ProviderMetadata ?? new Dictionary<string, string>())
+        {
+            artifact.ProviderMetadata[metadata.Key.Trim()] = metadata.Value.Trim();
         }
 
         await store.SaveAsync(artifact, cancellationToken);
@@ -100,6 +130,26 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
     {
         var normalized = model?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static ResearchSourceLead NormalizeSourceLead(ResearchSourceLead sourceLead)
+    {
+        ArgumentNullException.ThrowIfNull(sourceLead);
+
+        return sourceLead with
+        {
+            Url = sourceLead.Url.Trim(),
+            Title = NormalizeOptionalText(sourceLead.Title),
+            Publisher = NormalizeOptionalText(sourceLead.Publisher),
+            SourceType = NormalizeOptionalText(sourceLead.SourceType),
+            Supports = NormalizeOptionalText(sourceLead.Supports)
+        };
     }
 
     private static void ValidateScopeId(Guid value, string parameterName)

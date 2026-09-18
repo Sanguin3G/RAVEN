@@ -13,6 +13,7 @@ using Raven.Api.Features.DeepResearch;
 using Raven.Api.Features.Research.SavedArtifacts;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Chat;
+using Raven.Api.Features.ManagedResearch;
 
 namespace Raven.Api.Data;
 
@@ -37,6 +38,8 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatCitation> ChatCitations => Set<ChatCitation>();
     public DbSet<ChatToolExecution> ChatToolExecutions => Set<ChatToolExecution>();
+    public DbSet<ManagedResearchJob> ManagedResearchJobs => Set<ManagedResearchJob>();
+    public DbSet<ManagedResearchInvestigation> ManagedResearchInvestigations => Set<ManagedResearchInvestigation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +53,35 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(company => company.Headquarters).HasMaxLength(1_000);
             entity.HasIndex(company => company.ArchivedAt);
             entity.HasIndex(company => company.Name);
+        });
+
+        modelBuilder.Entity<ManagedResearchJob>(entity =>
+        {
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Objective).HasMaxLength(4_000).IsRequired();
+            entity.Property(item => item.ProviderQuery).HasMaxLength(12_000).IsRequired();
+            entity.Property(item => item.Effort).HasMaxLength(32).IsRequired();
+            entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.Provider).HasMaxLength(100);
+            entity.Property(item => item.ProviderRunId).HasMaxLength(300);
+            entity.Property(item => item.ProviderRunStatus).HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.ResultJson).HasMaxLength(200_000);
+            entity.Property(item => item.Error).HasMaxLength(4_000);
+            entity.HasIndex(item => new { item.CompanyId, item.CreatedAt });
+            entity.HasIndex(item => new { item.Status, item.CreatedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ManagedResearchInvestigation>(entity =>
+        {
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Origin).HasMaxLength(32).IsRequired();
+            entity.Property(item => item.Objective).HasMaxLength(4_000).IsRequired();
+            entity.Property(item => item.Summary).HasMaxLength(100_000).IsRequired();
+            entity.Property(item => item.ResultJson).HasMaxLength(200_000).IsRequired();
+            entity.HasIndex(item => item.JobId).IsUnique();
+            entity.HasIndex(item => new { item.CompanyId, item.CompletedAt });
+            entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ResearchRun>(entity =>

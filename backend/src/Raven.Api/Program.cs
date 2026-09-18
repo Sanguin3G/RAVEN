@@ -15,6 +15,7 @@ using Raven.Api.Features.Profiles.Enrichment;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Companies.Workspace;
 using Raven.Api.Features.Chat;
+using Raven.Api.Features.ManagedResearch;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,6 +72,22 @@ builder.Services.AddScoped<ISavedResearchArtifactStore, EfSavedResearchArtifactS
 builder.Services.AddScoped<ISourceDocumentOwnershipReader, EfSourceDocumentOwnershipReader>();
 builder.Services.AddSingleton<ISavedResearchArtifactClock, SystemSavedResearchArtifactClock>();
 builder.Services.AddScoped<ISavedResearchArtifactService, SavedResearchArtifactService>();
+builder.Services.Configure<ExaAgentOptions>(builder.Configuration.GetSection(ExaAgentOptions.SectionName));
+builder.Services.PostConfigure<ExaAgentOptions>(options => options.ApiKey ??= builder.Configuration[ExaAgentOptions.ApiKeyEnvironmentVariable]);
+builder.Services.AddHttpClient<ExaAgentClient>((services, client) =>
+{
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<ExaAgentOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+});
+builder.Services.AddScoped<IManagedResearchAgentClient>(services => services.GetRequiredService<ExaAgentClient>());
+builder.Services.AddScoped<IManagedResearchJobStore, EfManagedResearchJobStore>();
+builder.Services.AddScoped<IManagedResearchInvestigationStore, EfManagedResearchInvestigationStore>();
+builder.Services.AddScoped<IManagedResearchCompanyContextReader, EfManagedResearchCompanyContextReader>();
+builder.Services.AddSingleton<IManagedResearchClock, SystemManagedResearchClock>();
+builder.Services.AddSingleton<ManagedResearchJobQueue>();
+builder.Services.AddSingleton<IManagedResearchJobQueue>(services => services.GetRequiredService<ManagedResearchJobQueue>());
+builder.Services.AddScoped<IManagedResearchJobService, ManagedResearchJobService>();
+builder.Services.AddHostedService<ManagedResearchWorker>();
 builder.Services.Configure<Crawl4AiLocalOptions>(
     builder.Configuration.GetSection(Crawl4AiLocalOptions.SectionName));
 builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
@@ -110,6 +127,7 @@ app.MapProfileEndpoints();
 app.MapTargetedProfileUpdateEndpoints();
 app.MapDeepResearchEndpoints();
 app.MapChatEndpoints();
+app.MapManagedResearchEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

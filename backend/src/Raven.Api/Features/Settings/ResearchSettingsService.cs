@@ -26,10 +26,21 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             return ToResponse(defaults);
         }
 
-        var validationErrors = ValidateEntity(persisted);
-        if (validationErrors.Count == 0 && persisted.Id == ResearchSettingsEntity.SingletonKey)
+        // Provider identifiers are persisted for compatibility with older
+        // workspaces. A removed provider (notably Firecrawl) must not make the
+        // settings row unusable or cause routing to fail with an empty route.
+        // Preserve every still-supported preference and use deterministic
+        // product defaults only when a priority list has no usable entries.
+        var normalized = NormalizeLegacyProviderPriorities(persisted);
+        var validationErrors = ValidateEntity(normalized);
+        if (validationErrors.Count == 0 && normalized.Id == ResearchSettingsEntity.SingletonKey)
         {
-            return ToResponse(persisted);
+            if (!ProviderPrioritiesEqual(persisted, normalized))
+            {
+                await store.SaveAsync(normalized, cancellationToken);
+            }
+
+            return ToResponse(normalized);
         }
 
         // A manually edited/partially migrated row must not cause a research run
@@ -63,9 +74,13 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             AiSourceRerankingEnabled = request.AiSourceRerankingEnabled,
             ProviderPreset = request.ProviderPreset,
             SearchProviderPriority = NormalizeProviderIds(
-                request.SearchProviderPriority ?? current.SearchProviderPriority),
+                request.SearchProviderPriority ?? current.SearchProviderPriority,
+                ResearchSettingsDefaults.SupportedSearchProviders,
+                [ResearchSettingsDefaults.BraveSearchProvider]),
             CrawlerProviderPriority = NormalizeProviderIds(
-                request.CrawlerProviderPriority ?? current.CrawlerProviderPriority),
+                request.CrawlerProviderPriority ?? current.CrawlerProviderPriority,
+                ResearchSettingsDefaults.SupportedCrawlerProviders,
+                [ResearchSettingsDefaults.Crawl4AiLocalProvider]),
             UpdatedAt = DateTimeOffset.UtcNow
         };
 
@@ -132,8 +147,16 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             errors.Add("Provider preset is not supported.");
         }
 
-        AddProviderErrors(errors, request.SearchProviderPriority, "Search");
-        AddProviderErrors(errors, request.CrawlerProviderPriority, "Crawler");
+        AddProviderErrors(
+            errors,
+            request.SearchProviderPriority,
+            "Search",
+            ResearchSettingsDefaults.SupportedSearchProviders);
+        AddProviderErrors(
+            errors,
+            request.CrawlerProviderPriority,
+            "Crawler",
+            ResearchSettingsDefaults.SupportedCrawlerProviders);
 
         return errors;
     }
@@ -161,7 +184,8 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
     private static void AddProviderErrors(
         ICollection<string> errors,
         IReadOnlyList<string>? providerIds,
-        string category)
+        string category,
+        IReadOnlySet<string> supportedProviders)
     {
         if (providerIds is null || providerIds.Count == 0)
         {
@@ -173,15 +197,53 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         {
             errors.Add($"{category} provider IDs cannot be empty.");
         }
+
+        foreach (var providerId in providerIds.Where(providerId => !string.IsNullOrWhiteSpace(providerId)))
+        {
+            var normalizedProviderId = providerId.Trim();
+            if (!supportedProviders.Contains(normalizedProviderId))
+            {
+                errors.Add($"{category} provider '{normalizedProviderId}' is not supported.");
+            }
+        }
     }
 
     private static string NormalizeModel(string model) => model.Trim();
 
-    private static List<string> NormalizeProviderIds(IReadOnlyList<string> providerIds) =>
+    private static List<string> NormalizeProviderIds(
+        IReadOnlyList<string>? providerIds,
+        IReadOnlySet<string> supportedProviders,
+        IReadOnlyList<string> fallback) =>
         providerIds
+            ?.Where(providerId => !string.IsNullOrWhiteSpace(providerId))
             .Select(providerId => providerId.Trim())
+            .Where(supportedProviders.Contains)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ToList() ?? [.. fallback];
+
+    private static ResearchSettingsEntity NormalizeLegacyProviderPriorities(ResearchSettingsEntity persisted)
+    {
+        var normalized = persisted.Clone();
+        normalized.SearchProviderPriority = NormalizeProviderIds(
+            persisted.SearchProviderPriority,
+            ResearchSettingsDefaults.SupportedSearchProviders,
+            [ResearchSettingsDefaults.BraveSearchProvider]);
+        normalized.CrawlerProviderPriority = NormalizeProviderIds(
+            persisted.CrawlerProviderPriority,
+            ResearchSettingsDefaults.SupportedCrawlerProviders,
+            [ResearchSettingsDefaults.Crawl4AiLocalProvider]);
+        return normalized;
+    }
+
+    private static bool ProviderPrioritiesEqual(
+        ResearchSettingsEntity left,
+        ResearchSettingsEntity right) =>
+        left.SearchProviderPriority.SequenceEqual(
+            right.SearchProviderPriority,
+            StringComparer.Ordinal) &&
+        left.CrawlerProviderPriority.SequenceEqual(
+            right.CrawlerProviderPriority,
+            StringComparer.Ordinal);
 
     private static ResearchSettingsResponse ToResponse(ResearchSettingsEntity entity) => new(
         entity.GroundingMode,

@@ -6,7 +6,26 @@ public static class SavedResearchArtifactValidation
     public const int MaxQuestionLength = 4_000;
     public const int MaxSummaryLength = 100_000;
     public const int MaxModelLength = 200;
+    public const int MaxProviderLength = 200;
+    public const int MaxObjectiveLength = 4_000;
+    public const int MaxManagedResearchJobIdLength = 200;
     public const int MaxSourceDocumentIds = 500;
+    public const int MaxSourceLeads = 500;
+    public const int MaxSourceLeadUrlLength = 4_000;
+    public const int MaxSourceLeadTitleLength = 500;
+    public const int MaxSourceLeadPublisherLength = 300;
+    public const int MaxSourceLeadTypeLength = 100;
+    public const int MaxSourceLeadSupportsLength = 2_000;
+    public const int MaxClaims = 500;
+    public const int MaxClaimFieldLength = 300;
+    public const int MaxClaimStatementLength = 10_000;
+    public const int MaxClaimConfidenceLength = 100;
+    public const int MaxClaimNotesLength = 2_000;
+    public const int MaxUncertainties = 200;
+    public const int MaxUncertaintyLength = 2_000;
+    public const int MaxProviderMetadata = 50;
+    public const int MaxProviderMetadataKeyLength = 100;
+    public const int MaxProviderMetadataValueLength = 2_000;
 
     public static IReadOnlyList<string> Validate(SavedResearchArtifactRequest request)
     {
@@ -27,10 +46,19 @@ public static class SavedResearchArtifactValidation
             errors.Add("Research type is not supported.");
         }
 
+        if (!Enum.IsDefined(request.Origin))
+        {
+            errors.Add("Research origin is not supported.");
+        }
+
         if (request.Model is not null && request.Model.Trim().Length > MaxModelLength)
         {
             errors.Add($"Model cannot exceed {MaxModelLength} characters.");
         }
+
+        AddOptionalLengthError(errors, request.Provider, "Provider", MaxProviderLength);
+        AddOptionalLengthError(errors, request.Objective, "Objective", MaxObjectiveLength);
+        AddOptionalLengthError(errors, request.ManagedResearchJobId, "Managed research job ID", MaxManagedResearchJobIdLength);
 
         if (request.ConversationId == Guid.Empty)
         {
@@ -53,6 +81,90 @@ public static class SavedResearchArtifactValidation
             errors.Add("Source document IDs must be non-empty IDs.");
         }
 
+        var sourceLeads = request.SourceLeads ?? [];
+        if (sourceLeads.Count > MaxSourceLeads)
+        {
+            errors.Add($"At most {MaxSourceLeads} source leads may be attached.");
+        }
+
+        var sourceLeadIds = new HashSet<Guid>();
+        foreach (var sourceLead in sourceLeads)
+        {
+            if (sourceLead is null)
+            {
+                errors.Add("Source leads cannot contain null values.");
+                continue;
+            }
+
+            if (sourceLead.Id == Guid.Empty || !sourceLeadIds.Add(sourceLead.Id))
+            {
+                errors.Add("Source lead IDs must be unique, non-empty IDs.");
+            }
+
+            AddRequiredTextError(errors, sourceLead.Url, "Source lead URL", MaxSourceLeadUrlLength);
+            if (!Uri.TryCreate(sourceLead.Url?.Trim(), UriKind.Absolute, out var uri) ||
+                uri.Scheme is not ("http" or "https"))
+            {
+                errors.Add("Source lead URLs must use HTTP or HTTPS.");
+            }
+
+            AddOptionalLengthError(errors, sourceLead.Title, "Source lead title", MaxSourceLeadTitleLength);
+            AddOptionalLengthError(errors, sourceLead.Publisher, "Source lead publisher", MaxSourceLeadPublisherLength);
+            AddOptionalLengthError(errors, sourceLead.SourceType, "Source lead type", MaxSourceLeadTypeLength);
+            AddOptionalLengthError(errors, sourceLead.Supports, "Source lead supports", MaxSourceLeadSupportsLength);
+        }
+
+        var claims = request.Claims ?? [];
+        if (claims.Count > MaxClaims)
+        {
+            errors.Add($"At most {MaxClaims} claims may be attached.");
+        }
+
+        foreach (var claim in claims)
+        {
+            if (claim is null)
+            {
+                errors.Add("Claims cannot contain null values.");
+                continue;
+            }
+
+            AddRequiredTextError(errors, claim.Field, "Claim field", MaxClaimFieldLength);
+            AddRequiredTextError(errors, claim.Statement, "Claim statement", MaxClaimStatementLength);
+            AddOptionalLengthError(errors, claim.Confidence, "Claim confidence", MaxClaimConfidenceLength);
+            AddOptionalLengthError(errors, claim.Notes, "Claim notes", MaxClaimNotesLength);
+
+            foreach (var sourceLeadId in claim.SupportingSourceLeadIds ?? [])
+            {
+                if (!sourceLeadIds.Contains(sourceLeadId))
+                {
+                    errors.Add($"Claim references unknown source lead '{sourceLeadId}'.");
+                }
+            }
+        }
+
+        var uncertainties = request.Uncertainties ?? [];
+        if (uncertainties.Count > MaxUncertainties)
+        {
+            errors.Add($"At most {MaxUncertainties} uncertainties may be attached.");
+        }
+
+        foreach (var uncertainty in uncertainties)
+        {
+            AddRequiredTextError(errors, uncertainty, "Uncertainty", MaxUncertaintyLength);
+        }
+
+        var providerMetadata = request.ProviderMetadata ?? new Dictionary<string, string>();
+        if (providerMetadata.Count > MaxProviderMetadata)
+        {
+            errors.Add($"At most {MaxProviderMetadata} provider metadata entries may be attached.");
+        }
+
+        foreach (var entry in providerMetadata)
+        {
+            AddRequiredTextError(errors, entry.Key, "Provider metadata key", MaxProviderMetadataKeyLength);
+            AddRequiredTextError(errors, entry.Value, "Provider metadata value", MaxProviderMetadataValueLength);
+        }
+
         return errors;
     }
 
@@ -69,6 +181,18 @@ public static class SavedResearchArtifactValidation
         }
 
         if (value.Trim().Length > maxLength)
+        {
+            errors.Add($"{fieldName} cannot exceed {maxLength} characters.");
+        }
+    }
+
+    private static void AddOptionalLengthError(
+        ICollection<string> errors,
+        string? value,
+        string fieldName,
+        int maxLength)
+    {
+        if (value is not null && value.Trim().Length > maxLength)
         {
             errors.Add($"{fieldName} cannot exceed {maxLength} characters.");
         }

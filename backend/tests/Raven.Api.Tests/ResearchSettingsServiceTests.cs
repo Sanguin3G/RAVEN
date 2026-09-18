@@ -39,7 +39,7 @@ public sealed class ResearchSettingsServiceTests
             false,
             ProviderPreset.Custom,
             ["exa", "brave", "EXA"],
-            ["firecrawl", "crawl4ai-local"]);
+            ["exa", "crawl4ai-local"]);
 
         var updated = await firstService.UpdateAsync(expectedUpdate);
         var reloaded = await new ResearchSettingsService(store).GetAsync();
@@ -51,7 +51,7 @@ public sealed class ResearchSettingsServiceTests
         Assert.False(reloaded.AiSourceRerankingEnabled);
         Assert.Equal(ProviderPreset.Custom, reloaded.ProviderPreset);
         Assert.Equal(["exa", "brave"], reloaded.SearchProviderPriority);
-        Assert.Equal(["firecrawl", "crawl4ai-local"], reloaded.CrawlerProviderPriority);
+        Assert.Equal(["exa", "crawl4ai-local"], reloaded.CrawlerProviderPriority);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class ResearchSettingsServiceTests
             false,
             ProviderPreset.Cloud,
             ["exa"],
-            ["firecrawl"]));
+            ["exa"]));
 
         var reset = await service.ResetAsync();
 
@@ -106,6 +106,68 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(before.ProfileModel, after.ProfileModel);
         Assert.Equal(before.AiSourceRerankingEnabled, after.AiSourceRerankingEnabled);
         Assert.Equal(before.SearchProviderPriority, after.SearchProviderPriority);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_rejects_removed_firecrawl_provider_ids()
+    {
+        var store = new InMemoryResearchSettingsStore();
+        var service = new ResearchSettingsService(store);
+        var before = await service.GetAsync();
+
+        var error = await Assert.ThrowsAsync<ResearchSettingsValidationException>(() => service.UpdateAsync(
+            new UpdateResearchSettingsRequest(
+                GroundingMode.Auto,
+                "gemini-3.5-flash-lite",
+                "gemini-3.5-flash-lite",
+                "gemini-3.8-flash",
+                true,
+                ProviderPreset.Custom,
+                ["firecrawl"],
+                ["firecrawl"])));
+
+        Assert.Contains("Search provider 'firecrawl' is not supported.", error.Errors);
+        Assert.Contains("Crawler provider 'firecrawl' is not supported.", error.Errors);
+        var after = await service.GetAsync();
+        Assert.Equal(before.SearchProviderPriority, after.SearchProviderPriority);
+        Assert.Equal(before.CrawlerProviderPriority, after.CrawlerProviderPriority);
+    }
+
+    [Fact]
+    public async Task GetAsync_rewrites_legacy_firecrawl_values_and_preserves_valid_preferences()
+    {
+        var store = new InMemoryResearchSettingsStore();
+        await store.SaveAsync(new ResearchSettingsEntity
+        {
+            Id = ResearchSettingsEntity.SingletonKey,
+            SearchProviderPriority = ["firecrawl", "exa"],
+            CrawlerProviderPriority = ["firecrawl", "exa"]
+        });
+
+        var settings = await new ResearchSettingsService(store).GetAsync();
+        var persisted = await store.GetAsync();
+
+        Assert.Equal(["exa"], settings.SearchProviderPriority);
+        Assert.Equal(["exa"], settings.CrawlerProviderPriority);
+        Assert.Equal(["exa"], persisted!.SearchProviderPriority);
+        Assert.Equal(["exa"], persisted.CrawlerProviderPriority);
+    }
+
+    [Fact]
+    public async Task GetAsync_uses_product_defaults_when_legacy_firecrawl_was_only_priority()
+    {
+        var store = new InMemoryResearchSettingsStore();
+        await store.SaveAsync(new ResearchSettingsEntity
+        {
+            Id = ResearchSettingsEntity.SingletonKey,
+            SearchProviderPriority = ["firecrawl"],
+            CrawlerProviderPriority = ["firecrawl"]
+        });
+
+        var settings = await new ResearchSettingsService(store).GetAsync();
+
+        Assert.Equal([ResearchSettingsDefaults.BraveSearchProvider], settings.SearchProviderPriority);
+        Assert.Equal([ResearchSettingsDefaults.Crawl4AiLocalProvider], settings.CrawlerProviderPriority);
     }
 
     [Fact]
