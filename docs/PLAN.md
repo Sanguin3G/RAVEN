@@ -33,7 +33,7 @@ Remaining M1 work is quality work: real-provider failure handling, usability pol
 
 Implemented: profile refresh, change detection, AI target grounding, semantic source relevance, persisted research/provider settings, Exa/Firecrawl routing, in-process monitoring, bounded Deep Research, and saved research artifacts.
 
-Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and web-enabled Ask RAVEN turns. Persistent profile-grounded Chat with citations is integrated.
+Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and web-enabled Ask RAVEN turns. Persistent profile-grounded Chat with citations is integrated. Day 8 managed-research attachments are explicit conversation state; their eventual prompt grounding belongs to Hung's Ask RAVEN context-extension contract, not a parallel Huy-side Chat implementation.
 
 **Exit condition:** accepted knowledge survives restart, can be reopened and questioned with citations, and a refresh preserves historical evidence and profiles.
 

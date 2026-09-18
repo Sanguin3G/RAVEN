@@ -36,14 +36,15 @@ Search, crawling, and AI inference are independent capabilities:
 
 ```text
 ISearchProvider       → BraveSearchProvider
-                      → ExaSearchProvider / FirecrawlSearchProvider
-ICrawlerProvider      → Crawl4AiLocalProvider / ExaCrawlerProvider / FirecrawlCrawlerProvider
+                      → ExaSearchProvider
+ICrawlerProvider      → Crawl4AiLocalProvider / ExaCrawlerProvider
+IManagedResearchAgent → ExaAgentClient
 IAiModelProvider      → GeminiProvider
 ```
 
 Application workflows depend on those neutral capabilities rather than provider-specific DTOs. External calls are mockable in tests. Configuration and status endpoints expose only configured/available/model state; they never return credentials.
 
-Provider routing uses persisted priorities and falls back only after retryable rate-limit, timeout, unavailable, or retrieval failures. Authentication, configuration, invalid requests, and malformed responses remain visible failures. Brave/Exa discover candidate URLs; Crawl4AI Local, Exa Contents, and Firecrawl read selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts.
+Provider routing uses persisted priorities and falls back only after retryable rate-limit, timeout, unavailable, or retrieval failures. Authentication, configuration, invalid requests, and malformed responses remain visible failures. Brave/Exa discover candidate URLs; Crawl4AI Local and Exa Contents read selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts. Firecrawl adapters remain only as legacy compatibility code; it is not routed, configured in active status, or selectable in settings.
 
 ## Identity preflight and tracking
 
@@ -94,6 +95,8 @@ SourceDocument → SourceChunk → embeddings → company-filtered retrieval
 
 `DeepResearchRun` is a bounded, company-scoped backend operation implemented through Microsoft Agent Framework and `IChatClient`. Its model may invoke only read-only profile/source lookup, configured provider-routed search/crawl, and stored-source text search. Tool/search/crawl/document/duration budgets prevent open-ended work. `DeepResearchActivityRecord` persists only safe activity labels and source IDs—not prompts, credentials, raw tool outputs, or hidden reasoning.
 
-`SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. It belongs in Investigations; it can only begin a target-scoped profile-improvement flow, not update an accepted profile directly. Ask RAVEN is persistent profile-grounded Chat: factual company answers cite accepted-profile evidence, while safe greetings and navigation guidance need not invent citations. Chat web lookup is not implemented. Deep Research remains an explicit, long-running workflow rather than a Chat mode.
+`SavedResearchArtifact` preserves a completed investigation only when requested. It validates source ownership and does not mutate an accepted profile. It belongs in Investigations; it can only begin a target-scoped profile-improvement flow, not update an accepted profile directly. External Research Import produces the same untrusted research material from a generated brief and pasted Markdown; URLs and claims remain review leads until RAVEN acquires and validates evidence.
+
+Managed AI Research is a durable asynchronous workflow: an Exa Agent run is queued, polled by an isolated background worker, normalized into a company Investigation, and surfaced through lightweight client polling/notification. It never mutates the accepted profile. Ask RAVEN can persist explicit, removable Investigation attachments per conversation. Actual LLM grounding from those attachments is intentionally deferred to Hung's supported Ask RAVEN context-extension seam; this branch does not introduce a second Chat agent or prompt path. Chat web lookup remains Hung-owned.
 
 RAG, MCP, Crawl4AI Cloud, and web-enabled Ask RAVEN turns remain future work. They must preserve the same source provenance and deterministic Fast Research path.

@@ -101,14 +101,15 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 | --- | --- |
 | Brave | `BRAVE_SEARCH_API_KEY` |
 | Exa Search and Contents | `EXA_API_KEY` |
-| Firecrawl Search and Crawl | `FIRECRAWL_API_KEY` |
+| Exa Managed AI Research | `EXA_API_KEY` |
+| Google Maps Embed (optional frontend) | `VITE_GOOGLE_MAPS_EMBED_API_KEY` |
 | Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
 | Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
 | SQLite | `ConnectionStrings__Raven` |
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
 
-Research Settings persist safe model roles, identity-resolution/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets can route retrieval through Exa Contents and Firecrawl after retryable failures. Authentication, configuration, and invalid-request errors never silently fall back.
+Research Settings persist safe model roles, identity-resolution/reranking preferences, and provider priorities in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets use Brave/Exa Search and Crawl4AI Local/Exa Contents. Existing Firecrawl priorities are normalized safely on read, but Firecrawl is not an active route. Authentication, configuration, and invalid-request errors never silently fall back.
 
 ## Identity preflight API
 
@@ -188,6 +189,8 @@ The frontend persists only an active, resumable research session for handoff acr
 Company List actions are addressable: **Monitor company** opens the Monitoring tab and **Improve profile** opens the targeted enrichment dialog. Both require an accepted profile. When one is unavailable, the company page explains the constraint and links to refresh research or Workspace Review instead of presenting an empty action.
 
 Deep Research is bounded by tool, search, crawl, evidence-document, and duration budgets. Its tools are read-only: profile/source lookup, provider-routed search, provider-routed page retrieval, and stored-source text search. Activity records intentionally exclude prompts, secrets, raw tool payloads, and hidden reasoning. A saved investigation is not an accepted Company Profile.
+
+Managed AI Research uses an asynchronous Exa Agent run and a durable local job row. The client may leave the workspace while a background worker polls the provider. A completed result remains investigation material with provider provenance; it is not accepted profile evidence. The optional Maps Embed key must be restricted in Google Cloud to the deployed frontend origins; missing configuration falls back to a normal Google Maps address link.
 
 ## Git workflow
 
