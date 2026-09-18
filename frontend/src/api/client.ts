@@ -23,7 +23,7 @@ export class ApiError extends Error {
   }
 }
 
-function getUrl(path: string) {
+export function getApiUrl(path: string) {
   return `${apiBaseUrl}${path}`;
 }
 
@@ -31,7 +31,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(getUrl(path), {
+    response = await fetch(getApiUrl(path), {
       ...init,
       headers: {
         Accept: "application/json",

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Raven.Api.Data;
 
@@ -10,9 +11,11 @@ using Raven.Api.Data;
 namespace Raven.Api.Data.Migrations
 {
     [DbContext(typeof(RavenDbContext))]
-    partial class RavenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917095817_AddChatWebEvidenceSnapshots")]
+    partial class AddChatWebEvidenceSnapshots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -103,10 +106,6 @@ namespace Raven.Api.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Activity")
-                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AiModel")

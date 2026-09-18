@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { CompanyDossier } from "./CompanyDossier";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
@@ -19,9 +20,12 @@ const sparseProfile: DossierProfile = {
   publicLinks: null,
 };
 
+function renderDossier(element: React.ReactElement) {
+  return render(<MemoryRouter>{element}</MemoryRouter>);
+}
 describe("CompanyDossier", () => {
   it("renders null and missing profile fields as explicit unknowns", () => {
-    render(<CompanyDossier company={company} profile={sparseProfile} />);
+    renderDossier(<CompanyDossier company={company} profile={sparseProfile} />);
 
     expect(screen.getByTestId("dossier-overview")).toBeInTheDocument();
     expect(screen.getByText("Legal identity not verified")).toBeInTheDocument();
@@ -31,9 +35,9 @@ describe("CompanyDossier", () => {
     expect(screen.getByText(/No operating locations/)).toBeInTheDocument();
   });
 
-  it("switches tabs and supports keyboard tab navigation", () => {
+  it("switches tabs and supports keyboard tab navigation", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
-    render(<CompanyDossier company={company} profile={sparseProfile} />);
+    renderDossier(<CompanyDossier company={company} profile={sparseProfile} />);
 
     const sourcesTab = screen.getByRole("tab", { name: "Sources" });
     fireEvent.click(sourcesTab);
@@ -44,13 +48,13 @@ describe("CompanyDossier", () => {
     fireEvent.keyDown(sourcesTab, { key: "ArrowRight" });
     expect(investigationsTab).toHaveFocus();
     expect(investigationsTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("dossier-investigations")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("dossier-investigations")).toBeInTheDocument());
     expect(screen.queryByRole("tab", { name: "Research" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Ask RAVEN" })).not.toBeInTheDocument();
   });
 
   it("renders qualitative coverage without a numeric confidence score", () => {
-    render(
+    renderDossier(
       <CompanyDossier
         company={company}
         profile={sparseProfile}
