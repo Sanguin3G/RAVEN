@@ -29,6 +29,29 @@ public static class ManagedResearchEndpoints
             .WithSummary("List durable managed AI research jobs for a company")
             .Produces<ManagedResearchJobResponse[]>(StatusCodes.Status200OK);
 
+        app.MapGet("/api/companies/{companyId:guid}/research-context-attachments", ListAttachmentsAsync)
+            .WithTags("Research Context")
+            .WithName("ListResearchContextAttachments")
+            .WithSummary("List investigations explicitly attached to a Chat conversation")
+            .Produces<ResearchContextAttachmentResponse[]>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        app.MapPost("/api/companies/{companyId:guid}/managed-research/{investigationId:guid}/context-attachments", AttachContextAsync)
+            .WithTags("Research Context")
+            .WithName("AttachResearchContext")
+            .WithSummary("Attach a completed investigation to a Chat conversation")
+            .Produces<ResearchContextAttachmentResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapDelete("/api/companies/{companyId:guid}/managed-research/{investigationId:guid}/context-attachments", RemoveContextAsync)
+            .WithTags("Research Context")
+            .WithName("RemoveResearchContext")
+            .WithSummary("Remove an investigation from a Chat conversation")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapPost("/api/companies/{companyId:guid}/managed-research/{jobId:guid}/cancel", CancelAsync)
             .WithTags("Managed Research")
             .WithName("CancelManagedResearch")
@@ -77,6 +100,64 @@ public static class ManagedResearchEndpoints
         IManagedResearchJobService service,
         CancellationToken cancellationToken) =>
         TypedResults.Ok((await service.ListForCompanyAsync(companyId, cancellationToken)).ToArray());
+
+    private static async Task<Results<Ok<ResearchContextAttachmentResponse[]>, BadRequest>> ListAttachmentsAsync(
+        Guid companyId,
+        Guid conversationId,
+        IResearchContextAttachmentService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return TypedResults.Ok((await service.ListAsync(companyId, conversationId, cancellationToken)).ToArray());
+        }
+        catch (ArgumentException)
+        {
+            return TypedResults.BadRequest();
+        }
+    }
+
+    private static async Task<Results<Created<ResearchContextAttachmentResponse>, BadRequest, NotFound>> AttachContextAsync(
+        Guid companyId,
+        Guid investigationId,
+        AttachResearchContextRequest request,
+        IResearchContextAttachmentService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await service.AttachAsync(companyId, investigationId, request, cancellationToken);
+            return TypedResults.Created(
+                $"/api/companies/{companyId:D}/managed-research/{investigationId:D}/context-attachments?conversationId={request.ConversationId:D}",
+                response);
+        }
+        catch (KeyNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+        catch (ArgumentException)
+        {
+            return TypedResults.BadRequest();
+        }
+    }
+
+    private static async Task<Results<NoContent, BadRequest, NotFound>> RemoveContextAsync(
+        Guid companyId,
+        Guid investigationId,
+        Guid conversationId,
+        IResearchContextAttachmentService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var removed = await service.RemoveAsync(companyId, conversationId, investigationId, cancellationToken);
+            return removed ? TypedResults.NoContent() : TypedResults.NotFound();
+        }
+        catch (ArgumentException)
+        {
+            return TypedResults.BadRequest();
+        }
+    }
 
     private static async Task<Results<Ok<ManagedResearchJobResponse>, NotFound>> CancelAsync(
         Guid companyId,

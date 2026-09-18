@@ -36,17 +36,28 @@ public sealed class SavedResearchArtifact
     /// not a trust ranking: managed and imported material is still reviewable
     /// research material and is never an accepted profile fact by itself.
     /// </summary>
-    [NotMapped]
     public SavedResearchOrigin Origin { get; init; } = SavedResearchOrigin.RavenNative;
     public string? Model { get; init; }
-    [NotMapped]
     public string? Provider { get; init; }
-    [NotMapped]
     public string? Objective { get; init; }
-    [NotMapped]
     public DateTimeOffset? CompletedAt { get; init; }
-    [NotMapped]
     public string? ManagedResearchJobId { get; init; }
+
+    /// <summary>Bounded JSON persistence for provenance metadata.</summary>
+    [JsonIgnore]
+    public string ProviderMetadataJson { get; internal set; } = "{}";
+
+    /// <summary>Bounded JSON persistence for unverified URL leads.</summary>
+    [JsonIgnore]
+    public string SourceLeadsJson { get; internal set; } = "[]";
+
+    /// <summary>Bounded JSON persistence for reviewable claims.</summary>
+    [JsonIgnore]
+    public string ClaimsJson { get; internal set; } = "[]";
+
+    /// <summary>Bounded JSON persistence for provider/import caveats.</summary>
+    [JsonIgnore]
+    public string UncertaintiesJson { get; internal set; } = "[]";
 
     /// <summary>
     /// Optional provider metadata that is useful for diagnostics (for example a
@@ -108,6 +119,10 @@ public sealed class SavedResearchArtifact
             Objective = Objective,
             CompletedAt = CompletedAt,
             ManagedResearchJobId = ManagedResearchJobId,
+            ProviderMetadataJson = ProviderMetadataJson,
+            SourceLeadsJson = SourceLeadsJson,
+            ClaimsJson = ClaimsJson,
+            UncertaintiesJson = UncertaintiesJson,
             SourceCount = SourceCount,
             SourceDocumentIdsJson = SourceDocumentIdsJson
         };

@@ -16,6 +16,7 @@ using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Companies.Workspace;
 using Raven.Api.Features.Chat;
 using Raven.Api.Features.ManagedResearch;
+using Raven.Api.Features.Research.ExternalImport;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -82,6 +83,8 @@ builder.Services.AddHttpClient<ExaAgentClient>((services, client) =>
 builder.Services.AddScoped<IManagedResearchAgentClient>(services => services.GetRequiredService<ExaAgentClient>());
 builder.Services.AddScoped<IManagedResearchJobStore, EfManagedResearchJobStore>();
 builder.Services.AddScoped<IManagedResearchInvestigationStore, EfManagedResearchInvestigationStore>();
+builder.Services.AddScoped<IResearchContextAttachmentStore, EfResearchContextAttachmentStore>();
+builder.Services.AddScoped<IResearchContextAttachmentService, ResearchContextAttachmentService>();
 builder.Services.AddScoped<IManagedResearchCompanyContextReader, EfManagedResearchCompanyContextReader>();
 builder.Services.AddSingleton<IManagedResearchClock, SystemManagedResearchClock>();
 builder.Services.AddSingleton<ManagedResearchJobQueue>();
@@ -128,6 +131,7 @@ app.MapTargetedProfileUpdateEndpoints();
 app.MapDeepResearchEndpoints();
 app.MapChatEndpoints();
 app.MapManagedResearchEndpoints();
+app.MapExternalResearchEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Raven.Api.Data;
 
@@ -10,9 +11,11 @@ using Raven.Api.Data;
 namespace Raven.Api.Data.Migrations
 {
     [DbContext(typeof(RavenDbContext))]
-    partial class RavenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918052139_PersistExternalResearchMetadata")]
+    partial class PersistExternalResearchMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -490,34 +493,6 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("Status", "CreatedAt");
 
                     b.ToTable("ManagedResearchJobs");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ResearchContextAttachment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("AttachedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ConversationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("InvestigationId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvestigationId");
-
-                    b.HasIndex("CompanyId", "ConversationId", "InvestigationId")
-                        .IsUnique();
-
-                    b.ToTable("ResearchContextAttachments");
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Monitoring.CompanyMonitoringSetting", b =>
@@ -1431,21 +1406,6 @@ namespace Raven.Api.Data.Migrations
                     b.HasOne("Raven.Api.Features.Companies.Company", null)
                         .WithMany()
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ResearchContextAttachment", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Raven.Api.Features.ManagedResearch.ManagedResearchInvestigation", null)
-                        .WithMany()
-                        .HasForeignKey("InvestigationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

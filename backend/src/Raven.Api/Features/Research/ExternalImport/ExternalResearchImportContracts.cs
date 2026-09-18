@@ -40,7 +40,8 @@ public sealed record ExternalResearchImportResult(
         Guid companyId,
         string title,
         string question,
-        DateTimeOffset? completedAt = null) =>
+        DateTimeOffset? completedAt = null,
+        Guid? conversationId = null) =>
         new(
             companyId,
             title,
@@ -48,6 +49,7 @@ public sealed record ExternalResearchImportResult(
             Summary,
             SavedResearchType.Deep,
             SourceDocumentIds: [],
+            ConversationId: conversationId,
             Origin: SavedResearchOrigin.ExternalImport,
             Objective: question,
             CompletedAt: completedAt,

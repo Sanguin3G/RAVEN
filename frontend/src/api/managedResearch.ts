@@ -21,6 +21,18 @@ export interface ManagedResearchJob {
   error?: string | null;
 }
 
+export interface ResearchContextAttachment {
+  id: string;
+  companyId: string;
+  conversationId: string;
+  investigationId: string;
+  origin: string;
+  objective: string;
+  summary: string;
+  completedAt: string;
+  attachedAt: string;
+}
+
 export interface StartManagedResearchOptions {
   conversationId?: string;
   chatMessageId?: string;
@@ -46,4 +58,36 @@ export function startManagedResearch(companyId: string, objective: string, optio
 
 export function getManagedResearchJobs(companyId: string) {
   return request<ManagedResearchJob[]>(companyPath(companyId));
+}
+
+function contextAttachmentPath(companyId: string, investigationId?: string) {
+  const base = investigationId
+    ? `${companyPath(companyId)}/${encodeURIComponent(investigationId)}/context-attachments`
+    : `/api/companies/${encodeURIComponent(companyId)}/research-context-attachments`;
+  return base;
+}
+
+export function getResearchContextAttachments(companyId: string, conversationId: string) {
+  return request<ResearchContextAttachment[]>(
+    `${contextAttachmentPath(companyId)}?conversationId=${encodeURIComponent(conversationId)}`);
+}
+
+export function attachResearchContext(
+  companyId: string,
+  investigationId: string,
+  conversationId: string) {
+  return request<ResearchContextAttachment>(contextAttachmentPath(companyId, investigationId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ conversationId }),
+  });
+}
+
+export function removeResearchContext(
+  companyId: string,
+  investigationId: string,
+  conversationId: string) {
+  return request<void>(
+    `${contextAttachmentPath(companyId, investigationId)}?conversationId=${encodeURIComponent(conversationId)}`,
+    { method: "DELETE" });
 }

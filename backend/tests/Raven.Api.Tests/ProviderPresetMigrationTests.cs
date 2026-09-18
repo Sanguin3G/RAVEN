@@ -48,6 +48,13 @@ public sealed class ProviderPresetMigrationTests
             Assert.False(settings.AiSourceRerankingEnabled);
             Assert.Equal(["brave", "exa"], settings.SearchProviderPriority);
             Assert.Equal(["crawl4ai-local", "firecrawl"], settings.CrawlerProviderPriority);
+
+            // The migration preserves the legacy value on disk. The settings
+            // boundary rewrites it before any routing workflow consumes it.
+            var normalized = await new ResearchSettingsService(
+                new EfResearchSettingsStore(context)).GetAsync();
+            Assert.Equal(["brave", "exa"], normalized.SearchProviderPriority);
+            Assert.Equal(["crawl4ai-local"], normalized.CrawlerProviderPriority);
         }
     }
 }

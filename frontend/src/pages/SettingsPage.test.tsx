@@ -92,8 +92,8 @@ it("uses the custom editors as the single priority view", async () => {
   const customSettings = {
     ...settings,
     providerPreset: "Custom",
-    searchProviderPriority: ["brave", "exa", "firecrawl-search"],
-    crawlerProviderPriority: ["crawl4ai-local", "exa", "firecrawl"],
+    searchProviderPriority: ["brave", "exa"],
+    crawlerProviderPriority: ["crawl4ai-local", "exa"],
   } as const;
 
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -110,7 +110,7 @@ it("uses the custom editors as the single priority view", async () => {
   expect(screen.queryByText("Crawler priority")).not.toBeInTheDocument();
   expect(screen.getByText("Search order")).toBeInTheDocument();
   expect(screen.getByText("Crawler order")).toBeInTheDocument();
-  expect(screen.getAllByText("Firecrawl Search")).toHaveLength(2);
+  expect(screen.queryByText(/Firecrawl/i)).not.toBeInTheDocument();
 });
 
 it("uses Resilient as the ordered fallback preset", async () => {
@@ -131,5 +131,5 @@ it("uses Resilient as the ordered fallback preset", async () => {
   expect(screen.getByLabelText("Search provider priority")).toHaveTextContent("Brave Search");
   expect(screen.getByLabelText("Search provider priority")).toHaveTextContent("Exa Search & Contents");
   expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Crawl4AI Local");
-  expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Firecrawl");
+  expect(screen.getByLabelText("Crawler provider priority")).toHaveTextContent("Exa Search & Contents");
 });

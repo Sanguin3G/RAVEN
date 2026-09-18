@@ -14,6 +14,7 @@ using Raven.Api.Features.Research.Routing;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Research.Planning;
 using Raven.Api.Features.Research.Identity;
+using Raven.Api.Features.Research.ExternalImport;
 
 namespace Raven.Api.Features.Research;
 
@@ -109,6 +110,8 @@ public static class ResearchDiscoveryServiceCollectionExtensions
             serviceProvider.GetRequiredService<IAiModelProvider>(),
             researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));
         services.AddScoped<IResearchCompanyService, ResearchCompanyService>();
+        services.AddSingleton<IExternalResearchBriefGenerator, ExternalResearchBriefGenerator>();
+        services.AddSingleton<IExternalResearchImportParser, ExternalResearchImportParser>();
         return services;
     }
 }

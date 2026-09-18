@@ -104,6 +104,14 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
             artifact.ProviderMetadata[metadata.Key.Trim()] = metadata.Value.Trim();
         }
 
+        // Keep the reviewable provenance alongside the artifact so imported
+        // claims and URL leads survive an API restart. These JSON fields are
+        // never interpreted as accepted profile evidence.
+        artifact.ProviderMetadataJson = JsonSerializer.Serialize(artifact.ProviderMetadata);
+        artifact.SourceLeadsJson = JsonSerializer.Serialize(artifact.SourceLeads);
+        artifact.ClaimsJson = JsonSerializer.Serialize(artifact.Claims);
+        artifact.UncertaintiesJson = JsonSerializer.Serialize(artifact.Uncertainties);
+
         await store.SaveAsync(artifact, cancellationToken);
         return artifact;
     }

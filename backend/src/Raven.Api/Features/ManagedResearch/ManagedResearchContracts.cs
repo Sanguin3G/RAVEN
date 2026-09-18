@@ -318,6 +318,78 @@ public interface IManagedResearchInvestigationStore
     Task<IReadOnlyList<ManagedResearchInvestigation>> ListForCompanyAsync(Guid companyId, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// A user-selected investigation context attached to a Chat conversation.
+/// This is a reference only: it does not change the accepted Company Profile.
+/// </summary>
+public sealed class ResearchContextAttachment
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid CompanyId { get; init; }
+    public Guid ConversationId { get; init; }
+    public Guid InvestigationId { get; init; }
+    public DateTimeOffset AttachedAt { get; init; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Requests explicit attachment of one completed investigation to Chat.</summary>
+public sealed record AttachResearchContextRequest(Guid ConversationId);
+
+/// <summary>Describes one explicitly attached investigation context.</summary>
+public sealed record ResearchContextAttachmentResponse(
+    Guid Id,
+    Guid CompanyId,
+    Guid ConversationId,
+    Guid InvestigationId,
+    string Origin,
+    string Objective,
+    string Summary,
+    DateTimeOffset CompletedAt,
+    DateTimeOffset AttachedAt);
+
+/// <summary>Durable persistence for explicit Chat research-context attachments.</summary>
+public interface IResearchContextAttachmentStore
+{
+    Task<ResearchContextAttachment?> GetAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid investigationId,
+        CancellationToken cancellationToken = default);
+
+    Task AddAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default);
+
+    Task<bool> RemoveAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid investigationId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ResearchContextAttachment>> ListAsync(
+        Guid companyId,
+        Guid conversationId,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Application boundary for showing, attaching, and removing context.</summary>
+public interface IResearchContextAttachmentService
+{
+    Task<IReadOnlyList<ResearchContextAttachmentResponse>> ListAsync(
+        Guid companyId,
+        Guid conversationId,
+        CancellationToken cancellationToken = default);
+
+    Task<ResearchContextAttachmentResponse> AttachAsync(
+        Guid companyId,
+        Guid investigationId,
+        AttachResearchContextRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> RemoveAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid investigationId,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>Application service for queueing, polling, and cancelling managed jobs.</summary>
 public interface IManagedResearchJobService
 {

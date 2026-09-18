@@ -1,7 +1,16 @@
 import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { ArrowUp, Plus, Sparkle } from "@phosphor-icons/react";
 import { createChatConversation, sendChatMessage } from "../../api/chat";
-import { getManagedResearchJobs, startManagedResearch, type ManagedResearchJob, type ManagedResearchJobStatus } from "../../api/managedResearch";
+import {
+  attachResearchContext,
+  getManagedResearchJobs,
+  getResearchContextAttachments,
+  removeResearchContext,
+  startManagedResearch,
+  type ManagedResearchJob,
+  type ManagedResearchJobStatus,
+  type ResearchContextAttachment,
+} from "../../api/managedResearch";
 import type { ChatAnswerStatus, ChatMessage } from "../../types/chat";
 import styles from "./AskRaven.module.css";
 
@@ -63,6 +72,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [deepResearchStarting, setDeepResearchStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [managedResearchJobs, setManagedResearchJobs] = useState<ManagedResearchJob[]>([]);
+  const [researchContextAttachments, setResearchContextAttachments] = useState<ResearchContextAttachment[]>([]);
   const [completionNotification, setCompletionNotification] = useState<ManagedResearchJob | null>(null);
   const capabilitiesId = useId();
   const capabilitiesRef = useRef<HTMLDivElement>(null);
@@ -71,6 +81,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const managedResearchStatusesRef = useRef<Record<string, ManagedResearchJobStatus>>({});
+  const researchContextLoadVersionRef = useRef(0);
   const researched = formatDate(lastResearchedAt);
 
   useEffect(() => {
@@ -135,6 +146,32 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   }, [companyId]);
 
   useEffect(() => {
+    if (!conversationId) {
+      researchContextLoadVersionRef.current += 1;
+      setResearchContextAttachments([]);
+      return;
+    }
+
+    let active = true;
+    const loadVersion = ++researchContextLoadVersionRef.current;
+    void getResearchContextAttachments(companyId, conversationId)
+      .then((attachments) => {
+        if (active && loadVersion === researchContextLoadVersionRef.current) {
+          setResearchContextAttachments((current) => [
+            ...attachments,
+            ...current.filter((item) => !attachments.some((loaded) => loaded.id === item.id)),
+          ]);
+        }
+      })
+      .catch(() => {
+        // The Chat conversation remains usable when the optional context
+        // endpoint is unavailable. Existing attachments remain local until a
+        // later conversation reload.
+      });
+    return () => { active = false; };
+  }, [companyId, conversationId]);
+
+  useEffect(() => {
     const notification = notificationRef.current as (HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }) | null;
     if (!notification || !completionNotification) return;
     try {
@@ -176,6 +213,44 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     setManagedResearchJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
   };
 
+  const ensureConversation = async () => {
+    if (conversationId) return conversationId;
+    const conversation = await createChatConversation(companyId);
+    setConversationId(conversation.id);
+    return conversation.id;
+  };
+
+  const attachInvestigation = async (job: ManagedResearchJob) => {
+    if (!job.investigationId) {
+      setError("This research run has not produced an investigation yet.");
+      return;
+    }
+
+    try {
+      const activeConversationId = await ensureConversation();
+      const attachment = await attachResearchContext(companyId, job.investigationId, activeConversationId);
+      researchContextLoadVersionRef.current += 1;
+      setResearchContextAttachments((current) => [
+        attachment,
+        ...current.filter((item) => item.investigationId !== attachment.investigationId),
+      ]);
+      setCompletionNotification(null);
+    } catch (attachmentError) {
+      setError(attachmentError instanceof Error ? attachmentError.message : "Could not attach this investigation.");
+    }
+  };
+
+  const removeAttachment = async (attachment: ResearchContextAttachment) => {
+    if (!conversationId) return;
+    try {
+      await removeResearchContext(companyId, attachment.investigationId, conversationId);
+      researchContextLoadVersionRef.current += 1;
+      setResearchContextAttachments((current) => current.filter((item) => item.id !== attachment.id));
+    } catch (removalError) {
+      setError(removalError instanceof Error ? removalError.message : "Could not remove the attached investigation.");
+    }
+  };
+
   const submitQuestion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = question.trim();
@@ -200,7 +275,11 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
       setCapabilitiesOpen(false);
 
       try {
-        const job = await startManagedResearch(companyId, trimmed);
+        // Creating the conversation here gives the durable managed job a
+        // conversation relationship without fabricating a ChatMessage. The
+        // existing Chat API has no launch-message-only operation.
+        const activeConversationId = await ensureConversation();
+        const job = await startManagedResearch(companyId, trimmed, { conversationId: activeConversationId });
         addManagedResearchJob(job);
         setMessages((current) => [...current, {
           id: `managed-research-started-${job.id}`,
@@ -223,8 +302,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     setPending(true);
 
     try {
-      const activeConversationId = conversationId ?? (await createChatConversation(companyId)).id;
-      setConversationId(activeConversationId);
+      const activeConversationId = await ensureConversation();
       const response = await sendChatMessage(companyId, activeConversationId, { question: trimmed });
       setMessages((current) => [...current, {
         id: response.messageId,
@@ -312,6 +390,13 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
             : "Accept a profile to ask questions…"}
           rows={2}
         />
+        {researchContextAttachments.length > 0 ? <div className={styles.researchContextAttachments} aria-label="Attached research context" role="group">
+          <span className={styles.researchContextLabel}>Attached context</span>
+          {researchContextAttachments.map((attachment) => <span className={styles.researchContextChip} key={attachment.id}>
+            <span title={attachment.objective}>✦ {attachment.objective}</span>
+            <button type="button" onClick={() => void removeAttachment(attachment)} aria-label={`Remove ${attachment.objective} context`}>×</button>
+          </span>)}
+        </div> : null}
         <div className={styles.assistantComposerFooter}>
           {activeCapability === "deepResearch" ? <button className={styles.capabilityChip} type="button" onClick={() => setActiveCapability(null)} aria-label="Remove Deep Research capability">✦ Deep Research ×</button> : null}
           <div className={styles.capabilityControls} ref={capabilitiesRef}>
@@ -381,6 +466,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <span>{companyName}</span>
         </div>
         <a href={researchInvestigationHref(companyId, completionNotification)} onClick={dismissCompletionNotification}>View result</a>
+        {completionNotification.investigationId ? <button type="button" onClick={() => void attachInvestigation(completionNotification)}>Continue with result</button> : null}
         <button type="button" onClick={dismissCompletionNotification} aria-label="Dismiss research notification">×</button>
       </div> : null}
     </section>

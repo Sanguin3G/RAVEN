@@ -54,14 +54,13 @@ export function StatusPage() {
 
   useEffect(() => { void refresh(); }, []);
 
-  const configuredServices = [providers?.brave, providers?.exa, providers?.crawl4Ai, providers?.firecrawl, providers?.gemini].filter((provider) => provider?.configured);
+  const configuredServices = [providers?.brave, providers?.exa, providers?.crawl4Ai, providers?.gemini].filter((provider) => provider?.configured);
   const systemsOperational = apiAvailable === true && configuredServices.length > 0 && configuredServices.every((provider) => providerState(provider) === "operational");
   const routeState: ServiceState = settings ? "operational" : apiAvailable === null ? "checking" : "attention";
   const services = [
     { name: "Brave Search", detail: "Public-source discovery", provider: providers?.brave, icon: MagnifyingGlass, statusUrl: "https://status.brave.app/" },
     { name: "Exa", detail: "Semantic discovery and contents", provider: providers?.exa, icon: MagnifyingGlass, statusUrl: "https://status.exa.ai/" },
     { name: "Crawl4AI Local", detail: "Local evidence acquisition", provider: providers?.crawl4Ai, icon: CloudArrowDown },
-    { name: "Firecrawl", detail: "Cloud evidence acquisition", provider: providers?.firecrawl, icon: CloudArrowDown, statusUrl: "https://status.firecrawl.dev/" },
     { name: "Gemini", detail: settings ? `Profile: ${settings.profileModel} | Deep: ${settings.deepResearchModel}` : "Evidence normalization", provider: providers?.gemini, icon: Brain },
   ];
 

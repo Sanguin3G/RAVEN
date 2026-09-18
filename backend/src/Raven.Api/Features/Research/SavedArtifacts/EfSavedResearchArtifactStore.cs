@@ -43,7 +43,42 @@ public sealed class EfSavedResearchArtifactStore(RavenDbContext dbContext) : ISa
             // are not treated as valid evidence.
         }
 
+        TryHydrate(artifact.ProviderMetadataJson, artifact.ProviderMetadata);
+        TryHydrate(artifact.SourceLeadsJson, artifact.SourceLeads);
+        TryHydrate(artifact.ClaimsJson, artifact.Claims);
+        TryHydrate(artifact.UncertaintiesJson, artifact.Uncertainties);
+
         return artifact;
+    }
+
+    private static void TryHydrate<T>(string json, ICollection<T> target)
+    {
+        try
+        {
+            foreach (var value in JsonSerializer.Deserialize<T[]>(json) ?? [])
+            {
+                target.Add(value);
+            }
+        }
+        catch (JsonException)
+        {
+            // Optional review material must not make the artifact unreadable.
+        }
+    }
+
+    private static void TryHydrate(string json, IDictionary<string, string> target)
+    {
+        try
+        {
+            foreach (var pair in JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [])
+            {
+                target[pair.Key] = pair.Value;
+            }
+        }
+        catch (JsonException)
+        {
+            // Optional review material must not make the artifact unreadable.
+        }
     }
 }
 

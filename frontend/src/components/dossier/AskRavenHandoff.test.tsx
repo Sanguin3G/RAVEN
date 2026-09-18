@@ -1,7 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatConversation, sendChatMessage } from "../../api/chat";
-import { getManagedResearchJobs, startManagedResearch } from "../../api/managedResearch";
+import {
+  attachResearchContext,
+  getManagedResearchJobs,
+  getResearchContextAttachments,
+  removeResearchContext,
+  startManagedResearch,
+} from "../../api/managedResearch";
 import { AskRavenHandoff } from "./AskRavenHandoff";
 
 vi.mock("../../api/chat", () => ({
@@ -10,7 +16,10 @@ vi.mock("../../api/chat", () => ({
 }));
 
 vi.mock("../../api/managedResearch", () => ({
+  attachResearchContext: vi.fn(),
   getManagedResearchJobs: vi.fn(),
+  getResearchContextAttachments: vi.fn(),
+  removeResearchContext: vi.fn(),
   startManagedResearch: vi.fn(),
 }));
 
@@ -27,6 +36,7 @@ describe("AskRavenHandoff", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getManagedResearchJobs).mockResolvedValue([]);
+    vi.mocked(getResearchContextAttachments).mockResolvedValue([]);
   });
 
   it("renders the profile-only boundary", () => {
@@ -87,6 +97,7 @@ describe("AskRavenHandoff", () => {
   });
 
   it("starts managed research without sending a normal Chat turn", async () => {
+    vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
     vi.mocked(startManagedResearch).mockResolvedValue({
       id: "job-1",
       companyId: "company-1",
@@ -103,8 +114,8 @@ describe("AskRavenHandoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start Deep Research" }));
 
     await waitFor(() => expect(screen.getByText(/Deep Research started/)).toBeInTheDocument());
-    expect(startManagedResearch).toHaveBeenCalledWith("company-1", "FPT Smart Cloud expansion in Japan");
-    expect(createChatConversation).not.toHaveBeenCalled();
+    expect(startManagedResearch).toHaveBeenCalledWith("company-1", "FPT Smart Cloud expansion in Japan", { conversationId: "conversation-1" });
+    expect(createChatConversation).toHaveBeenCalledWith("company-1");
     expect(sendChatMessage).not.toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "View investigation" })).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=job-1");
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
@@ -125,5 +136,42 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(screen.getByTestId("managed-research-completion")).toBeInTheDocument());
     expect(screen.getByTestId("managed-research-completion").querySelector("a")).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=investigation-1");
+  });
+
+  it("attaches and removes an investigation context without changing the Chat contract", async () => {
+    vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
+    vi.mocked(getManagedResearchJobs).mockResolvedValue([{
+      id: "job-complete",
+      companyId: "company-1",
+      objective: "Recent expansion",
+      provider: "exa-agent",
+      status: "Completed",
+      createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      investigationId: "investigation-1",
+    }]);
+    vi.mocked(attachResearchContext).mockResolvedValue({
+      id: "attachment-1",
+      companyId: "company-1",
+      conversationId: "conversation-1",
+      investigationId: "investigation-1",
+      origin: "ManagedAi",
+      objective: "Recent expansion",
+      summary: "Research summary",
+      completedAt: new Date().toISOString(),
+      attachedAt: new Date().toISOString(),
+    });
+    render(<AskRavenHandoff {...props} />);
+
+    const notification = await waitFor(() => screen.getByTestId("managed-research-completion"));
+    fireEvent.click(within(notification).getByRole("button", { name: "Continue with result", hidden: true }));
+
+    await waitFor(() => expect(screen.getByLabelText("Attached research context")).toBeInTheDocument());
+    expect(attachResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1");
+    expect(screen.getByLabelText("Attached research context")).toHaveTextContent("Recent expansion");
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Recent expansion context" }));
+    await waitFor(() => expect(removeResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1"));
+    await waitFor(() => expect(screen.queryByLabelText("Attached research context")).not.toBeInTheDocument());
   });
 });

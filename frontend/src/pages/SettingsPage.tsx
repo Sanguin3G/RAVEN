@@ -39,29 +39,29 @@ const groundingChoices: Array<{ value: GroundingMode; title: string; description
 ];
 
 const presetChoices: Array<{ value: ProviderPreset; title: string; description: string }> = [
-  { value: "Resilient", title: "RAVEN Resilient", description: "Use Brave and local Crawl4AI first, then retry with Exa or Firecrawl when a provider fails." },
+  { value: "Resilient", title: "RAVEN Resilient", description: "Use Brave and local Crawl4AI first, then retry with Exa when a provider fails." },
   { value: "LocalFirst", title: "RAVEN Local First", description: "Use Brave Search and local Crawl4AI only for the lowest-cost, local-first route." },
-  { value: "Cloud", title: "RAVEN Cloud", description: "Use Exa first, then Firecrawl, for both search and cloud retrieval." },
+  { value: "Cloud", title: "RAVEN Cloud", description: "Use Exa for both search and hosted contents retrieval." },
   { value: "Custom", title: "Custom", description: "Manually choose which providers are enabled and set their exact order below." },
 ];
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
   Resilient: {
-    searchProviderPriority: ["brave", "exa", "firecrawl-search"],
-    crawlerProviderPriority: ["crawl4ai-local", "exa", "firecrawl"],
+    searchProviderPriority: ["brave", "exa"],
+    crawlerProviderPriority: ["crawl4ai-local", "exa"],
   },
   LocalFirst: {
     searchProviderPriority: ["brave"],
     crawlerProviderPriority: ["crawl4ai-local"],
   },
   Cloud: {
-    searchProviderPriority: ["exa", "firecrawl-search"],
-    crawlerProviderPriority: ["exa", "firecrawl"],
+    searchProviderPriority: ["exa"],
+    crawlerProviderPriority: ["exa"],
   },
 };
 
-const customSearchProviders = ["brave", "exa", "firecrawl-search"];
-const customCrawlerProviders = ["crawl4ai-local", "exa", "firecrawl"];
+const customSearchProviders = ["brave", "exa"];
+const customCrawlerProviders = ["crawl4ai-local", "exa"];
 
 function sameSettings(left: ResearchSettings, right: ResearchSettings) {
   return JSON.stringify({ ...left, updatedAt: "" }) === JSON.stringify({ ...right, updatedAt: "" });
@@ -110,8 +110,6 @@ function displayProvider(value: string) {
   const labels: Record<string, string> = {
     brave: "Brave Search",
     exa: "Exa Search & Contents",
-    "firecrawl-search": "Firecrawl Search",
-    firecrawl: "Firecrawl",
     "crawl4ai-local": "Crawl4AI Local",
     "crawl4ai-cloud": "Crawl4AI Cloud",
   };
@@ -403,7 +401,6 @@ export function SettingsPage() {
               ["Brave Search", providers?.brave],
               ["Crawl4AI Local", providers?.crawl4Ai],
               ["Exa Search", providers?.exa],
-              ["Firecrawl", providers?.firecrawl],
               ["Gemini", providers?.gemini],
             ].map(([name, provider]) => {
               const typedProvider = provider as ProviderStatus | undefined;
