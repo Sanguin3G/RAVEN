@@ -71,6 +71,8 @@ Open the Ask RAVEN dock.
 
 > “Ask RAVEN is normal Chat over the accepted profile and stored evidence. A greeting or product-navigation question can be answered naturally; a factual company claim still needs a citation. Deep Research remains a separate, explicit workflow.”
 
+Toggle **Search the web** for the current conversation and ask a freshness-sensitive company question. Explain that permission does not force a search on every turn: RAVEN still prefers accepted profile evidence, streams bounded lookup progress when needed, and labels persisted Profile/Web sources separately.
+
 Send `hi`, then ask a profile-supported factual question and open its citation. Ask whether RAVEN can research further, then use **Open Investigations** from the plus menu. Point out that **Search the web** is visibly unavailable rather than pretending to work.
 
 Close with: “The value is not merely a generated company description. It is a reviewable, versioned company knowledge record whose claims can be traced back to preserved public evidence.”

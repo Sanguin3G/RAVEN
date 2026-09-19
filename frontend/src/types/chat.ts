@@ -3,16 +3,29 @@ export type ChatMessageRole = "User" | "Assistant";
 export type ChatMessageStatus = "Pending" | "Completed" | "Failed";
 
 export interface ChatCitation {
-  origin: "Profile";
-  sourceDocumentId: string;
+  origin: "Profile" | "Web";
+  sourceDocumentId?: string | null;
+  webEvidenceSnapshotId?: string | null;
   fieldPath?: string | null;
   title?: string | null;
   url: string;
   retrievedAt: string;
 }
 
+export interface ChatWebEvidenceSnapshot {
+  id: string;
+  url: string;
+  title?: string | null;
+  searchSnippet?: string | null;
+  contentExcerpt: string;
+  searchProvider: string;
+  crawlerProvider?: string | null;
+  searchRank: number;
+  retrievedAt: string;
+}
+
 export interface ChatToolExecution {
-  tool: "get_source_excerpt";
+  tool: string;
   provider: string;
   status: string;
   durationMs: number;
@@ -26,7 +39,9 @@ export interface ChatMessage {
   status: ChatMessageStatus;
   answerStatus?: ChatAnswerStatus | null;
   followUpQuestion?: string | null;
+  activity?: string | null;
   citations: ChatCitation[];
+  webEvidenceSnapshots: ChatWebEvidenceSnapshot[];
   toolExecutions: ChatToolExecution[];
   createdAt: string;
 }
@@ -36,10 +51,15 @@ export interface ChatConversationResponse {
   companyId: string;
   profileVersionId: string;
   profileVersion: number;
+  webSearchEnabled: boolean;
   title: string | null;
   createdAt: string;
   updatedAt: string;
   messages: ChatMessage[];
+}
+
+export interface UpdateChatCapabilitiesRequest {
+  webSearchEnabled: boolean;
 }
 
 export interface SendChatMessageRequest {
@@ -54,6 +74,7 @@ export interface SendChatMessageResponse {
   status: ChatAnswerStatus;
   answer: string;
   citations: ChatCitation[];
+  webEvidenceSnapshots: ChatWebEvidenceSnapshot[];
   toolExecutions: ChatToolExecution[];
   followUpQuestion?: string | null;
 }

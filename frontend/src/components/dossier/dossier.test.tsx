@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CompanyDossier } from "./CompanyDossier";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
@@ -37,7 +37,7 @@ describe("CompanyDossier", () => {
     expect(screen.getByText(/No operating locations/)).toBeInTheDocument();
   });
 
-  it("switches tabs and supports keyboard tab navigation", () => {
+  it("switches tabs and supports keyboard tab navigation", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }));
     renderWithRouter(<CompanyDossier company={company} profile={sparseProfile} />, "/companies/company-42");
 
@@ -50,13 +50,13 @@ describe("CompanyDossier", () => {
     fireEvent.keyDown(sourcesTab, { key: "ArrowRight" });
     expect(investigationsTab).toHaveFocus();
     expect(investigationsTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("dossier-investigations")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("dossier-investigations")).toBeInTheDocument());
     expect(screen.queryByRole("tab", { name: "Research" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Ask RAVEN" })).not.toBeInTheDocument();
   });
 
   it("renders qualitative coverage without a numeric confidence score", () => {
-    render(
+    renderWithRouter(
       <CompanyDossier
         company={company}
         profile={sparseProfile}
@@ -69,6 +69,7 @@ describe("CompanyDossier", () => {
           },
         }}
       />,
+      "/companies/company-42",
     );
 
     const coverage = screen.getByTestId("company-coverage");

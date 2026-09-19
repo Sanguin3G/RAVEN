@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Raven.Api.Data;
 
@@ -10,9 +11,11 @@ using Raven.Api.Data;
 namespace Raven.Api.Data.Migrations
 {
     [DbContext(typeof(RavenDbContext))]
-    partial class RavenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917095817_AddChatWebEvidenceSnapshots")]
+    partial class AddChatWebEvidenceSnapshots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -103,10 +106,6 @@ namespace Raven.Api.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Activity")
-                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AiModel")
@@ -315,329 +314,6 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("Companies");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.Companies.Workspace.WorkspaceResearchReviewState", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("AcknowledgedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("AcknowledgedThrough")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Method")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ReviewKey")
-                        .IsRequired()
-                        .HasMaxLength(600)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TopicKey")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReviewKey")
-                        .IsUnique();
-
-                    b.HasIndex("CompanyId", "AcknowledgedThrough");
-
-                    b.ToTable("WorkspaceResearchReviewStates");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.DeepResearch.DeepResearchActivityRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("DeepResearchRunId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Detail")
-                        .HasMaxLength(280)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Provider")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("Sequence")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SourceDocumentIdsJson")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeepResearchRunId", "Sequence")
-                        .IsUnique();
-
-                    b.ToTable("DeepResearchActivities");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.DeepResearch.DeepResearchRun", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CancelRequestedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ConversationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("CrawlCalls")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DocumentsRead")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Error")
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Model")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ResultMarkdown")
-                        .HasMaxLength(40000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("SearchCalls")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ToolCalls")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId", "CreatedAt");
-
-                    b.ToTable("DeepResearchRuns");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ManagedResearchInvestigation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ChatMessageId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CompletedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ConversationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("JobId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Objective")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Origin")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ResultJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Summary")
-                        .IsRequired()
-                        .HasMaxLength(100000)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JobId")
-                        .IsUnique();
-
-                    b.HasIndex("CompanyId", "CompletedAt");
-
-                    b.ToTable("ManagedResearchInvestigations");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ManagedResearchJob", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CancelRequestedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ChatMessageId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ConversationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Effort")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Error")
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("InvestigationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Objective")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Provider")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("ProviderCostDollars")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProviderQuery")
-                        .IsRequired()
-                        .HasMaxLength(12000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProviderRunId")
-                        .HasMaxLength(300)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProviderRunStatus")
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ResultJson")
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId", "CreatedAt");
-
-                    b.HasIndex("Status", "CreatedAt");
-
-                    b.ToTable("ManagedResearchJobs");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ResearchContextAttachment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("AttachedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ConversationId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("InvestigationId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvestigationId");
-
-                    b.HasIndex("CompanyId", "ConversationId", "InvestigationId")
-                        .IsUnique();
-
-                    b.ToTable("ResearchContextAttachments");
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Monitoring.CompanyMonitoringSetting", b =>
@@ -958,53 +634,6 @@ namespace Raven.Api.Data.Migrations
                     b.ToTable("ResearchEvents");
                 });
 
-            modelBuilder.Entity("Raven.Api.Features.Research.ExternalImport.ExternalResearchAnalysisJob", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Error")
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RawResponse")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ResultJson")
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId", "CreatedAt");
-
-                    b.HasIndex("Status", "CreatedAt");
-
-                    b.ToTable("ExternalResearchAnalysisJobs");
-                });
-
             modelBuilder.Entity("Raven.Api.Features.Research.Intelligence.ResearchIdentityCandidate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1078,62 +707,6 @@ namespace Raven.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ResearchIdentityCandidates");
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.Research.Organization.InvestigationOrganizationRevision", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EvidenceGapsJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ExecutiveSummary")
-                        .IsRequired()
-                        .HasMaxLength(100000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsHumanEdited")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("SavedResearchArtifactId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SuggestedFollowUpsJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ThemesJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UncertaintiesJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("SavedResearchArtifactId", "Version")
-                        .IsUnique();
-
-                    b.ToTable("InvestigationOrganizationRevisions");
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Research.ResearchCandidate", b =>
@@ -1341,15 +914,7 @@ namespace Raven.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ClaimsJson")
-                        .IsRequired()
-                        .HasMaxLength(400000)
-                        .HasColumnType("TEXT");
-
                     b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ConversationId")
@@ -1358,42 +923,13 @@ namespace Raven.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("DeepResearchRunId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ManagedResearchJobId")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Model")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Objective")
-                        .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Origin")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Provider")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProviderMetadataJson")
-                        .IsRequired()
-                        .HasMaxLength(120000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Question")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RawResponse")
-                        .HasMaxLength(200000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ResearchType")
@@ -1409,11 +945,6 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(20000)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SourceLeadsJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Summary")
                         .IsRequired()
                         .HasMaxLength(100000)
@@ -1422,11 +953,6 @@ namespace Raven.Api.Data.Migrations
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UncertaintiesJson")
-                        .IsRequired()
-                        .HasMaxLength(200000)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -1521,11 +1047,6 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("DeepResearchModel")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("GroundingMode")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -1534,16 +1055,6 @@ namespace Raven.Api.Data.Migrations
                     b.Property<string>("GroundingModel")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ManagedResearchDepth")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ManagedResearchProvider")
-                        .IsRequired()
-                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProfileModel")
@@ -1642,66 +1153,6 @@ namespace Raven.Api.Data.Migrations
                     b.Navigation("ResearchRun");
                 });
 
-            modelBuilder.Entity("Raven.Api.Features.Companies.Workspace.WorkspaceResearchReviewState", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.DeepResearch.DeepResearchActivityRecord", b =>
-                {
-                    b.HasOne("Raven.Api.Features.DeepResearch.DeepResearchRun", null)
-                        .WithMany()
-                        .HasForeignKey("DeepResearchRunId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.DeepResearch.DeepResearchRun", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ManagedResearchInvestigation", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ManagedResearchJob", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.ManagedResearch.ResearchContextAttachment", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Raven.Api.Features.ManagedResearch.ManagedResearchInvestigation", null)
-                        .WithMany()
-                        .HasForeignKey("InvestigationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Raven.Api.Features.Chat.ChatWebEvidenceSnapshot", b =>
                 {
                     b.HasOne("Raven.Api.Features.Chat.ChatMessage", "ChatMessage")
@@ -1722,36 +1173,12 @@ namespace Raven.Api.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Raven.Api.Features.Research.ExternalImport.ExternalResearchAnalysisJob", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Raven.Api.Features.Research.Intelligence.ResearchIdentityCandidate", b =>
                 {
                     b.HasOne("Raven.Api.Features.Research.ResearchRun", null)
                         .WithMany()
                         .HasForeignKey("ResearchRunId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Raven.Api.Features.Research.Organization.InvestigationOrganizationRevision", b =>
-                {
-                    b.HasOne("Raven.Api.Features.Companies.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Raven.Api.Features.Research.SavedArtifacts.SavedResearchArtifact", null)
-                        .WithMany()
-                        .HasForeignKey("SavedResearchArtifactId")
-                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

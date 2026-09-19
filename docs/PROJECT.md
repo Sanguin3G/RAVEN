@@ -42,6 +42,7 @@ RAVEN currently supports:
 - cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, parent-first corporate-family choices, and a guided clarification path for weak or unknown identities.
 - persistent profile-grounded Ask RAVEN conversations with stored citations and bounded source excerpts; greetings and product guidance remain conversational while company facts remain evidence-gated.
 - bounded, best-effort execution telemetry batch-persisted outside the provider-call critical path; durable Deep Research activity remains separate.
+- conversation-persistent Ask RAVEN Web Search permission, bounded provider-routed web acquisition, streamed progress, and persisted web-evidence citations kept separate from accepted profile truth.
 
 Initial profile creation is a user-controlled boundary. RAVEN may generate a candidate, but only explicit user confirmation can create an immutable Company Profile version. Failed or still-running runs cannot be confirmed, and an identity-only/name-only profile row is not a usable Profile Improvement baseline. The workspace uses supported-target coverage gaps plus model-generation provenance to distinguish a real sparse/partial profile from an interrupted workflow artifact.
 
@@ -75,7 +76,7 @@ Ask RAVEN Chat         Buffered execution telemetry
 ### P2 — later
 
 ```text
-Source chunks / RAG                Web-enabled Ask RAVEN turns
+Source chunks / RAG                Investigation attachment grounding
 MCP                                Crawl4AI Cloud
 Notifications                      Advanced analytics
 ```

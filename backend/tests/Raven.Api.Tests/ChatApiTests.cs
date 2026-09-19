@@ -35,10 +35,88 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         Assert.NotNull(conversation);
         Assert.Equal(profile.Id, conversation.ProfileVersionId);
         Assert.Equal(1, conversation.ProfileVersion);
+        Assert.False(conversation.WebSearchEnabled);
 
         var get = await client.GetFromJsonAsync<ChatConversationResponse>($"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
         Assert.NotNull(get);
         Assert.Equal(conversation.ProfileVersionId, get.ProfileVersionId);
+        Assert.False(get.WebSearchEnabled);
+    }
+
+    [Fact]
+    public async Task Web_search_capability_is_persisted_per_conversation()
+    {
+        var client = factory.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+
+        var patch = await client.PatchAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/capabilities",
+            new UpdateChatCapabilitiesRequest(true));
+        var body = await patch.Content.ReadAsStringAsync();
+        Assert.True(patch.IsSuccessStatusCode, body);
+        var updated = JsonSerializer.Deserialize<ChatConversationResponse>(body, JsonOptions)!;
+        Assert.True(updated.WebSearchEnabled);
+
+        var restored = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        Assert.NotNull(restored);
+        Assert.True(restored.WebSearchEnabled);
+    }
+
+    [Fact]
+    public async Task Conversation_history_returns_web_evidence_snapshots_separately_from_profile_sources()
+    {
+        var client = factory.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+
+        var assistant = new ChatMessage
+        {
+            ConversationId = conversation.Id,
+            Role = ChatMessageRole.Assistant,
+            Content = "The company published this update.",
+            Status = ChatMessageStatus.Completed,
+            AnswerStatus = ChatAnswerStatus.Answered
+        };
+        var snapshot = new ChatWebEvidenceSnapshot
+        {
+            ChatMessageId = assistant.Id,
+            Url = "https://example.com/news/update",
+            NormalizedUrl = "https://example.com/news/update",
+            Title = "Company update",
+            SearchSnippet = "A public company update.",
+            ContentExcerpt = "The company published an update in September.",
+            SearchProvider = "fake-search",
+            CrawlerProvider = "fake-crawler",
+            SearchRank = 1,
+            RetrievedAt = DateTimeOffset.Parse("2026-09-17T00:00:00Z")
+        };
+        var citation = new ChatCitation
+        {
+            ChatMessageId = assistant.Id,
+            WebEvidenceSnapshotId = snapshot.Id,
+            Origin = ChatCitationOrigin.Web
+        };
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.AddRange(assistant, snapshot, citation);
+            await db.SaveChangesAsync();
+        }
+
+        var restored = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        var message = Assert.Single(restored!.Messages);
+        var evidence = Assert.Single(message.WebEvidenceSnapshots);
+        Assert.Equal(snapshot.Id, evidence.Id);
+        Assert.Equal("fake-search", evidence.SearchProvider);
+        var returnedCitation = Assert.Single(message.Citations);
+        Assert.Equal(ChatCitationOrigin.Web, returnedCitation.Origin);
+        Assert.Null(returnedCitation.SourceDocumentId);
+        Assert.Equal(snapshot.Id, returnedCitation.WebEvidenceSnapshotId);
     }
 
     [Fact]
@@ -66,6 +144,76 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         Assert.Equal(profile.SourceId, citation.SourceDocumentId);
     }
 
+    [Fact]
+    public async Task Web_answer_persists_only_message_scoped_evidence_and_does_not_mutate_profile_sources()
+    {
+        var completion = new ChatAgentCompletion(
+            new ChatAgentResult(ChatAnswerStatus.Answered, "The company published a current update.", [], null, ["r1"]),
+            "fake",
+            "fake-model",
+            [],
+            [new ChatWebEvidenceDraft("r1", "https://example.com/news", "https://example.com/news", "Current update", "Public update", "Verified current evidence", "fake-search", "fake-crawler", 1, DateTimeOffset.UtcNow)]);
+        var agent = new FakeCompletionAgentFactory(completion);
+        using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => agent);
+        })).CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        int sourcesBefore;
+        using (var scope = factory.Services.CreateScope())
+        {
+            sourcesBefore = await scope.ServiceProvider.GetRequiredService<RavenDbContext>().SourceDocuments.CountAsync(source => source.CompanyId == company.Id);
+        }
+
+        var response = await client.PostAsJsonAsync($"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages", new CreateChatMessageRequest("What changed recently?"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, body);
+        var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        var citation = Assert.Single(message.Citations);
+        Assert.Equal(ChatCitationOrigin.Web, citation.Origin);
+        Assert.Null(citation.SourceDocumentId);
+        Assert.Single(message.WebEvidenceSnapshots);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var db = verificationScope.ServiceProvider.GetRequiredService<RavenDbContext>();
+        Assert.Equal(sourcesBefore, await db.SourceDocuments.CountAsync(source => source.CompanyId == company.Id));
+        Assert.Equal(1, await db.ChatWebEvidenceSnapshots.CountAsync(snapshot => snapshot.ChatMessageId == message.MessageId));
+    }
+    [Fact]
+    public async Task Streamed_message_emits_progress_and_final_response()
+    {
+        var profileAgent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Answered, "Verified industry", [], null));
+        using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => profileAgent);
+        })).CreateClient();
+        var company = await CreateCompanyAsync(client);
+        var profile = await SeedProfileAsync(company.Id, 1, "Example profile");
+        profileAgent.Result = new ChatAgentResult(ChatAnswerStatus.Answered, "Verified industry", [profile.SourceId], null);
+        var conversation = await CreateConversationAsync(client, company.Id);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages/stream")
+        {
+            Content = JsonContent.Create(new CreateChatMessageRequest("What industry is this company in?"))
+        };
+        request.Headers.Accept.ParseAdd("text/event-stream");
+        using var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.IsSuccessStatusCode, body);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("event: progress", body, StringComparison.Ordinal);
+        Assert.Contains("Analyzing", body, StringComparison.Ordinal);
+        Assert.Contains("CheckingProfile", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("WebSearching", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Crawling", body, StringComparison.Ordinal);
+        Assert.Contains("event: completed", body, StringComparison.Ordinal);
+        Assert.Contains("Verified industry", body, StringComparison.Ordinal);
+    }
     [Fact]
     public async Task External_scope_status_does_not_require_a_keyword_router()
     {
@@ -169,6 +317,11 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
 
         var response = await client.GetAsync($"/api/companies/{otherCompany.Id}/chat/conversations/{conversation.Id}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var patch = await client.PatchAsJsonAsync(
+            $"/api/companies/{otherCompany.Id}/chat/conversations/{conversation.Id}/capabilities",
+            new UpdateChatCapabilitiesRequest(true));
+        Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
     }
 
     private static async Task<CompanyResponse> CreateCompanyAsync(HttpClient client)
@@ -249,6 +402,16 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         }
     }
 
+    private sealed class FakeCompletionAgentFactory(ChatAgentCompletion completion) : ICompanyChatAgentFactory
+    {
+        public ICompanyChatAgent Create() => new FakeAgent(completion);
+
+        private sealed class FakeAgent(ChatAgentCompletion completion) : ICompanyChatAgent
+        {
+            public Task<ChatAgentCompletion> RunAsync(ChatAgentRequest request, CancellationToken cancellationToken = default) =>
+                Task.FromResult(completion);
+        }
+    }
     private sealed class FixedAiProvider(string response) : IAiModelProvider
     {
         public string Id => "fake";

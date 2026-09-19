@@ -41,6 +41,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatCitation> ChatCitations => Set<ChatCitation>();
+    public DbSet<ChatWebEvidenceSnapshot> ChatWebEvidenceSnapshots => Set<ChatWebEvidenceSnapshot>();
     public DbSet<ChatToolExecution> ChatToolExecutions => Set<ChatToolExecution>();
     public DbSet<ManagedResearchJob> ManagedResearchJobs => Set<ManagedResearchJob>();
     public DbSet<ManagedResearchInvestigation> ManagedResearchInvestigations => Set<ManagedResearchInvestigation>();
@@ -434,6 +435,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
         {
             entity.HasKey(conversation => conversation.Id);
             entity.Property(conversation => conversation.Title).HasMaxLength(200);
+            entity.Property(conversation => conversation.WebSearchEnabled).HasDefaultValue(false);
             entity.HasIndex(conversation => new { conversation.CompanyId, conversation.UpdatedAt });
             entity.HasOne(conversation => conversation.Company)
                 .WithMany()
@@ -456,6 +458,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(message => message.FollowUpQuestion).HasMaxLength(1_000);
             entity.Property(message => message.AiProvider).HasMaxLength(100);
             entity.Property(message => message.AiModel).HasMaxLength(200);
+            entity.Property(message => message.Activity).HasMaxLength(100);
             entity.HasIndex(message => new { message.ConversationId, message.CreatedAt });
             entity.HasOne(message => message.Conversation)
                 .WithMany(conversation => conversation.Messages)
@@ -463,6 +466,22 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<ChatWebEvidenceSnapshot>(entity =>
+        {
+            entity.HasKey(snapshot => snapshot.Id);
+            entity.Property(snapshot => snapshot.Url).HasMaxLength(2_000).IsRequired();
+            entity.Property(snapshot => snapshot.NormalizedUrl).HasMaxLength(2_000).IsRequired();
+            entity.Property(snapshot => snapshot.Title).HasMaxLength(500);
+            entity.Property(snapshot => snapshot.SearchSnippet).HasMaxLength(2_000);
+            entity.Property(snapshot => snapshot.ContentExcerpt).HasMaxLength(8_000).IsRequired();
+            entity.Property(snapshot => snapshot.SearchProvider).HasMaxLength(100).IsRequired();
+            entity.Property(snapshot => snapshot.CrawlerProvider).HasMaxLength(100);
+            entity.HasIndex(snapshot => new { snapshot.ChatMessageId, snapshot.NormalizedUrl }).IsUnique();
+            entity.HasOne(snapshot => snapshot.ChatMessage)
+                .WithMany(message => message.WebEvidenceSnapshots)
+                .HasForeignKey(snapshot => snapshot.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         modelBuilder.Entity<ChatCitation>(entity =>
         {
             entity.HasKey(citation => citation.Id);
@@ -470,6 +489,10 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(citation => citation.FieldPath).HasMaxLength(300);
             entity.Property(citation => citation.Excerpt).HasMaxLength(1_000);
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.SourceDocumentId }).IsUnique();
+            entity.HasIndex(citation => new { citation.ChatMessageId, citation.WebEvidenceSnapshotId }).IsUnique();
+            entity.ToTable(table => table.HasCheckConstraint(
+                "CK_ChatCitations_ExactlyOneEvidence",
+                "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL)"));
             entity.HasOne(citation => citation.ChatMessage)
                 .WithMany(message => message.Citations)
                 .HasForeignKey(citation => citation.ChatMessageId)
@@ -477,6 +500,12 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasOne(citation => citation.SourceDocument)
                 .WithMany()
                 .HasForeignKey(citation => citation.SourceDocumentId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(citation => citation.WebEvidenceSnapshot)
+                .WithMany()
+                .HasForeignKey(citation => citation.WebEvidenceSnapshotId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

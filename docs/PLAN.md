@@ -33,7 +33,7 @@ Remaining M1 work is quality work: real-provider failure handling, usability pol
 
 Implemented: profile refresh, change detection, AI target grounding, semantic source relevance, persisted research/provider settings, Exa retrieval, in-process monitoring, bounded Deep Research, and saved research artifacts. Firecrawl remains legacy compatibility code only and is not active routing.
 
-Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and web-enabled Ask RAVEN turns. Persistent profile-grounded Chat with citations is integrated. Day 8 managed-research attachments are explicit conversation state; their eventual prompt grounding belongs to Hung's Ask RAVEN context-extension contract, not a parallel Huy-side Chat implementation.
+Remaining M2 work: source chunking, embeddings, company-filtered retrieval, and grounding Chat with attached Investigation material. Persistent profile-grounded Chat with citations and optional conversation-persistent Web Search are integrated. Managed-research attachments remain explicit conversation state; their eventual prompt grounding belongs to the supported Ask RAVEN context-extension contract, not a parallel Chat implementation.
 
 **Exit condition:** accepted knowledge survives restart, can be reopened and questioned with citations, and a refresh preserves historical evidence and profiles.
 
@@ -83,9 +83,9 @@ Stabilization closes the Day-6 browser/session and workspace seams: only resumab
 
 **Status: PASS; integrated into `main`.**
 
-Delivered: bounded, sanitized execution telemetry with background batch persistence, isolated EF scopes, terminal flushes, shutdown drain, and canonical external-call rows; durable Deep Research activity with database-free monotonic sequence allocation; removal of active legacy family-search/grounding orchestration from new initial research; and an Ask RAVEN conversation-first refinement. Ask RAVEN supports persisted profile-grounded conversations, citations, bounded excerpts, citation-free greeting/capability guidance, a real Investigations handoff, and a truthful disabled Web Search slot.
+Delivered: bounded, sanitized execution telemetry with background batch persistence, isolated EF scopes, terminal flushes, shutdown drain, and canonical external-call rows; durable Deep Research activity with database-free monotonic sequence allocation; removal of active legacy family-search/grounding orchestration from new initial research; and an Ask RAVEN conversation-first refinement. Ask RAVEN supports persisted profile-grounded conversations, citations, bounded excerpts, citation-free greeting/capability guidance, a real Investigations handoff, and optional conversation-persistent Web Search with streamed progress and persisted web evidence.
 
-Deferred deliberately: semantic-reranking changes and actual web-enabled Chat turns. Day 8 may add turn-scoped web lookup and richer Chat actions without turning Chat into Deep Research.
+Web-enabled Chat remains distinct from Deep Research: enabling it permits bounded turn-scoped lookup but does not force a web call or start a background investigation. Investigation attachment grounding and richer Chat actions remain deferred.
 
 ## Stabilization principles
 

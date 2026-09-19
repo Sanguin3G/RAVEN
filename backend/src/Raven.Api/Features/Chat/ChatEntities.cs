@@ -12,6 +12,11 @@ public sealed class ChatConversation
     public Guid ProfileVersionId { get; init; }
     public CompanyProfileVersion ProfileVersion { get; init; } = null!;
     public string? Title { get; set; }
+    /// <summary>
+    /// User-controlled permission for future web-enabled turns. Enabling this
+    /// capability never requires the agent to call Search or Crawl.
+    /// </summary>
+    public bool WebSearchEnabled { get; set; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public ICollection<ChatMessage> Messages { get; } = new List<ChatMessage>();
@@ -35,18 +40,42 @@ public sealed class ChatMessage
     public string? FollowUpQuestion { get; set; }
     public string? AiProvider { get; set; }
     public string? AiModel { get; set; }
+    public string? Activity { get; set; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public ICollection<ChatCitation> Citations { get; } = new List<ChatCitation>();
+    public ICollection<ChatWebEvidenceSnapshot> WebEvidenceSnapshots { get; } = new List<ChatWebEvidenceSnapshot>();
     public ICollection<ChatToolExecution> ToolExecutions { get; } = new List<ChatToolExecution>();
 }
 
+/// <summary>
+/// Bounded, immutable evidence captured by a future web-enabled Chat turn.
+/// It belongs to the conversation message only: it is not a SourceDocument and
+/// cannot become accepted Company Profile evidence without an explicit flow.
+/// </summary>
+public sealed class ChatWebEvidenceSnapshot
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid ChatMessageId { get; init; }
+    public ChatMessage ChatMessage { get; init; } = null!;
+    public required string Url { get; init; }
+    public required string NormalizedUrl { get; init; }
+    public string? Title { get; init; }
+    public string? SearchSnippet { get; init; }
+    public required string ContentExcerpt { get; init; }
+    public required string SearchProvider { get; init; }
+    public string? CrawlerProvider { get; init; }
+    public int SearchRank { get; init; }
+    public DateTimeOffset RetrievedAt { get; init; } = DateTimeOffset.UtcNow;
+}
 public sealed class ChatCitation
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid ChatMessageId { get; init; }
     public ChatMessage ChatMessage { get; init; } = null!;
-    public Guid SourceDocumentId { get; init; }
-    public SourceDocument SourceDocument { get; init; } = null!;
+    public Guid? SourceDocumentId { get; init; }
+    public SourceDocument? SourceDocument { get; init; }
+    public Guid? WebEvidenceSnapshotId { get; init; }
+    public ChatWebEvidenceSnapshot? WebEvidenceSnapshot { get; init; }
     public string? FieldPath { get; init; }
     public ChatCitationOrigin Origin { get; init; } = ChatCitationOrigin.Profile;
     public string? Excerpt { get; init; }

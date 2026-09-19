@@ -12,21 +12,40 @@ const researchRun = { id: "run-1", companyId, status: "Searching", requestedSear
 const sourceCandidate = { id: "candidate-1", researchRunId: researchRun.id, url: "https://northwind.example/about", normalizedUrl: "https://northwind.example/about", domain: "northwind.example", title: "About Northwind", snippet: "Company overview", sourceKind: "OfficialWebsite", recommendationReasons: ["Official domain"], recommended: true, selected: false, acquisitionStatus: "Pending", acquisitionError: null, iconUrl: null, discoveredAt: "2026-09-10T00:00:00Z" };
 
 async function installFixture(page: import("@playwright/test").Page) {
+  let webSearchEnabled = false;
+  let messages: object[] = [];
   await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const { pathname } = new URL(route.request().url());
     const request = route.request();
-    const question = pathname.endsWith("/messages") && request.method() === "POST"
+    const method = request.method();
+    const question = pathname.endsWith("/messages/stream") && request.method() === "POST"
       ? (request.postDataJSON() as { question?: string }).question?.toLowerCase() ?? ""
       : "";
-    const response = question.includes("ceo")
-      ? { conversationId: "conversation-1", messageId: "message-ceo", companyId, profileVersion: 1, status: "Answered", answer: "The accepted profile identifies the CEO as Jane Doe.", citations: [{ origin: "Profile", sourceDocumentId: "source-1", fieldPath: "leadership[0]", title: "Northwind leadership", url: "https://northwind.example/leadership", retrievedAt: "2026-09-10T00:00:00Z" }], toolExecutions: [], followUpQuestion: null }
+    const response = question.includes("latest")
+      ? { conversationId: "conversation-1", messageId: "message-web", companyId, profileVersion: 1, status: "Answered", answer: "Northwind's latest public update was published in September 2026.", citations: [{ origin: "Web", webEvidenceSnapshotId: "snapshot-1", title: "Northwind public update", url: "https://northwind.example/news", retrievedAt: "2026-09-19T00:00:00Z" }], webEvidenceSnapshots: [{ id: "snapshot-1", url: "https://northwind.example/news", title: "Northwind public update", searchSnippet: "September update", contentExcerpt: "Northwind published its latest update.", searchProvider: "fake-search", crawlerProvider: "fake-crawler", searchRank: 1, retrievedAt: "2026-09-19T00:00:00Z" }], toolExecutions: [{ tool: "search_web", provider: "fake-search", status: "succeeded", durationMs: 1 }], followUpQuestion: null }
+      : question.includes("ceo")
+      ? { conversationId: "conversation-1", messageId: "message-ceo", companyId, profileVersion: 1, status: "Answered", answer: "The accepted profile identifies the CEO as Jane Doe.", citations: [{ origin: "Profile", sourceDocumentId: "source-1", fieldPath: "leadership[0]", title: "Northwind leadership", url: "https://northwind.example/leadership", retrievedAt: "2026-09-10T00:00:00Z" }], webEvidenceSnapshots: [], toolExecutions: [], followUpQuestion: null }
       : question.includes("research")
-        ? { conversationId: "conversation-1", messageId: "message-research", companyId, profileVersion: 1, status: "Guidance", answer: "Deep Research can investigate this across multiple sources. Open Investigations to continue.", citations: [], toolExecutions: [], followUpQuestion: null }
-        : { conversationId: "conversation-1", messageId: "message-hello", companyId, profileVersion: 1, status: "Conversational", answer: "Hello. Ask me about this company's accepted profile and stored evidence.", citations: [], toolExecutions: [], followUpQuestion: null };
+        ? { conversationId: "conversation-1", messageId: "message-research", companyId, profileVersion: 1, status: "Guidance", answer: "Deep Research can investigate this across multiple sources. Open Investigations to continue.", citations: [], webEvidenceSnapshots: [], toolExecutions: [], followUpQuestion: null }
+        : { conversationId: "conversation-1", messageId: "message-hello", companyId, profileVersion: 1, status: "Conversational", answer: "Hello. Ask me about this company's accepted profile and stored evidence.", citations: [], webEvidenceSnapshots: [], toolExecutions: [], followUpQuestion: null };
+    const conversation = { id: "conversation-1", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled, title: "Ask RAVEN", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z", messages };
+    if (pathname.endsWith("/messages/stream") && method === "POST") {
+      messages = [...messages,
+        { id: `user-${messages.length}`, role: "User", content: question, status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-19T00:00:00Z" },
+        { id: response.messageId, role: "Assistant", content: response.answer, status: "Completed", answerStatus: response.status, citations: response.citations, webEvidenceSnapshots: response.webEvidenceSnapshots, toolExecutions: response.toolExecutions, createdAt: "2026-09-19T00:00:00Z" },
+      ];
+      await route.fulfill({ contentType: "text/event-stream", body: `event: progress\ndata: {"stage":"Analyzing","message":"Analyzing the question","completed":null,"total":null}\n\nevent: completed\ndata: ${JSON.stringify(response)}\n\n` });
+      return;
+    }
+    if (pathname.endsWith("/capabilities") && method === "PATCH") {
+      webSearchEnabled = (request.postDataJSON() as { webSearchEnabled: boolean }).webSearchEnabled;
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ ...conversation, webSearchEnabled }) });
+      return;
+    }
     const body = pathname.endsWith("/chat/conversations") && route.request().method() === "POST"
-      ? { id: "conversation-1", companyId, profileVersionId: profile.id, profileVersion: 1, title: "Ask RAVEN", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z", messages: [] }
-      : pathname.includes("/chat/conversations/") && pathname.endsWith("/messages")
-        ? response
+      ? conversation
+      : pathname.endsWith("/chat/conversations/conversation-1")
+        ? { ...conversation, webSearchEnabled, messages }
         : pathname.endsWith(`/companies/${companyId}/profile`) ? profile
           : pathname.endsWith(`/companies/${companyId}/profile/versions`) ? [profile]
             : pathname.endsWith(`/companies/${companyId}`) ? company
@@ -63,11 +82,15 @@ test("Ask RAVEN conversation and truthful capability menu", async ({ page }) => 
   await page.getByRole("textbox", { name: /Ask about/ }).fill("hi");
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.getByText("Hello. Ask me about this company's accepted profile")).toBeVisible();
+  await expect(page).toHaveURL(/conversation=conversation-1/);
+  await expect(page.getByRole("textbox", { name: /Ask about/ })).toBeEnabled();
 
   await page.getByRole("textbox", { name: /Ask about/ }).fill("Who is the CEO?");
+  await expect(page.getByRole("button", { name: "Send question" })).toBeEnabled();
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.getByText("The accepted profile identifies the CEO as Jane Doe.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Northwind leadership" })).toBeVisible();
+  await page.getByRole("button", { name: "Nguồn" }).click();
+  await expect(page.getByRole("link", { name: /Northwind leadership/ })).toBeVisible();
 
   await page.getByRole("textbox", { name: /Ask about/ }).fill("Can you research this company more deeply?");
   await page.getByRole("button", { name: "Send question" }).click();
@@ -76,9 +99,23 @@ test("Ask RAVEN conversation and truthful capability menu", async ({ page }) => 
   await page.getByRole("button", { name: "Additional capabilities" }).click();
   const investigations = page.getByRole("link", { name: /Open Investigations/ });
   await expect(investigations).toBeVisible();
-  await expect(page.getByRole("button", { name: /Search the web/ })).toBeDisabled();
+  await page.getByRole("checkbox", { name: "Web search" }).click();
+  await expect(page.getByRole("checkbox", { name: "Web search" })).toBeChecked();
+  await expect(page.getByText("On for this conversation")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Additional capabilities" })).toHaveAttribute("aria-expanded", "false");
+
+  await page.getByRole("textbox", { name: /Ask about/ }).fill("What is the latest public update?");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByText(/latest public update was published/)).toBeVisible();
+  await page.getByRole("button", { name: "Nguồn" }).last().click();
+  await expect(page.getByText("Web source")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("Web permitted", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Additional capabilities" }).click();
+  await expect(page.getByRole("checkbox", { name: "Web search" })).toBeChecked();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Additional capabilities" }).click();
   await investigations.click();
   await expect(page).toHaveURL(new RegExp(`companies/${companyId}\\?tab=investigations`));

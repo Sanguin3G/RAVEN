@@ -6,6 +6,7 @@ const profile = { id: "profile-day8", companyId, researchRunId: "run-day8", gene
 
 async function installDay8Fixture(page: import("@playwright/test").Page) {
   let jobs: object[] = [];
+  let messages: object[] = [];
   await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const { pathname } = new URL(route.request().url());
     const method = route.request().method();
@@ -23,8 +24,17 @@ async function installDay8Fixture(page: import("@playwright/test").Page) {
     else if (pathname.endsWith("/external-research/brief")) body = { markdown: "# Research Summary\n\nNorthwind notes", evidenceGaps: [] };
     else if (pathname.endsWith("/external-research/import/preview")) body = { summary: "Imported research notes", claims: [{ field: "Markets", statement: "Operates in Vietnam", notes: null }], sourceLeads: [{ id: "lead-1", title: "Northwind", url: "https://northwind.example", publisher: "Northwind" }], uncertainties: [], suggestedFollowUps: [], rawMarkdown: "# Research Summary" };
     else if (pathname.endsWith("/external-research/import")) body = { id: "artifact-day8", title: "External research", question: "Markets", summary: "Imported research notes", result: "Imported research notes", sourceCount: 0, researchType: "Fast", createdAt: "2026-09-18T00:00:00Z" };
-    else if (pathname.endsWith("/chat/conversations") && method === "POST") body = { id: "conversation-day8", companyId, profileVersionId: profile.id, profileVersion: 1, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages: [] };
-    else if (pathname.endsWith("/messages") && method === "POST") body = { conversationId: "conversation-day8", messageId: "message-day8", companyId, profileVersion: 1, status: "Conversational", answer: "Normal Chat remains available.", citations: [], toolExecutions: [], followUpQuestion: null };
+    else if (pathname.endsWith("/chat/conversations") && method === "POST") body = { id: "conversation-day8", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled: false, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages };
+    else if (pathname.endsWith("/messages/stream") && method === "POST") {
+      const response = { conversationId: "conversation-day8", messageId: "message-day8", companyId, profileVersion: 1, status: "Conversational", answer: "Normal Chat remains available.", citations: [], webEvidenceSnapshots: [], toolExecutions: [], followUpQuestion: null };
+      messages = [
+        { id: "user-day8", role: "User", content: "Hello", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" },
+        { id: response.messageId, role: "Assistant", content: response.answer, status: "Completed", answerStatus: response.status, citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" },
+      ];
+      await route.fulfill({ contentType: "text/event-stream", body: `event: progress\ndata: {"stage":"Analyzing","message":"Analyzing the question"}\n\nevent: completed\ndata: ${JSON.stringify(response)}\n\n` });
+      return;
+    }
+    else if (pathname.endsWith("/chat/conversations/conversation-day8")) body = { id: "conversation-day8", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled: false, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages };
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
   });
 }
