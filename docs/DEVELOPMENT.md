@@ -51,6 +51,8 @@ DELETE /api/companies/{id}                 (requires `{ "confirm": true }`)
 POST /api/companies/merge/preview
 POST /api/companies/merge/confirm
 POST /api/companies/workspace-review
+POST /api/companies/workspace-review/acknowledge
+POST /api/companies/workspace-review/cleanup
 POST /api/companies/{id}/research                 (legacy discover + auto-acquire)
 GET  /api/companies/{id}/research-runs
 GET  /api/research-runs/{id}
@@ -68,6 +70,28 @@ GET  /api/deep-research-runs/{id}
 GET  /api/companies/{id}/deep-research-runs
 POST /api/companies/{id}/saved-research
 GET  /api/companies/{id}/saved-research
+```
+
+External Research Assist endpoints:
+
+```text
+POST /api/companies/{companyId}/external-research/brief
+POST /api/companies/{companyId}/external-research/import
+POST /api/companies/{companyId}/external-research/import/preview
+POST /api/companies/{companyId}/external-research/analyze
+GET  /api/companies/{companyId}/external-research/analyze/{jobId}
+```
+
+Managed AI Research endpoints:
+
+```text
+POST /api/companies/{companyId}/managed-research
+GET  /api/companies/{companyId}/managed-research/{jobId}
+GET  /api/companies/{companyId}/managed-research
+GET  /api/companies/{companyId}/research-context-attachments
+POST /api/companies/{companyId}/managed-research/{investigationId}/context-attachments
+DELETE /api/companies/{companyId}/managed-research/{investigationId}/context-attachments
+POST /api/companies/{companyId}/managed-research/{jobId}/cancel
 ```
 
 Profile endpoints:

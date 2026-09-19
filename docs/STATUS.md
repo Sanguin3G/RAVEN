@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-19
 
-Research workspace: **implemented on `feat/research-workspace`**. Investigations are durable research workspaces with shared Native/Deep/External origins, versioned derived organization, preserved raw material, claims, source leads, uncertainties, and follow-up gaps. External Research Assist is a focused provider-neutral copy/paste flow with durable asynchronous analysis, minimize/reopen behavior, AI-assisted and human review, unverified provenance, and Save to Investigation. Provider citations remain visible context; External Assist does not re-search or re-crawl them. One global research activity surface distinguishes Native, Deep, and External work and running versus ready-for-review state. Managed AI Research settings expose provider-neutral depth and map to Exa effort internally. Ready investigation material can enter the existing server-owned targeted profile-patch review without a second search/crawl; confirmation still creates a new immutable profile version. Deep ProfileImprovement results remain locked until a supported model-created profile exists, and only explicit user confirmation can create a profile. The branch does not create a parallel Chat grounding path.
+Research workspace: **implemented on `main`**. Investigations are durable research workspaces with shared Native/Deep/External origins, versioned derived organization, preserved raw material, claims, source leads, uncertainties, and follow-up gaps. External Research Assist is a focused provider-neutral copy/paste flow with durable asynchronous analysis, minimize/reopen behavior, AI-assisted and human review, unverified provenance, and Save to Investigation. Provider citations remain visible context; External Assist does not re-search or re-crawl them. One global research activity surface distinguishes Native, Deep, and External work and running versus ready-for-review state. Managed AI Research settings expose provider-neutral depth and map to Exa effort internally. Ready investigation material can enter the existing server-owned targeted profile-patch review without a second search/crawl; confirmation still creates a new immutable profile version. Deep ProfileImprovement results remain locked until a supported model-created profile exists, and only explicit user confirmation can create a profile. The implementation does not create a parallel Chat grounding path.
 
 Day 8 managed research and provider consolidation: **PASS — integrated into `main`**. Managed AI Research creates durable asynchronous Exa Agent jobs, polls through an isolated background worker, normalizes results with claims, cited source leads, and uncertainties, and surfaces completion without blocking Ask RAVEN. External Research Import builds copyable provider-neutral briefs and saves pasted Markdown as untrusted review material. Firecrawl is no longer an active route, settings choice, or provider-status surface; legacy priorities normalize safely. Company Overview provides an optional Google Maps Embed adapter and external-map fallback. Investigation attachments are durable/removable per conversation; actual LLM grounding remains Hung's Ask RAVEN context-extension seam. Current Exa Agent compatibility follows the official `/agent/runs` Bearer-authenticated contract; no live validation was possible without `EXA_API_KEY`.
 
@@ -12,12 +12,12 @@ Day-6 stabilization: **PASS — integrated into `main`**. Restored browser resea
 Day 6 identity preflight: **PASS — integrated into `main`** from `feat/day6-identity-resolution` on 2026-09-13. The controlled live Gemini Prep v2 asks the model only for identity topology (`SpecificEntity`, `CorporateFamilyShorthand`, `NameCollision`, or `Unknown`); deterministic RAVEN policy derives workflow state. The probe classified FPT, Viettel, and Vingroup as family shorthand, specific company inputs as specific entities, and the deliberately obscure input as unknown. The initial workflow resolves identity before duplicate matching, Company creation, and discovery; resolved identity snapshots persist with the run. Explicit identifiers and accepted targeted-enrichment identity bypass identity AI. Ambiguous and collision results use a parent-first/choice workflow, while guided refinement is a dismissible modal that requests useful additional hints without creating a second search form. Day 7 removed the old active candidate-driven family-search expansion while retaining historical read compatibility.
 Day 5.5 closure: **PASS** on `feat/day5-enrichment-workspace`. Execution telemetry, Resilient preset compatibility, run-scoped settings snapshots, workflow extraction, and Microsoft Edge smoke checks are complete. CSS ownership splitting remains intentionally deferred to avoid expanding the Day-6 preparation scope.
 Day-5 scope is preserved in the branch history: coverage-aware selection, corporate-family discovery, official-domain evidence planning, MaSoThue parsing, target-scoped profile patching, cancellable background research, workspace health, lifecycle operations, and corrected workspace IA are included in the Day-6 release.
-Current branch: **feat/research-workspace** (Research workspace continuation)
+Current branch: **main** (research-workspace continuation integrated)
 Current milestone: **M2 — Research Intelligence and Tracking**
 
 ## Current state
 
-The current branch contains the integrated research-workspace continuation. The product path is stable around user-confirmed profile creation, supported-profile readiness checks, and targeted recovery for known research runs.
+`main` contains the integrated research-workspace continuation. The product path is stable around user-confirmed profile creation, supported-profile readiness checks, and targeted recovery for known research runs.
 
 ## Current continuation notes
 
@@ -64,7 +64,7 @@ Latest local integration check:
 
 ```text
 dotnet build Raven.sln --no-restore   passed
-dotnet test Raven.sln --no-build --no-restore    314 passed
+dotnet test Raven.sln --no-build --no-restore    315 passed
 npx tsc --noEmit                                 passed
 npx vitest run (focused workspace files)         13 passed across 5 files
 npm run build                                    passed

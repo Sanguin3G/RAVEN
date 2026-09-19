@@ -51,11 +51,11 @@ Extend the bounded Deep Research backend with RAG-first retrieval, cancellation,
 
 Delivered: asynchronous Exa Agent jobs with durable polling/recovery state; normalized claims, cited source leads, and uncertainties under Investigations; completion notification polling; and a Deep Research composer mode that leaves Chat usable. External Research Import generates a focused copyable brief for any assistant and saves pasted Markdown as reviewable, untrusted research material. Firecrawl is no longer an active route, settings choice, or provider-status surface; old persisted priorities normalize safely. Company Overview has an optional Google Maps Embed adapter and a safe external-map fallback.
 
-Investigation attachments are explicit, durable, and removable per conversation. Hung's Ask RAVEN backend owns eventual LLM grounding of those attachments; no parallel Chat agent or prompt path was introduced on this branch.
+Investigation attachments are explicit, durable, and removable per conversation. Hung's Ask RAVEN backend owns eventual LLM grounding of those attachments; no parallel Chat agent or prompt path was introduced.
 
 ## Research workspace and external research assist
 
-**Status: implemented on `feat/research-workspace`; final verification is recorded in the branch handoff.**
+**Status: PASS; integrated into `main`.**
 
 The Company Investigations tab is research-first: one workspace presents Investigation objectives, origin/provenance, organized themes, claims, uncertainties, source leads, follow-up gaps, and expandable raw material. Organization is a versioned derived revision; raw research and earlier revisions remain intact. External Research Assist is a focused, provider-neutral copy/paste workflow with durable asynchronous analysis, target-specific briefs for all selected improvement areas, draft preservation, minimize/reopen behavior, explicit unverified labeling, review, save-to-Investigation, and selected-source handoff to normal RAVEN acquisition. Native, Deep, and External activities share one global research status surface with running/ready semantics. Targeted profile improvement offers distinct RAVEN Research, Deep Research, and External paths; Deep ProfileImprovement results can run before Profile v1 but remain locked and out of Workspace Review until a supported profile exists. Profile confirmation is always an explicit user action.
 
@@ -69,7 +69,7 @@ Known research runs are restored step-by-step. Missing initial state is discarde
 
 **Status: PASS; integrated into `main`.**
 
-Delivered scope is coverage-aware source-root selection, generic corporate-family discovery with review-only deterministic fallback, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds cancellable in-process background discovery, server-owned profile-candidate retrieval, and the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; this branch consumes no invented conversation contract.
+Delivered scope is coverage-aware source-root selection, generic corporate-family discovery with review-only deterministic fallback, bounded target-aware official-site expansion, MaSoThue `BusinessDirectory` parsing, target-scoped profile patching, and company archive/delete/merge/workspace-review services. The final product slice adds cancellable in-process background discovery, server-owned profile-candidate retrieval, and the corresponding profile-enrichment, lifecycle, Investigations, Monitoring, and Ask RAVEN dock frontend workflows. Ask RAVEN backend ownership remains with Hung; the implementation consumes no invented conversation contract.
 
 ## Day 6 — Pre-search identity resolution
 

@@ -1,4 +1,4 @@
-# RAVEN Day-7 customer / mentor demonstration
+# RAVEN customer / mentor demonstration
 
 ## Purpose
 

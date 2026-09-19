@@ -62,7 +62,7 @@ SQLite persistence     Profile versions
 Research activity      Human review and confirmation
 ```
 
-### P1 — delivered in Days 4–7
+### P1 — delivered in Days 4–8
 
 ```text
 Identity preflight     Source relevance
