@@ -50,7 +50,7 @@ describe("ExternalResearchAssistModal", () => {
   });
 
   it("copies a focused brief, analyzes asynchronously, reviews, and saves unverified material without re-crawling links", async () => {
-    render(<ExternalResearchAssistModal company={company} target="Leadership" open onClose={vi.fn()} />);
+    render(<ExternalResearchAssistModal company={company} targets={["Leadership"]} open onClose={vi.fn()} />);
 
     expect(await screen.findByRole("heading", { name: "External AI Assist — Leadership" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByDisplayValue(/Research Northwind leadership/)).toBeInTheDocument());
@@ -73,12 +73,22 @@ describe("ExternalResearchAssistModal", () => {
 
   it("keeps the activity strip entry when the user closes the modal so durable work can be reopened", async () => {
     const onClose = vi.fn();
-    render(<><ExternalResearchAssistModal company={company} target="Leadership" open onClose={onClose} /><ActivityCount /></>);
+    render(<><ExternalResearchAssistModal company={company} targets={["Leadership"]} open onClose={onClose} /><ActivityCount /></>);
 
     await waitFor(() => expect(screen.getByTestId("research-activity-count")).toHaveTextContent("1"));
     fireEvent.click(screen.getByRole("button", { name: "Close External AI Assist" }));
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(screen.getByTestId("research-activity-count")).toHaveTextContent("1");
+  });
+
+  it("generates a new brief from every selected improvement area", async () => {
+    const targets = ["TaxRegistration", "Industry", "Markets", "Leadership"] as const;
+    render(<ExternalResearchAssistModal company={company} targets={[...targets]} open onClose={vi.fn()} />);
+
+    await waitFor(() => expect(generateExternalResearchBrief).toHaveBeenCalledWith("company-1", {
+      researchObjective: "Current Tax registration, Industry, Markets, Leadership",
+      requestedTargets: [...targets],
+    }));
   });
 });

@@ -19,7 +19,7 @@ type AssistStage = "brief" | "paste" | "review";
 export interface ExternalResearchAssistModalProps {
   company: DossierCompany;
   profile?: DossierProfile | null;
-  target?: ResearchTarget | null;
+  targets?: ResearchTarget[] | null;
   objective?: string;
   open: boolean;
   onClose: () => void;
@@ -38,6 +38,18 @@ const targetLabels: Record<ResearchTarget, string> = {
   Locations: "Locations",
 };
 
+const targetOrder: ResearchTarget[] = [
+  "LegalIdentity",
+  "TaxRegistration",
+  "FoundedHistory",
+  "Industry",
+  "EmployeeScale",
+  "ProductsServices",
+  "Markets",
+  "Leadership",
+  "Locations",
+];
+
 interface StoredDraft {
   stage: AssistStage;
   brief: ExternalResearchBrief | null;
@@ -48,12 +60,16 @@ interface StoredDraft {
   analysisJobId?: string | null;
 }
 
-function activityId(companyId: string, target?: ResearchTarget | null) {
-  return `external-research-${companyId}-${target ?? "general"}`;
+function targetSignature(targets: ResearchTarget[]) {
+  return targets.length > 0 ? targets.join("+") : "general";
 }
 
-function draftKey(companyId: string, target?: ResearchTarget | null) {
-  return `raven-external-research-${companyId}-${target ?? "general"}`;
+function activityId(companyId: string, targets: ResearchTarget[]) {
+  return `external-research-${companyId}-${targetSignature(targets)}`;
+}
+
+function draftKey(companyId: string, targets: ResearchTarget[], profileKey: string) {
+  return `raven-external-research-v2-${companyId}-${targetSignature(targets)}-${profileKey}`;
 }
 
 function readDraft(key: string): StoredDraft | null {
@@ -83,7 +99,7 @@ function closeDialog(dialog: HTMLDialogElement | null) {
   else dialog.removeAttribute("open");
 }
 
-export function ExternalResearchAssistModal({ company, profile, target, objective: requestedObjective, open, onClose, onSaved }: ExternalResearchAssistModalProps) {
+export function ExternalResearchAssistModal({ company, profile, targets: requestedTargets, objective: requestedObjective, open, onClose, onSaved }: ExternalResearchAssistModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const initializedKeyRef = useRef<string | null>(null);
   const dismissedActivityRef = useRef(false);
@@ -100,10 +116,13 @@ export function ExternalResearchAssistModal({ company, profile, target, objectiv
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const objective = (requestedObjective?.trim() || (target ? `Current ${targetLabels[target].toLowerCase()}` : "A focused company research question"));
-  const key = draftKey(company.id, target);
-  const id = activityId(company.id, target);
-  const displayTarget = target ? targetLabels[target] : null;
+  const targets = useMemo(() => [...new Set(requestedTargets ?? [])].sort((left, right) => targetOrder.indexOf(left) - targetOrder.indexOf(right)), [requestedTargets]);
+  const targetKey = targetSignature(targets);
+  const profileKey = profile?.version ? `v${profile.version}` : profile?.id ? `id-${profile.id}` : "none";
+  const objective = (requestedObjective?.trim() || (targets.length > 0 ? `Current ${targets.map((target) => targetLabels[target]).join(", ")}` : "A focused company research question"));
+  const key = draftKey(company.id, targets, profileKey);
+  const id = activityId(company.id, targets);
+  const displayTarget = targets.length > 0 ? targets.map((target) => targetLabels[target]).join(", ") : null;
 
   const persist = () => writeDraft(key, { stage, brief, prompt, question, response, preview, analysisJobId });
 
@@ -144,7 +163,7 @@ export function ExternalResearchAssistModal({ company, profile, target, objectiv
     setMessage(null);
     setBusy(true);
     upsertResearchActivity({ id, origin: "External", companyId: company.id, companyName: company.displayName, objective, detail: "Preparing a focused research brief", status: "running", href: `/companies/${encodeURIComponent(company.id)}?tab=investigations`, onOpen: () => setMinimized(false), updatedAt: new Date().toISOString() });
-    void generateExternalResearchBrief(company.id, { researchObjective: objective, requestedTargets: target ? [target] : undefined })
+    void generateExternalResearchBrief(company.id, { researchObjective: objective, requestedTargets: targets.length > 0 ? targets : undefined })
       .then((result) => {
         setBrief(result);
         setPrompt(result.markdown);
@@ -156,7 +175,7 @@ export function ExternalResearchAssistModal({ company, profile, target, objectiv
         if (!dismissedActivityRef.current) updateResearchActivity(id, { detail: "Brief could not be prepared", status: "failed" });
       })
       .finally(() => setBusy(false));
-  }, [company.displayName, company.id, key, objective, open, target]);
+  }, [company.displayName, company.id, key, objective, open, targetKey, targets]);
 
   useEffect(() => {
     const dialog = dialogRef.current;

@@ -309,6 +309,9 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
         deleted += await dbContext.CompanyMonitoringSettings
             .Where(setting => setting.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);
+        deleted += await dbContext.WorkspaceResearchReviewStates
+            .Where(state => state.CompanyId == companyId)
+            .ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ResearchRuns
             .Where(run => run.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);

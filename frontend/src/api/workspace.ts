@@ -80,6 +80,20 @@ export interface WorkspaceResearchReviewItem {
   updatedAt: string;
   detail?: string | null;
   investigationId?: string | null;
+  reviewKey?: string | null;
+  occurrenceCount?: number;
+  groupingNote?: string | null;
+}
+
+export interface WorkspaceResearchCleanupCandidate {
+  reviewKey: string;
+  companyId: string;
+  companyName: string;
+  method: string;
+  title: string;
+  reason: string;
+  occurrenceCount: number;
+  acknowledgedThrough: string;
 }
 
 export interface WorkspaceReviewResponse {
@@ -90,6 +104,12 @@ export interface WorkspaceReviewResponse {
   aiWarning?: string | null;
   researchReady?: WorkspaceResearchReviewItem[];
   researchIssues?: WorkspaceResearchReviewItem[];
+  researchCleanupCandidates?: WorkspaceResearchCleanupCandidate[];
+}
+
+export function buildWorkspaceResearchReviewKey(method: string, companyId: string, topic: string) {
+  const normalizedTopic = topic.trim().split(/\s+/).join(" ").toLowerCase();
+  return `${method}:${companyId}:${normalizedTopic.slice(0, 480)}`;
 }
 
 export interface CompanyMergePreview {
@@ -126,6 +146,22 @@ export function getWorkspaceReview(includeArchived = false) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ includeArchived, includeAiSuggestions: true }),
+  });
+}
+
+export function acknowledgeWorkspaceResearch(items: Array<{ reviewKey: string; acknowledgedThrough: string }>) {
+  return request<{ acknowledgedCount: number; hiddenOccurrenceCount: number; skippedCount: number }>("/api/companies/workspace-review/acknowledge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+}
+
+export function cleanupWorkspaceResearch(includeArchived = false) {
+  return request<{ acknowledgedCount: number; hiddenOccurrenceCount: number; skippedCount: number }>("/api/companies/workspace-review/cleanup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ includeArchived }),
   });
 }
 

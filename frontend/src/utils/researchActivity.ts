@@ -67,6 +67,20 @@ export function dismissResearchActivity(id: string) {
   notify();
 }
 
+export function dismissResearchActivities(predicate: (activity: ResearchActivity) => boolean) {
+  const dismissed = activities.filter(predicate);
+  dismissed.forEach((activity) => dismissedActivityIds.add(activity.id));
+  activities = activities.filter((activity) => !predicate(activity));
+  if (dismissed.length > 0) {
+    try {
+      window.localStorage.setItem(dismissedActivityKey, JSON.stringify([...dismissedActivityIds].slice(-200)));
+    } catch {
+      // A blocked storage context should not stop workspace review cleanup.
+    }
+    notify();
+  }
+}
+
 export function useResearchActivities() {
   return useSyncExternalStore(
     (listener) => {

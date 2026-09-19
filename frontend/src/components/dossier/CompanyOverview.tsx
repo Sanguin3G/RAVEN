@@ -20,7 +20,7 @@ export interface CompanyOverviewProps {
   initialManagedResearchInvestigationId?: string | null;
   openEnrichment?: boolean;
   onProfileConfirmed?: (profile: CompanyProfileVersion) => void;
-  onOpenExternalResearch?: (target: ResearchTarget) => void;
+  onOpenExternalResearch?: (targets: ResearchTarget[]) => void;
   profileImprovedMaterialIds?: ReadonlySet<string>;
 }
 
@@ -144,7 +144,8 @@ export function CompanyOverview({ company, profile, coverage, profileImprovedMat
     }
     if (autoOpenRef.current) return;
     autoOpenRef.current = true;
-    setEnrichmentTargets(initialEnrichmentTargets?.length ? initialEnrichmentTargets : gapTargetsFallback(profile, coverage));
+    const requestedTargets = initialEnrichmentTargets?.length ? initialEnrichmentTargets : gapTargetsFallback(profile, coverage);
+    setEnrichmentTargets(requestedTargets);
     setEnrichmentArtifactId(initialEnrichmentArtifactId ?? null);
     setEnrichmentManagedInvestigationId(initialManagedResearchInvestigationId ?? null);
     setEnrichmentOpen(true);
@@ -159,7 +160,7 @@ export function CompanyOverview({ company, profile, coverage, profileImprovedMat
   }, [coverage]);
 
   function beginEnrichment(targets: ResearchTarget[]) {
-    setEnrichmentTargets(targets.length ? targets : ["LegalIdentity", "Markets", "Leadership"]);
+    setEnrichmentTargets(targets);
     setEnrichmentArtifactId(null);
     setEnrichmentManagedInvestigationId(null);
     setEnrichmentOpen(true);
@@ -245,10 +246,10 @@ export function CompanyOverview({ company, profile, coverage, profileImprovedMat
           </> : investigationSummary.count > 0 ? <>
             <p className={styles.contextNote}><strong>{investigationSummary.targets.slice(0, 2).map((target) => targetLabels[target]).join(" · ")}</strong><br />{investigationSummary.count} investigation{investigationSummary.count === 1 ? "" : "s"} with new profile material.</p>
             <div className={styles.coverageActions}><Link className="button button--secondary" to={"/companies/" + encodeURIComponent(company.id) + "?tab=investigations"}>Review investigations</Link></div>
-          </> : <>
+          </> : gapTargets.length > 0 ? <>
             <p className={styles.contextNote}>{investigationSummary.appliedCount > 0 ? investigationSummary.appliedCount + " investigation" + (investigationSummary.appliedCount === 1 ? "" : "s") + " already applied. " : ""}Targeted research adds evidence to selected gaps and preserves unrelated accepted fields.</p>
             <div className={styles.coverageActions}><button className="button button--secondary" type="button" onClick={() => beginEnrichment(gapTargets)}>Improve this profile</button></div>
-          </>}
+          </> : <p className={styles.contextNote}>All tracked profile areas currently have supported coverage. Refresh research if the company information has changed.</p>}
         </section>
         <section className={styles.contextCard} aria-labelledby="dossier-identifiers-heading">
           <h2 id="dossier-identifiers-heading">Identifiers</h2>
@@ -300,5 +301,5 @@ function gapTargetsFallback(profile: DossierProfile | null | undefined, coverage
     const level = coverage?.response?.items?.find((item) => item.target === target)?.level;
     return level === "Missing" || level === "Weak" || (level === undefined && !hasValue[target]);
   });
-  return gaps.length ? gaps : ["LegalIdentity", "Markets", "Leadership"];
+  return gaps;
 }

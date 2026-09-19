@@ -53,7 +53,7 @@ export interface TargetedEnrichmentPanelProps {
   open: boolean;
   onClose: () => void;
   onConfirmed?: (profile: CompanyProfileVersion) => void;
-  onOpenExternalResearch?: (target: ResearchTarget) => void;
+  onOpenExternalResearch?: (targets: ResearchTarget[]) => void;
 }
 
 function toCandidateSource(candidate: ResearchCandidate): CandidateSource {
@@ -404,7 +404,7 @@ export function TargetedEnrichmentPanel({ company, profile, initialTargets, init
               <div><p className={styles.eyebrow}>RESEARCH METHOD</p><h3 id="research-method-heading">Improve {targets.length === 1 ? targetLabels[targets[0]] : "selected areas"}</h3><p className={styles.contextNote}>RAVEN Research is the fast integrated evidence workflow. Deep Research runs asynchronously and becomes reviewable for profile improvement after an accepted Profile v1 exists. External AI Assist brings in outside material for review.</p></div>
               <article className={styles.methodChoiceRecommended}><div><strong>Research with RAVEN</strong><span>Search and verify sources using RAVEN's normal evidence workflow.</span></div><button className="button" type="button" onClick={() => void start()} disabled={loading || targets.length === 0 || !hasUsableAcceptedProfile(profile)}>Find selected information</button></article>
               {!hasUsableAcceptedProfile(profile) ? <p className={styles.contextNote} role="status">Create or repair the initial profile before applying targeted evidence. Deep Research may still run in the background, but its completed result stays locked until a supported profile exists.</p> : null}
-              <div className={styles.methodChoiceAlternatives}><button className="button button--secondary" type="button" onClick={() => void launchDeepResearch()} disabled={loading || targets.length === 0}><Sparkle size={16} weight="fill" /> Deep Research <small>Broader background investigation</small></button><button className="button button--secondary" type="button" onClick={() => { const selected = targets[0]; if (selected) { onClose(); onOpenExternalResearch?.(selected); } }} disabled={loading || targets.length === 0}><ArrowSquareOut size={16} weight="bold" /> External AI Assist <small>Generate a focused brief for another assistant</small></button></div>
+              <div className={styles.methodChoiceAlternatives}><button className="button button--secondary" type="button" onClick={() => void launchDeepResearch()} disabled={loading || targets.length === 0}><Sparkle size={16} weight="fill" /> Deep Research <small>Broader background investigation</small></button><button className="button button--secondary" type="button" onClick={() => { if (targets.length > 0) { onClose(); onOpenExternalResearch?.(targets); } }} disabled={loading || targets.length === 0}><ArrowSquareOut size={16} weight="bold" /> External AI Assist <small>Generate a brief for all selected areas</small></button></div>
             </div>
           <div className="form-actions"><button className="button button--secondary" type="button" onClick={close}>Cancel</button></div>
         </section>}

@@ -11,6 +11,7 @@ Day 8 adds three complementary research strategies while preserving RAVEN's evid
 - Native Research owns search, acquisition, evidence, and profile verification.
 - Managed AI Research launches durable asynchronous Exa Agent investigations.
 - External Research Import creates a focused copyable brief for any external assistant and imports pasted Markdown as untrusted research material.
+- Workspace Review groups repeated research outcomes into a durable queue with bulk acknowledgement and safe smart cleanup; cleanup never deletes research history.
 
 Deep Research does not block initial profile creation. It may finish before Profile v1 exists, but a completed ProfileImprovement investigation stays muted, locked, and out of Workspace Review until a supported model-created profile exists. Native RAVEN Research remains the fast integrated path; External AI Assist remains unverified review material. Profile creation is user-confirmed only: an LLM, worker, failed run, or navigation restore cannot create a profile on its own. Completed Investigations can be explicitly attached to and removed from a conversation. Actual LLM grounding of attached Investigations remains Hung's Chat-backend integration seam; this branch does not create a parallel Chat agent.
 

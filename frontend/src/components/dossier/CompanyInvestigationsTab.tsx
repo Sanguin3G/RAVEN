@@ -4,13 +4,13 @@ import { Sparkle } from "@phosphor-icons/react";
 import { getApiErrorMessage } from "../../api/client";
 import { getSavedInvestigations, getInvestigationOrganization, organizeInvestigation, type ResearchClaim, type ResearchSourceLead, type SavedResearchArtifact } from "../../api/investigations";
 import { getManagedResearchJobs, type ManagedResearchJob } from "../../api/managedResearch";
+import { acknowledgeWorkspaceResearch, buildWorkspaceResearchReviewKey } from "../../api/workspace";
 import type { ResearchTarget } from "../../api/coverage";
 import type { DossierInvestigations, DossierProfile } from "./dossierTypes";
 import { InvestigationWorkspace } from "./InvestigationWorkspace";
 import type { InvestigationCategory, WorkspaceInvestigation } from "./investigationTypes";
 import { artifactToWorkspace, classifyInvestigation } from "./investigationTypes";
 import { dismissResearchActivity, hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
-import { acknowledgeResearchReview } from "../../utils/researchReviewState";
 import { hasUsableAcceptedProfile } from "../../utils/profileReadiness";
 import styles from "./dossier.module.css";
 
@@ -145,10 +145,9 @@ export function CompanyInvestigationsTab({ companyId, companyName = "Company", p
     const selectedManagedJob = selected && managedJobs.find((job) => (job.investigationId ?? job.id) === selected.id);
     if (selectedManagedJob?.status === "Completed") {
       dismissResearchActivity(`deep-${selectedManagedJob.id}`);
-      if (requestedInvestigationId && selected?.id === requestedInvestigationId) acknowledgeResearchReview(`Deep Research:${selectedManagedJob.id}`);
-    }
-    if (requestedInvestigationId && selected?.id === requestedInvestigationId && selected.status === "Ready for review") {
-      acknowledgeResearchReview(`${selected.origin}:${selected.id}`);
+      if (requestedInvestigationId && selected?.id === requestedInvestigationId) {
+        void acknowledgeWorkspaceResearch([{ reviewKey: buildWorkspaceResearchReviewKey("Deep Research", companyId, selectedManagedJob.objective), acknowledgedThrough: selectedManagedJob.completedAt || selectedManagedJob.createdAt }]);
+      }
     }
   }, [managedJobs, requestedInvestigationId, selected]);
 

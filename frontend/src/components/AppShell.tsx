@@ -31,6 +31,7 @@ import { useTheme, type ThemePreference } from "../app/theme";
 import { cancelResearchRun, getActiveResearchRuns, getResearchRun } from "../api/research";
 import { getManagedResearchJobs } from "../api/managedResearch";
 import { getExternalResearchAnalysis } from "../api/externalResearch";
+import { acknowledgeWorkspaceResearch, buildWorkspaceResearchReviewKey } from "../api/workspace";
 import { getCurrentCompanyProfile } from "../api/profiles";
 import type { ActiveResearchRun } from "../types/research";
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused, type CurrentResearchSession } from "../utils/researchSession";
@@ -504,7 +505,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               const accessibleName = `${originLabel} · ${activity.companyName} · ${activity.status === "ready" ? "Review result" : activity.detail}`;
               const openActivity = () => {
                 if (locked) return;
-                if (activity.status === "ready") dismissResearchActivity(activity.id);
+                if (activity.status === "ready") {
+                  dismissResearchActivity(activity.id);
+                  if (activity.origin === "Deep" || activity.origin === "External") {
+                    void acknowledgeWorkspaceResearch([{
+                      reviewKey: buildWorkspaceResearchReviewKey(activity.origin === "Deep" ? "Deep Research" : "External AI Assist", activity.companyId, activity.objective),
+                      acknowledgedThrough: activity.updatedAt,
+                    }]);
+                  }
+                }
                 const destinationPath = activity.href?.split("?")[0];
                 if (activity.status === "ready" && activity.href) {
                   navigate(activity.href);

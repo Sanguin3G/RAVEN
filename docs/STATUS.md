@@ -25,6 +25,7 @@ The current branch contains the integrated research-workspace continuation. The 
 - Profile confirmation is the only profile-creation boundary. A failed, cancelled, or still-running RAVEN run cannot create a version; generated candidates require model provenance, supported target coverage, and source-backed evidence before confirmation.
 - Identity-only/name-only profile rows are preserved as incomplete artifacts. They do not unlock Deep review or targeted Profile Improvement, and the Overview keeps the qualitative gap count visible so near-total missing coverage is diagnosable.
 - Navigation restore distinguishes stale missing state from a failed related request: known runs stay preserved with a targeted retry message instead of becoming the generic API-unavailable failure.
+- Workspace Review now stores durable acknowledgement watermarks in SQLite, groups repeated terminal research by company/method/topic, keeps reviewed results hidden until newer activity appears, and offers bulk acknowledgement plus confirmation-protected smart cleanup without deleting research.
 
 The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assisted identity resolution and source relevance, persistent research settings, refresh/history/change tracking, provider routing, monitoring, bounded Deep Research, and saved investigation persistence. Day 5 adds coverage-driven follow-up research, generic corporate-family planning with a cautious deterministic fallback, deliberate MaSoThue directory evidence, target-scoped profile patches, cancellable in-process background discovery, lifecycle safety, and the clarified Company workspace.
 
@@ -55,6 +56,7 @@ The Day-3 Company Intelligence vertical slice remains intact. Day 4 adds AI-assi
 - Company health, deterministic duplicate review, archive/restore, permanent-delete confirmation, and transactional merge preview/confirmation.
 - Company workspace tabs are Overview, Sources, Investigations, Changes, and Monitoring. Ask RAVEN is a responsive profile-grounded Chat dock using Hung's integrated backend contract.
 - Managed AI Research, External Research Assist, durable Investigation organization revisions, durable analysis jobs, one shared research activity surface, completion notification polling, explicit conversation attachments, and optional map adapter/fallback.
+- Target-specific External AI Assist briefs for all selected improvement areas, plus compact durable research review grouping and acknowledgement endpoints.
 
 ## Verified checks
 
@@ -62,9 +64,10 @@ Latest local integration check:
 
 ```text
 dotnet build Raven.sln --no-restore   passed
-dotnet test Raven.sln --no-build --no-restore    312 passed
-npm run test -- --run                            68 passed across 16 files
-npm run build                         passed
+dotnet test Raven.sln --no-build --no-restore    314 passed
+npx tsc --noEmit                                 passed
+npx vitest run (focused workspace files)         13 passed across 5 files
+npm run build                                    passed
 ```
 
 Microsoft Edge/Playwright runs through the explicit `msedge` project/channel verified the Day 7 flows, Day 8 managed-research continuation, Day 9 Investigation workspace, External Research Assist copy/paste/analyze/minimize/reopen/review/save/verify flow, and 390×844 mobile workspace/modal screenshots. The API smoke test applied all migrations, including the organization, settings, and analysis-job migrations, to a clean temporary SQLite database and returned 200 for `/health`, OpenAPI, and managed-research settings. No paid provider call was made by the deterministic suite.

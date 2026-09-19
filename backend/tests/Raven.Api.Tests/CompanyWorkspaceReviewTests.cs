@@ -1,7 +1,10 @@
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Companies.Workspace;
+using Raven.Api.Features.ManagedResearch;
 using Raven.Api.Features.Profiles;
+using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Research.ExternalImport;
 
 namespace Raven.Api.Tests;
 
@@ -194,6 +197,124 @@ public sealed class CompanyWorkspaceReviewTests
         Assert.Equal(company.Company.Id, alias.CompanyId);
         Assert.True(result.AiUsed);
         Assert.Empty(result.DuplicateGroups);
+    }
+
+    [Fact]
+    public void Research_queue_groups_repeated_results_and_hides_superseded_issues()
+    {
+        var company = new Company { Name = "Queue Company" };
+        var failed = new ResearchRun
+        {
+            CompanyId = company.Id,
+            Status = ResearchRunStatus.Failed,
+            StartedAt = AsOf,
+            CompletedAt = AsOf.AddMinutes(1),
+            RequestedSearchProvider = "fixture",
+            RequestedCrawlerProvider = "fixture",
+            Error = "temporary provider failure"
+        };
+        var completed = new ResearchRun
+        {
+            CompanyId = company.Id,
+            Status = ResearchRunStatus.Completed,
+            StartedAt = AsOf.AddMinutes(2),
+            CompletedAt = AsOf.AddMinutes(3),
+            RequestedSearchProvider = "fixture",
+            RequestedCrawlerProvider = "fixture"
+        };
+
+        var queue = WorkspaceResearchReviewQueue.Build(
+            [failed, completed],
+            [],
+            [],
+            new Dictionary<Guid, string> { [company.Id] = company.Name },
+            new Dictionary<Guid, CompanyProfileVersion?> { [company.Id] = null },
+            []);
+
+        var ready = Assert.Single(queue.Ready);
+        Assert.Equal(completed.Id, ready.ItemId);
+        Assert.Equal(2, ready.OccurrenceCount);
+        Assert.Empty(queue.Issues);
+        Assert.Empty(queue.CleanupCandidates);
+    }
+
+    [Fact]
+    public void Research_queue_respects_durable_acknowledgement_and_keeps_deep_profile_improvement_locked()
+    {
+        var company = new Company { Name = "Acknowledged Company" };
+        var completed = new ResearchRun
+        {
+            CompanyId = company.Id,
+            Status = ResearchRunStatus.Completed,
+            StartedAt = AsOf,
+            CompletedAt = AsOf.AddMinutes(1),
+            RequestedSearchProvider = "fixture",
+            RequestedCrawlerProvider = "fixture"
+        };
+        var deep = new ManagedResearchJob
+        {
+            CompanyId = company.Id,
+            Objective = "Improve leadership",
+            ProviderQuery = "Improve leadership",
+            Purpose = ManagedResearchPurpose.ProfileImprovement,
+            Status = ManagedResearchJobStatus.Completed,
+            CompletedAt = AsOf.AddMinutes(2)
+        };
+
+        var reviewKey = WorkspaceResearchReviewQueue.BuildReviewKey(company.Id, "RAVEN Research", "initial");
+        var queue = WorkspaceResearchReviewQueue.Build(
+            [completed],
+            [deep],
+            [],
+            new Dictionary<Guid, string> { [company.Id] = company.Name },
+            new Dictionary<Guid, CompanyProfileVersion?> { [company.Id] = null },
+            [new WorkspaceResearchReviewState
+            {
+                ReviewKey = reviewKey,
+                CompanyId = company.Id,
+                Method = "RAVEN Research",
+                TopicKey = "initial",
+                AcknowledgedThrough = completed.CompletedAt!.Value
+            }]);
+
+        Assert.Empty(queue.Ready);
+        Assert.Empty(queue.Issues);
+    }
+
+    [Fact]
+    public void Failed_run_is_not_auto_reviewed_by_a_leftover_profile_row()
+    {
+        var company = new Company { Name = "Failed profile company" };
+        var failed = new ResearchRun
+        {
+            CompanyId = company.Id,
+            Status = ResearchRunStatus.Failed,
+            StartedAt = AsOf,
+            CompletedAt = AsOf.AddMinutes(1),
+            RequestedSearchProvider = "fixture",
+            RequestedCrawlerProvider = "fixture",
+            Error = "provider failure"
+        };
+        var leftoverProfile = new CompanyProfileVersion
+        {
+            CompanyId = company.Id,
+            ResearchRunId = failed.Id,
+            AiProvider = "gemini",
+            AiModel = "profile-model",
+            PromptTemplateVersion = "company-profile-v1"
+        };
+
+        var queue = WorkspaceResearchReviewQueue.Build(
+            [failed],
+            [],
+            [],
+            new Dictionary<Guid, string> { [company.Id] = company.Name },
+            new Dictionary<Guid, CompanyProfileVersion?> { [company.Id] = leftoverProfile },
+            []);
+
+        var issue = Assert.Single(queue.Issues);
+        Assert.Equal(failed.Id, issue.ItemId);
+        Assert.Equal("Issue", issue.State);
     }
 
     private static CompanyWorkspaceSnapshot Snapshot(

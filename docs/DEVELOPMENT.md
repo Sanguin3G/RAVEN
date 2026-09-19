@@ -194,6 +194,8 @@ Managed AI Research uses an asynchronous Exa Agent run and a durable local job r
 
 Only the explicit profile-confirmation action creates a Company Profile version. Deep Research, normal workers, profile generation, navigation restore, and failed/in-progress run recovery never auto-confirm a candidate. A completed ProfileImprovement investigation without a usable Profile v1 is visible as preserved but locked material, is not clickable from the global ready card, and is excluded from Workspace Review.
 
+Workspace Review acknowledgement is persisted in SQLite through `WorkspaceResearchReviewState`. The queue groups terminal Native, Deep, and External results by company, method, and normalized topic; acknowledgement is timestamped so newer results reappear. The bulk and smart-cleanup actions only clear review visibility and never delete research history, investigations, sources, or evidence.
+
 ## Git workflow
 
 Use `main` plus short-lived feature branches and small pull requests. Coordinate before editing shared contracts, Program.cs, frontend routing/bootstrap, Docker Compose, migrations, or STATUS.md. Do not merge a feature branch until its relevant tests and integration checks are green.

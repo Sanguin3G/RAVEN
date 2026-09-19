@@ -10,17 +10,11 @@ function readAcknowledgedIds() {
   }
 }
 
-export function isResearchReviewAcknowledged(id: string) {
-  return readAcknowledgedIds().has(id);
+export function getLegacyAcknowledgedResearchReviewIds() {
+  return [...readAcknowledgedIds()];
 }
 
-export function acknowledgeResearchReview(id: string) {
+export function clearLegacyAcknowledgedResearchReviewIds() {
   if (typeof window === "undefined") return;
-  const ids = readAcknowledgedIds();
-  ids.add(id);
-  try {
-    window.localStorage.setItem(acknowledgedResearchKey, JSON.stringify([...ids].slice(-200)));
-  } catch {
-    // A blocked storage context should not prevent opening the research result.
-  }
+  try { window.localStorage.removeItem(acknowledgedResearchKey); } catch { /* best effort */ }
 }

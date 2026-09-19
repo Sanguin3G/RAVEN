@@ -36,9 +36,9 @@ RAVEN currently supports:
 - topology-only Gemini identity assistance with deterministic workflow policy, explicit-identifier fast paths, clarification, and source relevance with deterministic fallback.
 - persistent research settings, manual refresh, profile history, deterministic changes, and review-only monitoring.
 - native Brave/Exa Search and Crawl4AI/Exa Contents routing; managed asynchronous Exa Agent research; and saved Investigation contracts.
-- provider-neutral External Research Import: RAVEN creates a copyable focused brief for any assistant and imports pasted Markdown as untrusted research material.
+- provider-neutral External Research Import: RAVEN creates a target-specific copyable brief for any assistant and imports pasted Markdown as untrusted research material.
 - explicit, removable Investigation attachments per Ask RAVEN conversation. Attached material remains separate from accepted profile truth; Hung's Chat backend owns eventual LLM grounding.
-- coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and read-only workspace review recommendations.
+- coverage-aware company research, target-scoped evidence enrichment, protected profile patch confirmation, explicit archive/delete/merge lifecycle operations, and a durable compact Workspace Review queue with grouped results, acknowledgement, and safe smart cleanup that never deletes research.
 - cancellable background research runs, active-run visibility, server-owned profile-candidate retrieval, parent-first corporate-family choices, and a guided clarification path for weak or unknown identities.
 - persistent profile-grounded Ask RAVEN conversations with stored citations and bounded source excerpts; greetings and product guidance remain conversational while company facts remain evidence-gated.
 - bounded, best-effort execution telemetry batch-persisted outside the provider-call critical path; durable Deep Research activity remains separate.

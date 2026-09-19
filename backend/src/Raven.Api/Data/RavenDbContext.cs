@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Features.Companies;
+using Raven.Api.Features.Companies.Workspace;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Events;
@@ -45,6 +46,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ManagedResearchInvestigation> ManagedResearchInvestigations => Set<ManagedResearchInvestigation>();
     public DbSet<ResearchContextAttachment> ResearchContextAttachments => Set<ResearchContextAttachment>();
     public DbSet<ExternalResearchAnalysisJob> ExternalResearchAnalysisJobs => Set<ExternalResearchAnalysisJob>();
+    public DbSet<WorkspaceResearchReviewState> WorkspaceResearchReviewStates => Set<WorkspaceResearchReviewState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -101,6 +103,17 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.HasIndex(item => new { item.CompanyId, item.CreatedAt });
             entity.HasIndex(item => new { item.Status, item.CreatedAt });
             entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<WorkspaceResearchReviewState>(entity =>
+        {
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.ReviewKey).HasMaxLength(600).IsRequired();
+            entity.Property(item => item.Method).HasMaxLength(64).IsRequired();
+            entity.Property(item => item.TopicKey).HasMaxLength(500).IsRequired();
+            entity.HasIndex(item => item.ReviewKey).IsUnique();
+            entity.HasIndex(item => new { item.CompanyId, item.AcknowledgedThrough });
+            entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ResearchRun>(entity =>

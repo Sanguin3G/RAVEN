@@ -69,4 +69,13 @@ describe("TargetedEnrichmentPanel", () => {
     expect(fetchMock.mock.calls.some(([, requestInit]) => String(requestInit?.body).includes('"candidateId":"patch-1"'))).toBe(true);
     fetchMock.mockRestore();
   });
+
+  it("passes the complete selected target set to External AI Assist", () => {
+    const onOpenExternalResearch = vi.fn();
+    render(<TargetedEnrichmentPanel company={company} profile={profile} initialTargets={["TaxRegistration", "Leadership"]} open onClose={vi.fn()} onOpenExternalResearch={onOpenExternalResearch} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /External AI Assist/ }));
+
+    expect(onOpenExternalResearch).toHaveBeenCalledWith(["TaxRegistration", "Leadership"]);
+  });
 });

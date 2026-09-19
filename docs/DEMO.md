@@ -85,6 +85,8 @@ For **Strengthen Dossier**, point out the method distinction: Native RAVEN is th
 
 Open **External research**, prepare and copy a focused brief, paste fixture Markdown, analyze it asynchronously, review the AI-assisted comparison, and save it. Emphasize that imported claims and provider citations remain reviewable material; External Assist does not re-search or re-crawl the supplied links. From a ready Investigation, use **Improve profile** to prepare the existing server-owned profile patch from that material, then confirm only after human review. On Overview, show the optional headquarters map adapter and its normal external-map fallback.
 
+From the Company List, open **Workspace Review** to show the grouped research queue. Repeated terminal outcomes appear as one compact company/method/topic group; opening or marking a group done acknowledges only the review state. **Smart clean-up** requires confirmation and clears only repeated issue groups while preserving the underlying runs, investigations, sources, and evidence.
+
 - Cancel an in-progress research run. RAVEN returns to the blank research form and clears the saved run, ready for a new search.
 - Navigate away from a known in-progress run and return. If a related restore request fails, RAVEN preserves the run and shows a targeted restore error with **Retry restore** rather than the generic API-unavailable message. A stale/missing run is the only case that resets to a blank form.
 - Reopen the application with a stale saved run. A missing, cancelled, failed, completed, or legacy-unrestorable run is discarded rather than leaving the user on a misleading “company not found” state.

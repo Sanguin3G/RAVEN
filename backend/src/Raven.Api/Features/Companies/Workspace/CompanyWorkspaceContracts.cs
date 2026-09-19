@@ -181,7 +181,10 @@ public sealed record WorkspaceResearchReviewItem(
     string State,
     DateTimeOffset UpdatedAt,
     string? Detail = null,
-    Guid? InvestigationId = null);
+    Guid? InvestigationId = null,
+    string? ReviewKey = null,
+    int OccurrenceCount = 1,
+    string? GroupingNote = null);
 
 public sealed record WorkspaceReviewResponse(
     IReadOnlyList<WorkspaceReviewCompany> Companies,
@@ -192,6 +195,7 @@ public sealed record WorkspaceReviewResponse(
 {
     public IReadOnlyList<WorkspaceResearchReviewItem> ResearchReady { get; init; } = [];
     public IReadOnlyList<WorkspaceResearchReviewItem> ResearchIssues { get; init; } = [];
+    public IReadOnlyList<WorkspaceResearchReviewCleanupCandidate> ResearchCleanupCandidates { get; init; } = [];
 }
 
 /// <summary>Read-only grouping seam; implementations must not mutate companies.</summary>
