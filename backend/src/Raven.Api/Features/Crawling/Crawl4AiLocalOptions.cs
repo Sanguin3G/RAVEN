@@ -13,4 +13,11 @@ public sealed class Crawl4AiLocalOptions
     public string? ApiToken { get; set; }
 
     public int TimeoutSeconds { get; set; } = 60;
+
+    /// <summary>Requests Crawl4AI's pruning filter while retaining raw Markdown as evidence.</summary>
+    public bool EnableContentPruning { get; set; } = true;
+
+    public double PruningThreshold { get; set; } = 0.48;
+
+    public int PruningMinWordThreshold { get; set; } = 20;
 }

@@ -53,6 +53,7 @@ public sealed class ResearchApiTests(RavenApiFactory factory) : IClassFixture<Ra
         Assert.NotNull(sources);
         Assert.Equal(2, sources.Length);
         Assert.All(sources, source => Assert.Equal("crawl4ai-local", source.CrawlerProvider));
+        Assert.All(sources, source => Assert.Equal("filtered evidence content", source.ContentPreview));
 
         var detail = await client.GetFromJsonAsync<SourceDocumentDetailResponse>($"/api/sources/{sources[0].Id}", JsonOptions);
         Assert.NotNull(detail);
@@ -251,7 +252,17 @@ public sealed class ResearchApiTests(RavenApiFactory factory) : IClassFixture<Ra
         public Task<CrawlResult> CrawlAsync(CrawlRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(request.Url.Contains("services", StringComparison.Ordinal)
                 ? new CrawlResult(Id, request.Url, null, null, null, false, "blocked", DateTimeOffset.UtcNow)
-                : new CrawlResult(Id, request.Url, request.Url, "FPT", $"evidence content {request.Url}", true, null, DateTimeOffset.UtcNow));
+                : new CrawlResult(
+                    Id,
+                    request.Url,
+                    request.Url,
+                    "FPT",
+                    "filtered evidence content",
+                    true,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    $"evidence content {request.Url}",
+                    "filtered evidence content"));
     }
 
     private sealed class TrackingCrawlerProvider : ICrawlerProvider

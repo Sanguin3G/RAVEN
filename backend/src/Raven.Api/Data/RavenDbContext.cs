@@ -284,6 +284,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
             entity.Property(sourceDocument => sourceDocument.IconUrl).HasMaxLength(2_048);
             entity.Property(sourceDocument => sourceDocument.StructuredFactsJson).HasMaxLength(16_000);
             entity.Property(sourceDocument => sourceDocument.Content).IsRequired();
+            entity.Property(sourceDocument => sourceDocument.FilteredContent);
             entity.Property(sourceDocument => sourceDocument.ContentHash).HasMaxLength(64).IsRequired();
             entity.Property(sourceDocument => sourceDocument.CrawlerProvider).HasMaxLength(100).IsRequired();
             entity.HasIndex(sourceDocument => new { sourceDocument.CompanyId, sourceDocument.NormalizedUrl });

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
+using Raven.Api.Features.Chat;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.Profiles;
@@ -133,6 +134,26 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
             FieldPath = "displayName",
             ChangeType = ProfileChangeType.Changed
         });
+        var conversation = new ChatConversation
+        {
+            CompanyId = company.Id,
+            ProfileVersionId = profile.Id,
+            Title = "Delete conversation"
+        };
+        var message = new ChatMessage
+        {
+            ConversationId = conversation.Id,
+            Role = ChatMessageRole.User,
+            Content = "Delete this conversation too."
+        };
+        dbContext.ChatConversations.Add(conversation);
+        dbContext.ChatMessages.Add(message);
+        dbContext.ChatCitations.Add(new ChatCitation
+        {
+            ChatMessageId = message.Id,
+            SourceDocumentId = source.Id,
+            Origin = ChatCitationOrigin.Profile
+        });
         dbContext.Companies.Add(company);
         dbContext.ResearchRuns.Add(run);
         dbContext.SourceDocuments.Add(source);
@@ -157,6 +178,9 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         Assert.Empty(await dbContext.ProfileChanges.ToListAsync());
         Assert.Empty(await dbContext.SavedResearchArtifacts.ToListAsync());
         Assert.Empty(await dbContext.CompanyMonitoringSettings.ToListAsync());
+        Assert.Empty(await dbContext.ChatConversations.ToListAsync());
+        Assert.Empty(await dbContext.ChatMessages.ToListAsync());
+        Assert.Empty(await dbContext.ChatCitations.ToListAsync());
     }
 
     [Fact]

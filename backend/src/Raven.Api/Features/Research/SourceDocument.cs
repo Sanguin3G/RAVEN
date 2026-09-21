@@ -19,6 +19,7 @@ public sealed class SourceDocument
     public string? StructuredFactsJson { get; init; }
     public DateTimeOffset RetrievedAt { get; init; }
     public required string Content { get; init; }
+    public string? FilteredContent { get; init; }
     public required string ContentHash { get; init; }
     public required string CrawlerProvider { get; init; }
 }

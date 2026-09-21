@@ -65,7 +65,9 @@ public sealed class ProfileInputBuilder : IProfileInputBuilder
             }
 
             var remaining = options.MaxTotalCharacters - characterCount;
-            var content = CleanAndBoundContent(document.Content, Math.Min(options.MaxCharactersPerSource, remaining));
+            var content = CleanAndBoundContent(
+                document.FilteredContent ?? document.Content,
+                Math.Min(options.MaxCharactersPerSource, remaining));
             var structuredFacts = ParseStructuredFacts(document.StructuredFactsJson);
             var title = CleanScalar(document.Title, 500) ?? document.SourceDomain ?? "Public source";
             var url = document.Url.Trim();

@@ -254,6 +254,11 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
         deleted += await dbContext.ProfileChanges
             .Where(change => change.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);
+        // Chat conversations retain the accepted profile version they were created from.
+        // Remove them before their profile versions; message-level rows cascade from the conversation.
+        deleted += await dbContext.ChatConversations
+            .Where(conversation => conversation.CompanyId == companyId)
+            .ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.CompanyProfileCandidates
             .Where(profile => profile.CompanyId == companyId)
             .ExecuteDeleteAsync(cancellationToken);

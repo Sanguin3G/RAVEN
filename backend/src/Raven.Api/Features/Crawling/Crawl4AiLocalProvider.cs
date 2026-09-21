@@ -30,7 +30,12 @@ public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4
             using var message = new HttpRequestMessage(HttpMethod.Post, configured.CrawlPath);
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configured.ApiToken);
             message.Content = new StringContent(
-                JsonSerializer.Serialize(new { urls = new[] { request.Url }, browser_config = new { }, crawler_config = new { } }),
+                JsonSerializer.Serialize(new
+                {
+                    urls = new[] { request.Url },
+                    browser_config = new { },
+                    crawler_config = BuildCrawlerConfiguration(configured, request.EnableContentPruning)
+                }),
                 Encoding.UTF8,
                 "application/json");
             using var response = await httpClient.SendAsync(message, cancellationToken);
@@ -82,7 +87,7 @@ public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4
         }
 
         var markdown = ReadMarkdown(result);
-        if (string.IsNullOrWhiteSpace(markdown))
+        if (string.IsNullOrWhiteSpace(markdown.Preferred))
         {
             return Failure(requestedUrl, "Crawl4AI Local returned no readable content.");
         }
@@ -93,31 +98,64 @@ public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4
             requestedUrl,
             ReadString(result, "url") ?? requestedUrl,
             title,
-            markdown.Trim(),
+            markdown.Preferred!,
             true,
             null,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            markdown.Raw,
+            markdown.Filtered);
     }
 
-    private static string? ReadMarkdown(JsonElement result)
+    private static object BuildCrawlerConfiguration(Crawl4AiLocalOptions configured, bool enableContentPruning)
+    {
+        if (!enableContentPruning || !configured.EnableContentPruning)
+        {
+            return new { };
+        }
+
+        // Crawl4AI's API uses a type/params representation for nested configuration objects.
+        // The provider still returns raw_markdown, while fit_markdown is the pruned projection.
+        return new
+        {
+            markdown_generator = new
+            {
+                type = "DefaultMarkdownGenerator",
+                @params = new
+                {
+                    content_filter = new
+                    {
+                        type = "PruningContentFilter",
+                        @params = new
+                        {
+                            threshold = configured.PruningThreshold,
+                            threshold_type = "fixed",
+                            min_word_threshold = configured.PruningMinWordThreshold
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private static CrawlMarkdown ReadMarkdown(JsonElement result)
     {
         if (!result.TryGetProperty("markdown", out var markdown))
         {
-            return null;
+            return CrawlMarkdown.Empty;
         }
 
         return markdown.ValueKind switch
         {
-            JsonValueKind.String => markdown.GetString(),
-            JsonValueKind.Object => FirstNonEmpty(
-                ReadString(markdown, "fit_markdown"),
-                ReadString(markdown, "raw_markdown")),
-            _ => null
+            JsonValueKind.String => new CrawlMarkdown(Normalize(markdown.GetString()), null),
+            JsonValueKind.Object => new CrawlMarkdown(
+                Normalize(ReadString(markdown, "raw_markdown")),
+                Normalize(ReadString(markdown, "fit_markdown"))),
+            _ => CrawlMarkdown.Empty
         };
     }
 
-    private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+    private static string? Normalize(string? content) =>
+        string.IsNullOrWhiteSpace(content) ? null : content.Trim();
 
     private static string? ReadString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
@@ -130,4 +168,11 @@ public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4
 
     private static CrawlResult Failure(string requestedUrl, string error) =>
         new(ProviderId, requestedUrl, null, null, null, false, error, DateTimeOffset.UtcNow);
+
+    private sealed record CrawlMarkdown(string? Raw, string? Filtered)
+    {
+        public static CrawlMarkdown Empty { get; } = new(null, null);
+
+        public string? Preferred => Filtered ?? Raw;
+    }
 }

@@ -7,7 +7,7 @@ public interface ICrawlerProvider
     Task<CrawlResult> CrawlAsync(CrawlRequest request, CancellationToken cancellationToken = default);
 }
 
-public sealed record CrawlRequest(string Url);
+public sealed record CrawlRequest(string Url, bool EnableContentPruning = false);
 
 public sealed record CrawlResult(
     string Provider,
@@ -17,4 +17,6 @@ public sealed record CrawlResult(
     string? Markdown,
     bool Success,
     string? Error,
-    DateTimeOffset RetrievedAt);
+    DateTimeOffset RetrievedAt,
+    string? RawMarkdown = null,
+    string? FilteredMarkdown = null);

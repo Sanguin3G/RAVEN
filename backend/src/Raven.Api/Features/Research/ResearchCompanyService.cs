@@ -300,12 +300,13 @@ public sealed class ResearchCompanyService(
             {
                 using var telemetryScope = executionContext.Push(run.Id, stage: run.Stage);
                 var crawl = await crawlerProvider.CrawlAsync(
-                    new CrawlRequest(candidate.NormalizedUrl),
+                    new CrawlRequest(candidate.NormalizedUrl, EnableContentPruning: true),
                     cancellationToken);
                 run.ActualCrawlerProvider = crawl.Provider;
                 run.CrawlCompleted++;
 
-                if (!crawl.Success || string.IsNullOrWhiteSpace(crawl.Markdown))
+                var rawContent = crawl.RawMarkdown ?? crawl.Markdown;
+                if (!crawl.Success || string.IsNullOrWhiteSpace(rawContent))
                 {
                     candidate.AcquisitionStatus = CandidateAcquisitionStatus.Failed;
                     candidate.AcquisitionError = TrimOptional(crawl.Error) ?? "Crawler returned no readable content.";
@@ -317,7 +318,7 @@ public sealed class ResearchCompanyService(
 
                 run.SourcesCrawled++;
                 run.CrawlSucceeded++;
-                var contentHash = HashContent(crawl.Markdown);
+                var contentHash = HashContent(rawContent);
                 if (!contentHashes.Add(contentHash))
                 {
                     candidate.AcquisitionStatus = CandidateAcquisitionStatus.DuplicateSkipped;
@@ -331,9 +332,9 @@ public sealed class ResearchCompanyService(
                 var sourceKind = candidate.SourceKind;
                 var structuredFactsJson = sourceKind switch
                 {
-                    SourceKind.TopCv => SerializeTopCvFacts(topCvSourceParser.Parse(crawl.Markdown)),
+                    SourceKind.TopCv => SerializeTopCvFacts(topCvSourceParser.Parse(rawContent)),
                     SourceKind.BusinessDirectory when maSoThueSourceDetector.IsCompanyUrl(candidate.NormalizedUrl)
-                        => SerializeMaSoThueFacts(maSoThueSourceParser.Parse(crawl.Markdown)),
+                        => SerializeMaSoThueFacts(maSoThueSourceParser.Parse(rawContent)),
                     _ => null
                 };
                 var documentUrl = crawl.FinalUrl ?? candidate.NormalizedUrl;
@@ -351,7 +352,8 @@ public sealed class ResearchCompanyService(
                     IconUrl = candidate.IconUrl,
                     StructuredFactsJson = structuredFactsJson,
                     RetrievedAt = crawl.RetrievedAt,
-                    Content = crawl.Markdown,
+                    Content = rawContent,
+                    FilteredContent = crawl.FilteredMarkdown,
                     ContentHash = contentHash,
                     CrawlerProvider = crawl.Provider
                 });
@@ -359,7 +361,13 @@ public sealed class ResearchCompanyService(
                 run.DocumentsAdded++;
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await WriteEventAsync(run, ResearchEventCategory.SourcePersisted, ResearchEventStatus.Completed,
-                    crawl.Provider, $"Stored evidence from {candidate.Domain}.", cancellationToken);
+                    crawl.Provider, $"Stored evidence from {candidate.Domain}.", cancellationToken,
+                    JsonSerializer.Serialize(new
+                    {
+                        rawCharacters = rawContent.Length,
+                        filteredCharacters = crawl.FilteredMarkdown?.Length ?? 0,
+                        usedFilteredContent = !string.IsNullOrWhiteSpace(crawl.FilteredMarkdown)
+                    }));
             }
             catch (ProviderException exception) when (exception.Kind is ProviderFailureKind.Configuration or ProviderFailureKind.Authentication)
             {
@@ -1003,7 +1011,7 @@ public sealed class ResearchCompanyService(
             source.IconUrl,
             source.RetrievedAt,
             source.CrawlerProvider,
-            source.Content.Length <= 500 ? source.Content : source.Content[..500])).ToArray();
+            PreviewContent(source.FilteredContent ?? source.Content))).ToArray();
     }
 
     private async Task<ResearchRunResponse> FailAsync(
@@ -1026,7 +1034,8 @@ public sealed class ResearchCompanyService(
         ResearchEventStatus status,
         string? provider,
         string? outputSummary,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        string? metadataJson = null) =>
         eventWriter.WriteAsync(new ResearchEvent
         {
             ResearchRunId = run.Id,
@@ -1034,8 +1043,12 @@ public sealed class ResearchCompanyService(
             Category = category,
             Status = status,
             Provider = provider,
-            OutputSummary = outputSummary
+            OutputSummary = outputSummary,
+            MetadataJson = metadataJson
         }, cancellationToken);
+
+    private static string PreviewContent(string content) =>
+        content.Length <= 500 ? content : content[..500];
 
     private async Task FlushTelemetryAsync(CancellationToken cancellationToken)
     {

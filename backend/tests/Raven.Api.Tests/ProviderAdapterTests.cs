@@ -75,22 +75,30 @@ public sealed class ProviderAdapterTests
             Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
             Assert.Equal("crawl-token", request.Headers.Authorization.Parameter);
             Assert.Equal("/crawl", request.RequestUri!.AbsolutePath);
-            return Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"fit_markdown":"# About"},"metadata":{"title":"About us"}}]}""");
+            var payload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            Assert.Contains("PruningContentFilter", payload, StringComparison.Ordinal);
+            return Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"raw_markdown":"# Full About","fit_markdown":"# About"},"metadata":{"title":"About us"}}]}""");
         })) { BaseAddress = new Uri("http://localhost:11235") };
         var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }));
 
-        var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about"));
+        var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about", EnableContentPruning: true));
 
         Assert.True(result.Success);
         Assert.Equal("# About", result.Markdown);
+        Assert.Equal("# Full About", result.RawMarkdown);
+        Assert.Equal("# About", result.FilteredMarkdown);
         Assert.Equal("About us", result.Title);
     }
 
     [Fact]
     public async Task Crawl4Ai_uses_raw_markdown_when_fit_markdown_is_empty()
     {
-        using var client = new HttpClient(new StubHandler(_ =>
-            Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"fit_markdown":"","raw_markdown":"# Full page"},"metadata":{}}]}""")))
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            var payload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            Assert.DoesNotContain("PruningContentFilter", payload, StringComparison.Ordinal);
+            return Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"fit_markdown":"","raw_markdown":"# Full page"},"metadata":{}}]}""");
+        }))
         { BaseAddress = new Uri("http://localhost:11235") };
         var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }));
 
@@ -98,6 +106,8 @@ public sealed class ProviderAdapterTests
 
         Assert.True(result.Success);
         Assert.Equal("# Full page", result.Markdown);
+        Assert.Equal("# Full page", result.RawMarkdown);
+        Assert.Null(result.FilteredMarkdown);
     }
 
     [Fact]

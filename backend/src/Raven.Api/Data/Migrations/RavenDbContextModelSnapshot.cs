@@ -976,6 +976,9 @@ namespace Raven.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FilteredContent")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ContentHash")
                         .IsRequired()
                         .HasMaxLength(64)

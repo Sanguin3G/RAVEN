@@ -46,6 +46,24 @@ public sealed class ProfileGenerationServiceTests
     }
 
     [Fact]
+    public void Input_builder_prefers_filtered_content_without_changing_source_identity()
+    {
+        var builder = new ProfileInputBuilder(new SourceAuthorityPolicy());
+        var document = Document(
+            SourceId,
+            "https://example.com/about",
+            SourceKind.OfficialWebsite,
+            "About",
+            "raw navigation and page content",
+            filteredContent: "company description and products");
+
+        var package = builder.Build(new ProfileIdentityHints(DisplayName: "Example"), [document]);
+
+        Assert.Equal(SourceId, package.Sources.Single().SourceDocumentId);
+        Assert.Equal("company description and products", package.Payload.Sources.Single().Content);
+    }
+
+    [Fact]
     public async Task Generation_returns_valid_structured_candidate_and_sends_bounded_evidence()
     {
         var provider = new FakeAiProvider(ProfileJson($$"""
@@ -192,7 +210,8 @@ public sealed class ProfileGenerationServiceTests
         SourceKind sourceKind,
         string title,
         string content,
-        string? structuredFactsJson = null) =>
+        string? structuredFactsJson = null,
+        string? filteredContent = null) =>
         new()
         {
             Id = id,
@@ -206,6 +225,7 @@ public sealed class ProfileGenerationServiceTests
             StructuredFactsJson = structuredFactsJson,
             RetrievedAt = DateTimeOffset.UtcNow,
             Content = content,
+            FilteredContent = filteredContent,
             ContentHash = "hash",
             CrawlerProvider = "fake"
         };
