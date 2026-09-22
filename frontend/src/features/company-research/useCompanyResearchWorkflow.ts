@@ -25,6 +25,7 @@ import { canPauseResearchStage, isRestorableResearch, researchProgressLabel } fr
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused } from "../../utils/researchSession";
 import { upsertResearchActivity } from "../../utils/researchActivity";
 import type { CompanyResearchWorkflow, GroundingOverride, IdentityForm, WorkspaceView } from "./types";
+import { createResearchEvidenceActions } from "./researchWorkflowActions";
 
 export const initialForm: IdentityForm = {
   name: "",
@@ -399,7 +400,7 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
         entity.entityType,
         entity.relationshipToQuery,
         entity.shortDescription,
-      ].filter(Boolean).join(" · ")).join(" | ");
+      ].filter(Boolean).join(" Ã‚Â· ")).join(" | ");
       const guidanceContext = [
         `Current status: ${preflightResponse?.status ?? "unknown"}`,
         `Ambiguity: ${preflightResponse?.ambiguityType ?? "unknown"}`,
@@ -675,149 +676,39 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
       : [...current, target]);
   }
 
-  async function handleAcquire() {
-    if (!run) return;
-    const selectedIds = candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.id);
-    if (selectedIds.length === 0) {
-      setSelectionError("Select at least one discovered source before acquiring.");
-      return;
-    }
-
-    setSelectionError(null);
-    setError(null);
-    setLoading(true);
-    setView("acquiring");
-
-    try {
-      const nextRun = await acquireResearchCandidates(run.id, selectedIds);
-      setRun(nextRun);
-      if (nextRun.stage === "Failed") {
-        setError(nextRun.error || "RAVEN could not acquire the selected sources.");
-        setView("failed");
-        return;
-      }
-      const [nextCandidates, nextSources] = await Promise.all([
-        getResearchCandidates(run.id),
-        getResearchSources(run.id),
-      ]);
-      setCandidates(nextCandidates);
-      setSources(nextSources);
-      const nextCoverage = await getResearchRunCoverage(nextRun.id).catch(() => null);
-      const usableCoverage = nextCoverage && Array.isArray(nextCoverage.items) ? nextCoverage : null;
-      setCoverage(usableCoverage);
-      setStrengtheningTargets((usableCoverage?.items ?? [])
-        .filter((item) => item.level === "Missing" || item.level === "Weak")
-        .map((item) => item.target));
-      setView("reviewingEvidence");
-    } catch (reason: unknown) {
-      setError(getApiErrorMessage(reason, "RAVEN could not acquire the selected sources."));
-      setView("failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleStrengthenDossier() {
-    if (!company || strengtheningTargets.length === 0) return;
-    setLoading(true);
-    setError(null);
-    setView("discovering");
-    try {
-      const queuedRun = await startBackgroundResearch(company.id, undefined, undefined, true, {
-        mode: "TargetedEnrichment",
-        targets: strengtheningTargets,
-      });
-      setRun(queuedRun);
-      rememberCurrentResearch(queuedRun, company.name);
-      setIsPaused(false);
-      const nextRun = await waitForDiscovery(queuedRun.id);
-      setRun(nextRun);
-      const nextCandidates = await getResearchCandidates(nextRun.id);
-      setCandidates(nextCandidates.map((candidate) => ({ ...candidate, selected: candidate.selected || candidate.recommended })));
-      setSources([]);
-      setCoverage(null);
-      setView("reviewingSources");
-    } catch (reason: unknown) {
-      setError(getApiErrorMessage(reason, "RAVEN could not start dossier strengthening."));
-      setView("failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleGenerateProfile() {
-    if (!run) return;
-    setError(null);
-    setLoading(true);
-    setView("generatingProfile");
-    try {
-      const generated = await generateCompanyProfile(run.id);
-      setProfileWarnings(generated.warnings);
-      if (!generated.candidate) {
-        setError(generated.failure?.message || "RAVEN could not generate a validated Company Profile.");
-        setView("failed");
-        return;
-      }
-      setProfileCandidate(generated.candidate);
-      setView("reviewingProfile");
-    } catch (reason: unknown) {
-      setError(getApiErrorMessage(reason, "RAVEN could not generate a Company Profile."));
-      setView("failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleConfirmProfile() {
-    if (!run || !profileCandidate) return;
-    setError(null);
-    setLoading(true);
-    try {
-      await confirmCompanyProfile(run.id, profileCandidate.id);
-      clearCurrentResearch(run.id);
-      setIsPaused(false);
-      setView("completed");
-    } catch (reason: unknown) {
-      setError(getApiErrorMessage(reason, "RAVEN could not confirm this Company Profile."));
-      setView("failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function resetAfterFailure() {
     clearCurrentResearch(run?.id);
     resetResearchState();
   }
 
-  async function handleDeepResearch() {
-    if (!company || strengtheningTargets.length === 0) return;
-    setLoading(true);
-    setError(null);
-    setNotice(null);
-    const objective = `Strengthen the company profile with current evidence for ${strengtheningTargets.join(", ")}.`;
-    try {
-      const job = await startManagedResearch(company.id, objective, { purpose: "ProfileImprovement" });
-      upsertResearchActivity({
-        id: `deep-${job.id}`,
-        jobId: job.id,
-        origin: "Deep",
-        companyId: company.id,
-        companyName: company.name,
-        objective,
-        detail: job.status === "Completed" ? "Ready for review" : "Researching across sources",
-        status: job.status === "Completed" ? "ready" : "running",
-        locked: job.status === "Completed",
-        href: `/companies/${encodeURIComponent(company.id)}?tab=investigations&research=${encodeURIComponent(job.investigationId ?? job.id)}`,
-        updatedAt: job.completedAt || job.createdAt,
-      });
-      setNotice("Deep Research started · running in the background. Results will appear in Investigations.");
-    } catch (reason: unknown) {
-      setError(getApiErrorMessage(reason, "Deep Research could not be started."));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const {
+    handleAcquire,
+    handleStrengthenDossier,
+    handleGenerateProfile,
+    handleConfirmProfile,
+    handleDeepResearch,
+  } = createResearchEvidenceActions({
+    run,
+    candidates,
+    company,
+    strengtheningTargets,
+    profileCandidate,
+    isPaused,
+    setRun,
+    setCandidates,
+    setSources,
+    setCoverage,
+    setStrengtheningTargets,
+    setProfileCandidate,
+    setProfileWarnings,
+    setLoading,
+    setError,
+    setNotice,
+    setSelectionError,
+    setIsPaused,
+    setView,
+    waitForDiscovery,
+  });
 
   return {
     form,

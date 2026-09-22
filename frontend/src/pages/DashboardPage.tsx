@@ -10,6 +10,7 @@ import type { Company } from "../types/company";
 import { canPauseResearchStage, isFinishedResearch, researchProgressLabel } from "../utils/researchProgress";
 import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused, type CurrentResearchSession } from "../utils/researchSession";
 import { useResearchActivities } from "../utils/researchActivity";
+import "./dashboard-page.css";
 
 function getInitials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";

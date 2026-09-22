@@ -100,6 +100,8 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.AddScoped<IIdentityResolutionService, IdentityResolutionService>();
         services.AddScoped<IResearchRunConfigurationSnapshot, ResearchRunConfigurationSnapshot>();
         services.AddScoped<IResearchExecutionService, ResearchExecutionService>();
+        services.AddScoped<ResearchDiscoveryCoordinator>();
+        services.AddScoped<ResearchEvidenceAcquirer>();
         services.AddScoped<ISourceSemanticReranker>(serviceProvider => new GeminiSourceSemanticReranker(
             serviceProvider.GetRequiredService<IAiModelProvider>(),
             researchSettings: serviceProvider.GetRequiredService<IResearchSettingsService>()));

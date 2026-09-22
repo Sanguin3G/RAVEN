@@ -32,6 +32,7 @@ import {
 import type { Company } from "../types/company";
 import { clearLegacyAcknowledgedResearchReviewIds, getLegacyAcknowledgedResearchReviewIds } from "../utils/researchReviewState";
 import { dismissResearchActivities } from "../utils/researchActivity";
+import "./company-list-review.css";
 
 function getInitials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";

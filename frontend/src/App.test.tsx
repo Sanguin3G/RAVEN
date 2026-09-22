@@ -124,7 +124,7 @@ beforeEach(() => {
   });
 });
 
-it("renders the Day 2 dashboard and new navigation", async () => {
+it("renders the dashboard and current navigation", async () => {
   renderWithRouter(<App />);
 
   expect(screen.getByRole("heading", { name: "Know what needs attention." })).toBeInTheDocument();

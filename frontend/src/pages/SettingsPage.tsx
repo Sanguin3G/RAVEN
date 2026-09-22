@@ -46,7 +46,7 @@ const models = [
 const groundingChoices: Array<{ value: GroundingMode; title: string; description: string }> = [
   { value: "Auto", title: "Auto — Recommended", description: "Use AI when RAVEN detects an ambiguous company identity." },
   { value: "Always", title: "Always", description: "Resolve the research target with AI before full discovery." },
-  { value: "Off", title: "Off", description: "Use deterministic Day-3 discovery and recommendations only." },
+  { value: "Off", title: "Off", description: "Use deterministic discovery and recommendations only." },
 ];
 
 const presetChoices: Array<{ value: ProviderPreset; title: string; description: string }> = [

@@ -21,7 +21,7 @@ using Raven.Api.Features.Research.Coverage;
 
 namespace Raven.Api.Features.Research;
 
-public sealed class ResearchCompanyService(
+public sealed partial class ResearchCompanyService(
     RavenDbContext dbContext,
     ISearchProvider searchProvider,
     ICrawlerProvider crawlerProvider,
@@ -37,20 +37,31 @@ public sealed class ResearchCompanyService(
     OfficialSiteEvidencePlanner? officialSiteEvidencePlanner = null,
     IResearchRunConfigurationSnapshot? configurationSnapshot = null,
     IResearchTelemetryFlusher? telemetryFlusher = null,
-    ILogger<ResearchCompanyService>? logger = null) : IResearchCompanyService
+    ILogger<ResearchCompanyService>? logger = null,
+    ResearchDiscoveryCoordinator? discoveryCoordinator = null,
+    ResearchEvidenceAcquirer? evidenceAcquirer = null) : IResearchCompanyService
 {
     private const int MaximumRecommendedCandidates = 5;
     private const int SearchResultsPerQuery = 5;
 
-    private readonly SourceClassifier sourceClassifier = new();
-    private readonly OfficialSiteDiscoveryPlanner officialSitePlanner = new(urlNormalizer);
-    private readonly TopCvSourceParser topCvSourceParser = new();
-    private readonly MaSoThueSourceParser maSoThueSourceParser = new();
-    private readonly MaSoThueSourceDetector maSoThueSourceDetector = new();
-    private readonly CoverageAwareSourceSelector coverageSourceSelector = coverageAwareSourceSelector ?? new();
-    private readonly TargetedQueryPlanner targetedPlanner = targetedQueryPlanner ?? new();
-    private readonly OfficialSiteEvidencePlanner officialEvidencePlanner = officialSiteEvidencePlanner ?? new(urlNormalizer);
     private readonly IResearchRunConfigurationSnapshot? configurationSnapshot = configurationSnapshot;
+    private readonly ResearchDiscoveryCoordinator sourceDiscovery = discoveryCoordinator ?? new(
+        dbContext,
+        searchProvider,
+        candidateSelector,
+        urlNormalizer,
+        eventWriter,
+        executionContext,
+        sourceSemanticReranker,
+        coverageAwareSourceSelector,
+        targetedQueryPlanner,
+        officialSiteEvidencePlanner);
+    private readonly ResearchEvidenceAcquirer evidenceAcquirer = evidenceAcquirer ?? new(
+        dbContext,
+        crawlerProvider,
+        urlNormalizer,
+        eventWriter,
+        executionContext);
 
     public async Task<ResearchRunResponse?> CreateQueuedRunAsync(
         Guid companyId,
@@ -109,8 +120,8 @@ public sealed class ResearchCompanyService(
 
     public async Task<ResearchRunResponse?> ResearchAsync(Guid companyId, CancellationToken cancellationToken)
     {
-        // Compatibility callers retain the deterministic Day-3 one-call workflow.
-        // The Day-4 React workflow uses the staged endpoint when it needs grounding.
+        // Compatibility callers retain the deterministic one-call workflow.
+        // The staged workflow uses the same coordinator when it needs grounding.
         var discovered = await DiscoverAsync(companyId, new DiscoverResearchRequest(GroundingMode: GroundingMode.Off), cancellationToken);
         if (discovered is null || discovered.Stage is ResearchStage.Failed or ResearchStage.AwaitingIdentitySelection)
         {
@@ -181,7 +192,7 @@ public sealed class ResearchCompanyService(
                 request?.UseAcceptedProfileIdentity == true,
                 Day6IdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson),
                 cancellationToken);
-            var (searchResults, errors) = await SearchAsync(run, initialIdentity, cancellationToken);
+            var (searchResults, errors) = await sourceDiscovery.SearchAsync(run, initialIdentity, cancellationToken);
 
             if (searchResults.Count == 0)
             {
@@ -191,8 +202,8 @@ public sealed class ResearchCompanyService(
                     cancellationToken);
             }
 
-            var officialWebsite = ResolveOfficialWebsite(company, searchResults);
-            var rankedCandidates = RankCandidates(company, searchResults, officialWebsite, GetTargets(run));
+            var officialWebsite = ResearchDiscoveryCoordinator.ResolveOfficialWebsite(company, searchResults);
+            var rankedCandidates = sourceDiscovery.RankCandidates(company, searchResults, officialWebsite, GetTargets(run));
 
             if (rankedCandidates.Length == 0)
             {
@@ -202,8 +213,8 @@ public sealed class ResearchCompanyService(
                     cancellationToken);
             }
 
-            var drafts = CreateDrafts(rankedCandidates);
-            drafts = ApplyCoverageAwareSelection(drafts, GetTargets(run));
+            var drafts = sourceDiscovery.CreateDrafts(rankedCandidates);
+            drafts = sourceDiscovery.ApplyCoverageAwareSelection(drafts, GetTargets(run));
 
             run.UniqueCandidates = drafts.Length;
             run.RecommendedCandidates = drafts.Count(candidate => candidate.Recommended);
@@ -213,7 +224,7 @@ public sealed class ResearchCompanyService(
             {
                 run.Error = BuildFailureMessage("Some search queries failed.", errors);
             }
-            AddCandidateEntities(drafts, run.Id, null);
+            sourceDiscovery.AddCandidateEntities(drafts, run.Id, null);
             await dbContext.SaveChangesAsync(cancellationToken);
             await WriteEventAsync(run, ResearchEventCategory.CandidateDiscovery, ResearchEventStatus.WaitingForUser,
                 searchProvider.Id, $"Discovered {run.UniqueCandidates} unique candidates; {run.RecommendedCandidates} recommended.", cancellationToken);
@@ -288,120 +299,11 @@ public sealed class ResearchCompanyService(
         run.Error = null;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var contentHashes = (await dbContext.SourceDocuments
-                .AsNoTracking()
-                .Where(source => source.CompanyId == run.CompanyId)
-                .Select(source => source.ContentHash)
-                .ToListAsync(cancellationToken))
-            .ToHashSet(StringComparer.Ordinal);
-        var errors = new List<string>();
-
-        foreach (var candidate in selectedCandidates)
+        var acquisition = await evidenceAcquirer.AcquireAsync(run, selectedCandidates, cancellationToken);
+        var errors = acquisition.Errors.ToList();
+        if (acquisition.FatalError is not null)
         {
-            candidate.AcquisitionStatus = CandidateAcquisitionStatus.Acquiring;
-            candidate.AcquisitionError = null;
-            await dbContext.SaveChangesAsync(cancellationToken);
-            try
-            {
-                using var telemetryScope = executionContext.Push(run.Id, stage: run.Stage);
-                var crawl = await crawlerProvider.CrawlAsync(
-                    new CrawlRequest(candidate.NormalizedUrl),
-                    cancellationToken);
-                run.ActualCrawlerProvider = crawl.Provider;
-                run.CrawlCompleted++;
-
-                if (!crawl.Success || string.IsNullOrWhiteSpace(crawl.Markdown))
-                {
-                    candidate.AcquisitionStatus = CandidateAcquisitionStatus.Failed;
-                    candidate.AcquisitionError = TrimOptional(crawl.Error) ?? "Crawler returned no readable content.";
-                    run.CrawlFailed++;
-                    errors.Add($"{candidate.NormalizedUrl}: {candidate.AcquisitionError}");
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    continue;
-                }
-
-                run.SourcesCrawled++;
-                run.CrawlSucceeded++;
-                var contentHash = HashContent(crawl.Markdown);
-                if (!contentHashes.Add(contentHash))
-                {
-                    candidate.AcquisitionStatus = CandidateAcquisitionStatus.DuplicateSkipped;
-                    run.DuplicatesSkipped++;
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    await WriteEventAsync(run, ResearchEventCategory.DuplicateSkipped, ResearchEventStatus.Skipped,
-                        crawl.Provider, $"Duplicate content skipped for {candidate.Domain}.", cancellationToken);
-                    continue;
-                }
-
-                var sourceKind = candidate.SourceKind;
-                var structuredFactsJson = sourceKind switch
-                {
-                    SourceKind.TopCv => SerializeTopCvFacts(topCvSourceParser.Parse(crawl.Markdown)),
-                    SourceKind.BusinessDirectory when maSoThueSourceDetector.IsCompanyUrl(candidate.NormalizedUrl)
-                        => SerializeMaSoThueFacts(maSoThueSourceParser.Parse(crawl.Markdown)),
-                    _ => null
-                };
-                var documentUrl = crawl.FinalUrl ?? candidate.NormalizedUrl;
-                var normalizedDocumentUrl = urlNormalizer.Normalize(documentUrl) ?? candidate.NormalizedUrl;
-
-                dbContext.SourceDocuments.Add(new SourceDocument
-                {
-                    CompanyId = run.CompanyId,
-                    ResearchRunId = run.Id,
-                    Url = documentUrl,
-                    NormalizedUrl = normalizedDocumentUrl,
-                    Title = crawl.Title ?? candidate.Title,
-                    SourceDomain = candidate.Domain,
-                    SourceKind = sourceKind,
-                    IconUrl = candidate.IconUrl,
-                    StructuredFactsJson = structuredFactsJson,
-                    RetrievedAt = crawl.RetrievedAt,
-                    Content = crawl.Markdown,
-                    ContentHash = contentHash,
-                    CrawlerProvider = crawl.Provider
-                });
-                candidate.AcquisitionStatus = CandidateAcquisitionStatus.Acquired;
-                run.DocumentsAdded++;
-                await dbContext.SaveChangesAsync(cancellationToken);
-                await WriteEventAsync(run, ResearchEventCategory.SourcePersisted, ResearchEventStatus.Completed,
-                    crawl.Provider, $"Stored evidence from {candidate.Domain}.", cancellationToken);
-            }
-            catch (ProviderException exception) when (exception.Kind is ProviderFailureKind.Configuration or ProviderFailureKind.Authentication)
-            {
-                candidate.AcquisitionStatus = CandidateAcquisitionStatus.Failed;
-                candidate.AcquisitionError = exception.Message;
-                run.CrawlCompleted++;
-                run.CrawlFailed++;
-                await dbContext.SaveChangesAsync(cancellationToken);
-                return await FailAsync(run, exception.Message, cancellationToken);
-            }
-            catch (ProviderException exception)
-            {
-                candidate.AcquisitionStatus = CandidateAcquisitionStatus.Failed;
-                candidate.AcquisitionError = exception.Message;
-                run.CrawlCompleted++;
-                run.CrawlFailed++;
-                errors.Add($"{candidate.NormalizedUrl}: {exception.Message}");
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (HttpRequestException)
-            {
-                candidate.AcquisitionStatus = CandidateAcquisitionStatus.Failed;
-                candidate.AcquisitionError = "Crawler could not be reached.";
-                run.CrawlCompleted++;
-                run.CrawlFailed++;
-                errors.Add($"{candidate.NormalizedUrl}: {candidate.AcquisitionError}");
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                candidate.AcquisitionStatus = CandidateAcquisitionStatus.Failed;
-                candidate.AcquisitionError = "Crawler timed out.";
-                run.CrawlCompleted++;
-                run.CrawlFailed++;
-                errors.Add($"{candidate.NormalizedUrl}: {candidate.AcquisitionError}");
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
+            return await FailAsync(run, acquisition.FatalError, cancellationToken);
         }
 
         if (run.CrawlSucceeded == 0)
@@ -645,7 +547,7 @@ public sealed class ResearchCompanyService(
 
         try
         {
-            var (searchResults, errors) = await SearchAsync(run, targetIdentity, cancellationToken);
+            var (searchResults, errors) = await sourceDiscovery.SearchAsync(run, targetIdentity, cancellationToken);
             if (searchResults.Count == 0)
             {
                 return await FailAsync(
@@ -663,8 +565,8 @@ public sealed class ResearchCompanyService(
                 RegistrationNumber = targetIdentity.RegistrationNumber,
                 Headquarters = targetIdentity.Headquarters
             };
-            var officialWebsite = ResolveOfficialWebsite(targetCompany, searchResults);
-            var rankedCandidates = RankCandidates(targetCompany, searchResults, officialWebsite, GetTargets(run));
+            var officialWebsite = ResearchDiscoveryCoordinator.ResolveOfficialWebsite(targetCompany, searchResults);
+            var rankedCandidates = sourceDiscovery.RankCandidates(targetCompany, searchResults, officialWebsite, GetTargets(run));
             if (rankedCandidates.Length == 0)
             {
                 return await FailAsync(
@@ -683,7 +585,7 @@ public sealed class ResearchCompanyService(
             var settings = await ReadSettingsAsync(cancellationToken);
             if (settings?.AiSourceRerankingEnabled == true && sourceSemanticReranker is not null)
             {
-                drafts = await ApplySemanticRerankingAsync(
+                drafts = await sourceDiscovery.ApplySemanticRerankingAsync(
                     run,
                     resolvedIdentity,
                     drafts,
@@ -691,14 +593,14 @@ public sealed class ResearchCompanyService(
                     cancellationToken);
             }
 
-            drafts = ApplyCoverageAwareSelection(drafts, GetTargets(run));
+            drafts = sourceDiscovery.ApplyCoverageAwareSelection(drafts, GetTargets(run));
 
             run.UniqueCandidates = drafts.Length;
             run.RecommendedCandidates = drafts.Count(candidate => candidate.Recommended);
             run.Stage = ResearchStage.AwaitingSourceSelection;
             run.Status = ResearchRunStatus.Searching;
             run.Error = errors.Count == 0 ? null : BuildFailureMessage("Some search queries failed.", errors);
-            AddCandidateEntities(drafts, run.Id, null);
+            sourceDiscovery.AddCandidateEntities(drafts, run.Id, null);
             await dbContext.SaveChangesAsync(cancellationToken);
             await WriteEventAsync(run, ResearchEventCategory.IdentitySelected, ResearchEventStatus.Completed,
                 null, $"Research target selected: {resolvedIdentity.DisplayName}.", cancellationToken);
@@ -771,222 +673,6 @@ public sealed class ResearchCompanyService(
                 source.CrawlerProvider))
             .SingleOrDefaultAsync(cancellationToken);
 
-    private Task<(List<SearchResult> Results, List<string> Errors)> SearchAsync(
-        ResearchRun run,
-        ResearchIdentityInput identity,
-        CancellationToken cancellationToken)
-        => SearchQueriesAsync(run, identity, BuildQueries(identity, run.Mode, GetTargets(run)), true, cancellationToken);
-
-    private async Task<(List<SearchResult> Results, List<string> Errors)> SearchQueriesAsync(
-        ResearchRun run,
-        ResearchIdentityInput identity,
-        IReadOnlyList<string> queries,
-        bool resetCounters,
-        CancellationToken cancellationToken)
-    {
-        if (resetCounters)
-        {
-            run.ActualSearchProvider = null;
-            run.QueriesTotal = queries.Count;
-            run.QueriesCompleted = 0;
-            run.SourcesFound = 0;
-        }
-        else
-        {
-            run.QueriesTotal += queries.Count;
-        }
-        await dbContext.SaveChangesAsync(cancellationToken);
-        var searchResults = new List<SearchResult>();
-        var errors = new List<string>();
-        foreach (var query in queries)
-        {
-            try
-            {
-                using var telemetryScope = executionContext.Push(run.Id, stage: run.Stage);
-                var search = await searchProvider.SearchAsync(
-                    new SearchRequest(query, SearchResultsPerQuery, identity.Country),
-                    cancellationToken);
-                run.ActualSearchProvider = search.Provider;
-                searchResults.AddRange(search.Results);
-            }
-            catch (ProviderException exception) when (exception.Kind is ProviderFailureKind.Configuration or ProviderFailureKind.Authentication)
-            {
-                throw;
-            }
-            catch (ProviderException exception)
-            {
-                errors.Add($"{exception.Provider}: {exception.Message}");
-            }
-            catch (HttpRequestException)
-            {
-                errors.Add("Search provider could not be reached.");
-            }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                errors.Add("Search provider timed out.");
-            }
-
-            run.QueriesCompleted++;
-            run.SourcesFound = searchResults.Count;
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        return (searchResults, errors);
-    }
-
-    private static CandidateDraft[] CreateDrafts(IReadOnlyList<RankedCandidate> rankedCandidates) =>
-        rankedCandidates
-            .Select((ranked, index) =>
-            {
-                var recommended = index < Math.Min(MaximumRecommendedCandidates, rankedCandidates.Count);
-                return new CandidateDraft(Guid.NewGuid(), ranked, recommended, recommended);
-            })
-            .ToArray();
-
-    private RankedCandidate[] RankCandidates(
-        Company company,
-        IReadOnlyList<SearchResult> searchResults,
-        string? officialWebsite,
-        IReadOnlyCollection<ResearchTarget>? targets = null)
-    {
-        var officialLinks = searchResults.Select(result => new OfficialSiteLink(
-            result.Url, result.Title, result.Snippet, result.Rank)).ToArray();
-        var plannedOfficialCandidates = officialWebsite is null
-            ? []
-            : targets is { Count: > 0 }
-                ? officialEvidencePlanner.Plan(new OfficialSiteEvidenceRequest(officialWebsite, officialLinks, targets))
-                    .Select(candidate => new OfficialSiteCandidate(candidate.Url, candidate.NormalizedUrl, candidate.Domain,
-                        candidate.Title, candidate.Snippet, candidate.Priority, candidate.RecommendationReasons,
-                        candidate.Priority >= 42, candidate.DiscoveryRank)).ToArray()
-                : officialSitePlanner.Plan(new OfficialSiteDiscoveryRequest(officialWebsite, officialLinks));
-
-        var plannerResults = plannedOfficialCandidates
-            .Select((candidate, index) => new SearchResult(
-                candidate.Title,
-                candidate.Url,
-                candidate.Snippet,
-                candidate.DiscoveryRank > 0 ? candidate.DiscoveryRank : index + 1))
-            .ToArray();
-
-        var selectorCompany = officialWebsite is null ||
-                              string.Equals(officialWebsite, company.Website, StringComparison.OrdinalIgnoreCase)
-            ? company
-            : new Company
-            {
-                Name = company.Name,
-                LegalName = company.LegalName,
-                Website = officialWebsite,
-                Country = company.Country,
-                RegistrationNumber = company.RegistrationNumber,
-                Headquarters = company.Headquarters
-            };
-        var candidates = candidateSelector.Discover(
-                selectorCompany,
-                searchResults.Concat(plannerResults))
-            .ToArray();
-
-        return candidates
-            .Select(candidate =>
-            {
-                var classification = sourceClassifier.Classify(new SourceClassificationInput(
-                    candidate.NormalizedUrl,
-                    candidate.Title,
-                    candidate.Snippet,
-                    officialWebsite));
-                var score = candidate.Score + SourceKindBoost(classification.SourceKind);
-                var reasons = classification.RecommendationReasons
-                    .Concat([candidate.Reason])
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
-                return new RankedCandidate(candidate, classification, score, reasons);
-            })
-            .OrderByDescending(candidate => candidate.Score)
-            .ThenBy(candidate => candidate.Source.SearchRank)
-            .ToArray();
-    }
-
-    private async Task<CandidateDraft[]> ApplySemanticRerankingAsync(
-        ResearchRun run,
-        ResolvedResearchEntity target,
-        IReadOnlyList<CandidateDraft> drafts,
-        string model,
-        CancellationToken cancellationToken)
-    {
-        await WriteEventAsync(run, ResearchEventCategory.SourceSemanticRerankStarted, ResearchEventStatus.Working,
-            model, $"Assessing {drafts.Count} source candidates for {target.DisplayName}.", cancellationToken);
-        SourceSemanticRerankResult result;
-        try
-        {
-            result = await sourceSemanticReranker!.RerankAsync(
-                new SourceSemanticRerankRequest(target, drafts.Select(ToSemanticCandidate).ToArray()),
-                cancellationToken);
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            run.Error = "AI source recommendations were unavailable; deterministic ranking remains active.";
-            await WriteEventAsync(run, ResearchEventCategory.SourceSemanticRerankCompleted, ResearchEventStatus.Skipped,
-                model, run.Error, cancellationToken);
-            return drafts.ToArray();
-        }
-        if (result.Failure is not null || result.Assessments.Count == 0)
-        {
-            if (result.Warning is not null)
-            {
-                run.Error = result.Warning;
-            }
-
-            await WriteEventAsync(run, ResearchEventCategory.SourceSemanticRerankCompleted, ResearchEventStatus.Skipped,
-                model, result.Warning ?? "Semantic source reranking returned no assessments; deterministic ranking remains active.", cancellationToken);
-            return drafts.ToArray();
-        }
-
-        var validIds = drafts.Select(draft => draft.Id).ToHashSet();
-        var assessments = result.Assessments
-            .Where(assessment => validIds.Contains(assessment.CandidateId))
-            .GroupBy(assessment => assessment.CandidateId)
-            .ToDictionary(group => group.Key, group => group.First());
-        var reranked = drafts
-            .Select(draft => assessments.TryGetValue(draft.Id, out var assessment)
-                ? draft with { Assessment = assessment, Recommended = IsRecommended(assessment) }
-                : draft)
-            .OrderByDescending(draft => draft.Recommended)
-            .ThenByDescending(draft => draft.Ranked.Score)
-            .ThenBy(draft => draft.Ranked.Source.SearchRank)
-            .ToArray();
-        await WriteEventAsync(run, ResearchEventCategory.SourceSemanticRerankCompleted, ResearchEventStatus.Completed,
-            model, $"Assessed {assessments.Count} source candidates for relevance and entity relationship.", cancellationToken);
-        return reranked;
-    }
-
-    private void AddCandidateEntities(
-        IReadOnlyList<CandidateDraft> drafts,
-        Guid researchRunId,
-        IReadOnlyDictionary<Guid, SourceSemanticAssessment>? assessments)
-    {
-        foreach (var draft in drafts)
-        {
-            var assessment = assessments is not null && assessments.TryGetValue(draft.Id, out var value)
-                ? value
-                : draft.Assessment;
-            dbContext.ResearchCandidates.Add(new ResearchCandidate
-            {
-                Id = draft.Id,
-                ResearchRunId = researchRunId,
-                Url = draft.Ranked.Source.Url,
-                NormalizedUrl = draft.Ranked.Source.NormalizedUrl,
-                Domain = draft.Ranked.Classification.Domain ?? draft.Ranked.Source.SourceDomain,
-                Title = draft.Ranked.Source.Title,
-                Snippet = draft.Ranked.Source.Snippet,
-                SourceKind = draft.Ranked.Classification.SourceKind,
-                SearchRank = draft.Ranked.Source.SearchRank,
-                Score = draft.Ranked.Score,
-                RecommendationReasonsJson = SerializeRecommendation(draft.Ranked.Reasons, assessment),
-                Recommended = assessment is null ? draft.Recommended : IsRecommended(assessment),
-                IconUrl = BuildIconUrl(draft.Ranked.Classification.Domain ?? draft.Ranked.Source.SourceDomain)
-            });
-        }
-    }
-
     private static ResolvedResearchEntity ToResolvedEntity(ResearchIdentityCandidate candidate) => new(
         candidate.TemporaryId,
         candidate.DisplayName,
@@ -1026,16 +712,6 @@ public sealed class ResearchCompanyService(
         assessment.Recommended &&
         assessment.EntityRelationship is not EntityRelationship.DifferentEntity &&
         assessment.Relevance is not CandidateRelevance.Low;
-
-    private static SourceSemanticCandidate ToSemanticCandidate(CandidateDraft draft) => new(
-        draft.Id,
-        draft.Ranked.Source.Url,
-        draft.Ranked.Classification.Domain ?? draft.Ranked.Source.SourceDomain,
-        draft.Ranked.Source.Title,
-        draft.Ranked.Source.Snippet,
-        draft.Ranked.Classification.SourceKind,
-        draft.Ranked.Score,
-        draft.Ranked.Reasons);
 
     private async Task<ResearchIdentityInput> BuildInitialIdentityAsync(
         Company company,
@@ -1172,103 +848,6 @@ public sealed class ResearchCompanyService(
     }
 
 
-    private IReadOnlyList<string> BuildQueries(
-        ResearchIdentityInput input,
-        ResearchMode mode,
-        IReadOnlyCollection<ResearchTarget> targets)
-    {
-        if (mode == ResearchMode.TargetedEnrichment && targets.Count > 0)
-        {
-            return targetedPlanner.Plan(input, targets);
-        }
-
-        return BuildInitialQueries(input);
-    }
-
-    private static IReadOnlyList<string> BuildInitialQueries(ResearchIdentityInput input)
-    {
-        var name = Quote(input.Name);
-        var country = string.IsNullOrWhiteSpace(input.Country) ? null : Quote(input.Country);
-        var identityText = string.Join(' ', new[] { name, country }.Where(value => !string.IsNullOrWhiteSpace(value)));
-        var official = CompanyIdentityNormalizer.NormalizeWebsiteHost(input.Website) is { } host
-            ? $"site:{host} {name} official company"
-            : $"{identityText} official company";
-
-        var queries = new List<string>
-        {
-            official,
-            $"site:topcv.vn/cong-ty {name}",
-            $"site:linkedin.com/company {name}",
-            $"{identityText} business registration registry"
-        };
-
-        if (!string.IsNullOrWhiteSpace(input.RegistrationNumber))
-        {
-            queries.Add($"{Quote(input.RegistrationNumber)} {name} business registration");
-        }
-        else if (!string.IsNullOrWhiteSpace(input.LegalName))
-        {
-            queries.Add($"{Quote(input.LegalName)} {country} business registration");
-        }
-
-        if (!string.IsNullOrWhiteSpace(input.ResearchHint))
-        {
-            queries.Add($"{identityText} {Quote(input.ResearchHint)}");
-        }
-
-        return queries
-            .Where(query => !string.IsNullOrWhiteSpace(query))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToArray();
-    }
-
-    private static string? ResolveOfficialWebsite(Company company, IEnumerable<SearchResult> results)
-    {
-        if (!string.IsNullOrWhiteSpace(company.Website) &&
-            Uri.TryCreate(company.Website, UriKind.Absolute, out var suppliedWebsite) &&
-            suppliedWebsite.Scheme is "http" or "https")
-        {
-            return company.Website;
-        }
-
-        var nameTokens = (CompanyIdentityNormalizer.NormalizeName(company.Name) ?? string.Empty)
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(token => token.Length >= 3)
-            .ToArray();
-        var domains = results
-            .Select(result => Uri.TryCreate(result.Url, UriKind.Absolute, out var uri) ? uri : null)
-            .Where(uri => uri is not null)
-            .Select(uri => uri!)
-            .Where(uri => uri.Scheme is "http" or "https")
-            .Where(uri => !uri.Host.Contains("topcv", StringComparison.OrdinalIgnoreCase))
-            .Where(uri => !uri.Host.Contains("linkedin", StringComparison.OrdinalIgnoreCase))
-            .GroupBy(uri => uri.Host, StringComparer.OrdinalIgnoreCase)
-            .Select(group => new
-            {
-                Host = group.Key,
-                Score = group.Count() + group.Sum(uri => nameTokens.Count(token => uri.Host.Contains(token, StringComparison.OrdinalIgnoreCase)))
-            })
-            .OrderByDescending(group => group.Score)
-            .FirstOrDefault();
-
-        return domains is null ? null : $"https://{domains.Host}";
-    }
-
-    private static int SourceKindBoost(SourceKind kind) => kind switch
-    {
-        SourceKind.OfficialWebsite => 1_000,
-        SourceKind.OfficialDocument => 950,
-        SourceKind.OfficialBusinessRegistry => 900,
-        SourceKind.BusinessDirectory => 760,
-        SourceKind.TopCv => 700,
-        SourceKind.BusinessRegistry => 650,
-        SourceKind.LinkedIn => 500,
-        SourceKind.News => 300,
-        SourceKind.ExternalWebsite => 100,
-        _ => 0
-    };
-
     private static string? SerializeTopCvFacts(TopCvParsedFacts facts) =>
         facts == TopCvParsedFacts.Empty ||
         (facts.RegistrationNumber is null && facts.EmployeeCountRange is null && facts.Industry is null && facts.Address is null && facts.Introduction is null)
@@ -1342,44 +921,6 @@ public sealed class ResearchCompanyService(
             GetTargets(run),
             Day6IdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson));
 
-    private CandidateDraft[] ApplyCoverageAwareSelection(
-        IReadOnlyList<CandidateDraft> drafts,
-        IReadOnlyCollection<ResearchTarget> targets)
-    {
-        var candidates = drafts.Select(draft => new CoverageSourceCandidate(
-            draft.Id,
-            draft.Ranked.Source.Url,
-            draft.Ranked.Source.Title,
-            draft.Ranked.Source.Snippet,
-            draft.Ranked.Classification.SourceKind,
-            draft.Ranked.Score,
-            draft.Ranked.Source.SearchRank,
-            draft.Assessment?.EntityRelationship ?? EntityRelationship.SameEntity,
-            draft.Assessment?.Relevance ?? CandidateRelevance.High,
-            draft.Assessment?.Purposes,
-            draft.Ranked.Reasons,
-            draft.Assessment?.Recommended ?? draft.Recommended,
-            draft.Assessment?.Rationale,
-            draft.Ranked.Classification.SourceKind is SourceKind.OfficialWebsite or SourceKind.OfficialDocument,
-            draft.Ranked.Source.NormalizedUrl)).ToArray();
-        var selection = coverageSourceSelector.Select(new CoverageSourceSelectionRequest(candidates, targets));
-        var byId = selection.RecommendedRoots.ToDictionary(root => root.Candidate.CandidateId);
-        return drafts.Select(draft =>
-        {
-            if (!byId.TryGetValue(draft.Id, out var selected))
-            {
-                return draft with { Recommended = false };
-            }
-
-            var ranked = draft.Ranked with
-            {
-                Reasons = draft.Ranked.Reasons.Concat(selected.Reasons)
-                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-            };
-            return draft with { Ranked = ranked, Recommended = true };
-        }).ToArray();
-    }
-
     private static IReadOnlyList<ResearchTarget> GetTargets(ResearchRun run)
     {
         try
@@ -1412,33 +953,10 @@ public sealed class ResearchCompanyService(
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
-            // A settings-store outage must not make deterministic Day-3 research
+            // A settings-store outage must not make deterministic research
             // unavailable. The workflow will use its safe in-memory defaults.
             return null;
         }
-    }
-
-    private static string SerializeRecommendation(
-        IReadOnlyList<string> reasons,
-        SourceSemanticAssessment? assessment)
-    {
-        if (assessment is null)
-        {
-            // Keep the original array format for candidates that were only
-            // deterministically ranked; this remains compatible with Day 3 data.
-            return JsonSerializer.Serialize(reasons);
-        }
-
-        return JsonSerializer.Serialize(new CandidateRecommendationPayload(
-            reasons,
-            assessment.EntityRelationship,
-            assessment.Relevance,
-            assessment.Purposes.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
-            assessment.Rationale),
-            new JsonSerializerOptions(JsonSerializerDefaults.Web)
-            {
-                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-            });
     }
 
     private static CandidateRecommendationPayload ParseRecommendation(string? json)
@@ -1501,27 +1019,11 @@ public sealed class ResearchCompanyService(
     private static string? BuildIconUrl(string? domain) =>
         string.IsNullOrWhiteSpace(domain) ? null : $"https://{domain.Trim().ToLowerInvariant()}/favicon.ico";
 
-    private static string HashContent(string content) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
-
     private static string BuildFailureMessage(string prefix, IEnumerable<string> errors)
     {
         var detail = string.Join(" | ", errors.Where(error => !string.IsNullOrWhiteSpace(error)).Take(3));
         return string.IsNullOrWhiteSpace(detail) ? prefix : $"{prefix} {detail}";
     }
-
-    private sealed record RankedCandidate(
-        SourceCandidate Source,
-        SourceClassificationResult Classification,
-        int Score,
-        IReadOnlyList<string> Reasons);
-
-    private sealed record CandidateDraft(
-        Guid Id,
-        RankedCandidate Ranked,
-        bool DeterministicRecommended,
-        bool Recommended,
-        SourceSemanticAssessment? Assessment = null);
 
     private sealed record CandidateRecommendationPayload(
         IReadOnlyList<string> Reasons,

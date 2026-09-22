@@ -13,7 +13,7 @@ public sealed class ChatConversation
     public CompanyProfileVersion ProfileVersion { get; init; } = null!;
     public string? Title { get; set; }
     /// <summary>
-    /// User-controlled permission for future web-enabled turns. Enabling this
+    /// User-controlled permission for web-enabled turns. Enabling this
     /// capability never requires the agent to call Search or Crawl.
     /// </summary>
     public bool WebSearchEnabled { get; set; }
@@ -32,8 +32,9 @@ public sealed class ChatMessage
     public ChatMessageStatus Status { get; set; } = ChatMessageStatus.Pending;
     /// <summary>
     /// Compatibility column retained because databases created by the first
-    /// chatbot migration made this field non-nullable. V1 no longer exposes
-    /// web lookup, but still writes the safe default for old SQLite schemas.
+    /// chatbot migration made this field non-nullable. Current web evidence is
+    /// persisted through ChatWebEvidenceSnapshot; this field remains the safe
+    /// default for older SQLite schemas.
     /// </summary>
     public bool WebLookupIncomplete { get; set; }
     public ChatAnswerStatus? AnswerStatus { get; set; }
@@ -48,7 +49,7 @@ public sealed class ChatMessage
 }
 
 /// <summary>
-/// Bounded, immutable evidence captured by a future web-enabled Chat turn.
+/// Bounded, immutable evidence captured by a web-enabled Chat turn.
 /// It belongs to the conversation message only: it is not a SourceDocument and
 /// cannot become accepted Company Profile evidence without an explicit flow.
 /// </summary>

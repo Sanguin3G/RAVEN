@@ -867,81 +867,6 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 }
 
-.investigationList {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.investigationCard {
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--ai);
-  border-radius: 4px;
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.85rem;
-}
-
-.investigationMeta,
-.investigationFooter {
-  align-items: center;
-  color: var(--text-muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.68rem;
-  gap: 0.55rem 0.8rem;
-  justify-content: space-between;
-}
-
-.investigationType {
-  color: var(--ai);
-  font-size: 0.67rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.investigationCard h3 {
-  font-size: 0.96rem;
-  margin: 0;
-}
-
-.investigationQuestion {
-  font-size: 0.79rem;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.investigationQuestion strong {
-  color: var(--text);
-}
-
-.investigationDetails {
-  border-top: 1px solid var(--border);
-  font-size: 0.79rem;
-  padding-top: 0.55rem;
-}
-
-.investigationDetails summary {
-  color: var(--primary);
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.investigationResult {
-  color: var(--text);
-  line-height: 1.6;
-  margin-top: 0.6rem;
-  max-width: 80ch;
-  white-space: pre-wrap;
-}
-
-.investigationFooter {
-  border-top: 1px solid var(--border);
-  justify-content: flex-start;
-  padding-top: 0.55rem;
-}
-
 .emptyState {
   background: color-mix(in srgb, var(--info) 8%, var(--surface-raised));
   border-left: 4px solid var(--info);
@@ -1506,97 +1431,7 @@
   }
 }
 
-/* Investigation workspace */
-.investigationsPage { display: grid; gap: 1rem; }
-.investigationsPageHeader { align-items: start; display: flex; gap: 1rem; justify-content: space-between; }
-.investigationsPageHeader h2 { font-size: clamp(1.3rem, 3vw, 1.8rem); margin: 0.15rem 0 0.35rem; }
-.investigationPageActions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.65rem; justify-content: flex-start; }
-.investigationPageActions .button { font-size: 0.72rem; }
-.investigationPageHint { color: var(--text-muted); font-size: 0.7rem; }
-.investigationPageNotice { color: var(--text-muted); flex-basis: 100%; font-size: 0.7rem; margin: 0; text-align: right; }
-.investigationWorkspaceLayout { align-items: start; display: grid; gap: 0.7rem; grid-template-columns: minmax(0, 1fr); }
-.investigationPicker { align-items: end; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 0.45rem; display: flex; gap: 0.8rem; justify-content: space-between; padding: 0.55rem 0.7rem; }
-.investigationPicker label { align-items: center; display: flex; flex: 1 1 auto; gap: 0.7rem; min-width: 0; }
-.investigationPicker label > span { color: var(--text-muted); flex: 0 0 auto; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
-.investigationPicker select { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 0.35rem; color: var(--text); font-size: 0.76rem; min-width: 0; padding: 0.45rem 0.55rem; width: min(100%, 34rem); }
-.investigationPicker small { color: var(--text-muted); flex: 0 0 auto; font-size: 0.66rem; }
-.investigationWorkspace { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; display: grid; gap: 0.9rem; min-width: 0; padding: clamp(0.85rem, 2vw, 1.25rem); }
-.investigationWorkspaceHeader { align-items: start; border-bottom: 1px solid var(--border); display: flex; gap: 1rem; justify-content: space-between; padding-bottom: 0.85rem; }
-.investigationLockedPanel { background: color-mix(in srgb, var(--warning) 9%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--warning) 38%, var(--border)); border-radius: 5px; color: var(--text-muted); display: grid; gap: 0.25rem; margin-bottom: 0.8rem; padding: 0.7rem 0.8rem; }
-.investigationLockedPanel strong { color: var(--text); font-size: 0.78rem; }
-.investigationLockedPanel p { font-size: 0.72rem; line-height: 1.45; margin: 0; }
-.investigationWorkspaceHeader h2 { font-size: clamp(1.2rem, 3vw, 1.8rem); margin: 0.2rem 0 0.35rem; overflow-wrap: anywhere; }
-.investigationObjective { font-size: 0.9rem; line-height: 1.55; margin: 0; max-width: 72ch; }
-.investigationWorkspaceActions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
-.investigationWorkspaceActions .button { font-size: 0.72rem; }
-.investigationAction { align-items: center; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.42rem; color: var(--text); cursor: pointer; display: inline-flex; flex: 0 1 10.75rem; gap: 0.45rem; min-height: 3.1rem; padding: 0.4rem 0.55rem; text-align: left; }
-.investigationAction > span { display: grid; gap: 0.1rem; min-width: 0; }
-.investigationAction strong { font-size: 0.7rem; line-height: 1.2; }
-.investigationAction small { color: var(--text-muted); font-size: 0.61rem; line-height: 1.25; }
-.investigationAction:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)); transform: translateY(-1px); }
-.investigationAction:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.investigationAction:disabled { cursor: not-allowed; opacity: 0.55; transform: none; }
-.investigationActionPrimary { background: color-mix(in srgb, var(--primary) 12%, var(--surface-raised)); border-color: color-mix(in srgb, var(--primary) 42%, var(--border)); color: var(--primary); }
-.investigationActionExternal { color: var(--text-muted); }
-.investigationOrganizationNotice { background: color-mix(in srgb, var(--success) 9%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--success) 35%, var(--border)); border-radius: 0.35rem; color: var(--success); flex-basis: 100%; font-size: 0.69rem; margin: 0.1rem 0 0; padding: 0.4rem 0.55rem; }
-.investigationStats { align-items: center; border-bottom: 1px solid var(--border); color: var(--text-muted); display: flex; flex-wrap: wrap; font-size: 0.7rem; gap: 0.45rem 0.8rem; padding-bottom: 0.8rem; }
-.investigationCategory { background: color-mix(in srgb, var(--primary) 10%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border)); border-radius: 999px; color: var(--primary); font-weight: 800; padding: 0.22rem 0.5rem; }
-.investigationStats span:not(:last-child)::after { color: var(--border-strong); content: "·"; margin-left: 0.8rem; }
-.investigationStatusRunning, .investigationStatusReady { border: 1px solid; border-radius: 999px; font-weight: 800; padding: 0.2rem 0.45rem; }
-.investigationStatusRunning { border-color: color-mix(in srgb, var(--ai) 50%, var(--border)); color: var(--ai); }
-.investigationStatusReady { border-color: color-mix(in srgb, var(--success) 50%, var(--border)); color: var(--success); }
-.investigationReview { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 4px; display: grid; gap: 0.55rem; padding: 0.75rem; }
-.investigationReview .investigationSectionHeader { align-items: start; }
-.investigationReview .investigationSectionHeader > div { display: grid; gap: 0.25rem; }
-.investigationReview .investigationSectionHeader p { color: var(--text-muted); font-size: 0.72rem; margin: 0; }
-.investigationReview .investigationSectionHeader > span { color: var(--warning); font-size: 0.67rem; font-weight: 800; }
-.investigationReviewStats { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-.investigationReviewStats span { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: 0.68rem; padding: 0.25rem 0.45rem; }
-.investigationReviewStats strong { color: var(--text); }
-.investigationReview details { border-top: 1px solid var(--border); padding-top: 0.5rem; }
-.investigationReview summary { color: var(--primary); cursor: pointer; font-size: 0.7rem; font-weight: 800; }
-.investigationReview .plainList { margin-top: 0.45rem; }
-.investigationNextStep { align-items: center; background: color-mix(in srgb, var(--success) 7%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--success) 32%, var(--border)); border-radius: 4px; display: flex; gap: 0.8rem; justify-content: space-between; padding: 0.7rem; }
-.investigationNextStepCompleted { background: color-mix(in srgb, var(--primary) 6%, var(--surface-raised)); border-color: color-mix(in srgb, var(--primary) 28%, var(--border)); }
-.investigationContextNote { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); font-size: 0.74rem; padding: 0.7rem; }
-.investigationContextNote strong { color: var(--text); }
-.investigationContextNote p { margin: 0.25rem 0 0; }
-.investigationNextStep strong { font-size: 0.78rem; }
-.investigationNextStep p { color: var(--text-muted); font-size: 0.72rem; line-height: 1.45; margin: 0.25rem 0 0; }
-.investigationNextStepActions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 0.4rem; }
-.investigationNextStepActions .button { font-size: 0.7rem; }
-.investigationWorkspaceSection { border-top: 1px solid var(--border); display: grid; gap: 0.6rem; padding-top: 0.9rem; }
-.investigationSectionHeader { align-items: baseline; display: flex; gap: 0.7rem; justify-content: space-between; }
-.investigationSectionHeader h3 { font-size: 0.95rem; margin: 0; }
-.investigationSectionHeader span { color: var(--text-muted); font-size: 0.7rem; }
-.investigationSummary { font-size: 0.86rem; line-height: 1.65; margin: 0; white-space: pre-wrap; }
-.investigationThemeGrid, .investigationGapGrid { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
-.investigationTheme, .investigationClaim { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; padding: 0.7rem; }
-.investigationTheme h4, .investigationClaim h4 { font-size: 0.78rem; margin: 0; }
-.investigationTheme p { font-size: 0.78rem; line-height: 1.45; margin: 0.4rem 0; }
-.investigationTheme small { color: var(--text-muted); font-size: 0.68rem; }
-.investigationOrganizeEmpty { background: color-mix(in srgb, var(--ai) 7%, var(--surface-raised)); border: 1px dashed color-mix(in srgb, var(--ai) 45%, var(--border)); border-radius: 4px; display: grid; gap: 0.5rem; padding: 0.85rem; }
-.investigationOrganizeEmpty h3 { font-size: 0.9rem; margin: 0; }
-.investigationOrganizeEmpty p { font-size: 0.78rem; margin: 0; }
-.investigationClaimList { display: grid; gap: 0.55rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.investigationClaim { align-items: start; display: flex; gap: 1rem; justify-content: space-between; }
-.investigationClaim p { font-size: 0.82rem; line-height: 1.5; margin: 0.35rem 0 0; }
-.investigationClaimMeta { display: grid; gap: 0.25rem; min-width: 9rem; text-align: right; }
-.investigationClaimMeta span { color: var(--warning); font-size: 0.68rem; font-weight: 800; }
-.investigationClaimMeta small { color: var(--text-muted); font-size: 0.65rem; }
-.investigationCollapsibleSection { border-top: 1px solid var(--border); padding-top: 0.85rem; }
-.investigationCollapsibleSection > summary { color: var(--text); cursor: pointer; list-style: none; }
-.investigationCollapsibleSection > summary::-webkit-details-marker { display: none; }
-.investigationCollapsibleSection > summary::after { color: var(--text-muted); content: "+"; float: right; font-size: 1rem; font-weight: 700; line-height: 1; }
-.investigationCollapsibleSection[open] > summary::after { content: "–"; }
-.investigationCollapsibleSection > :not(summary) { margin-top: 0.7rem; }
-.investigationSourceList { display: grid; gap: 0.45rem; list-style: none; margin: 0; padding: 0; }
-.investigationSourceList li { border-bottom: 1px dotted var(--border); display: grid; gap: 0.16rem; min-width: 0; padding-bottom: 0.45rem; }
-.investigationSourceList a { overflow-wrap: anywhere; }
-.investigationSourceList span { color: var(--text-muted); font-size: 0.7rem; }
-.investigationRawMaterial { border-top: 1px solid var(--border); font-size: 0.78rem; padding-top: 0.9rem; }
-.investigationRawMaterial summary { color: var(--primary); cursor: pointer; font-weight: 800; }
-.investigationRawMaterial pre { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 4px; max-height: 20rem; overflow: auto; padding: 0.7rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Research assistance and enrichment styles remain in this shared workspace module for now. */
 .methodChoice { border-top: 1px solid var(--border); display: grid; gap: 0.65rem; margin-top: 0.25rem; padding-top: 0.9rem; }
 .methodChoice h3 { margin: 0.1rem 0 0; }
 .methodChoiceRecommended { align-items: center; background: color-mix(in srgb, var(--primary) 8%, var(--surface-raised)); border: 1px solid var(--primary); border-radius: 4px; display: flex; gap: 0.8rem; justify-content: space-between; padding: 0.75rem; }
@@ -1639,17 +1474,7 @@
 .externalAssistFooter { border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.7rem; padding-top: 0.75rem; }
 
 @media (max-width: 700px) {
-  .investigationWorkspaceLayout { grid-template-columns: 1fr; }
-  .investigationPicker { align-items: stretch; flex-direction: column; gap: 0.45rem; }
-  .investigationPicker label { align-items: stretch; flex-direction: column; gap: 0.3rem; }
-  .investigationPicker select { width: 100%; }
-  .investigationPicker small { align-self: flex-start; }
-  .investigationWorkspaceHeader, .investigationsPageHeader, .externalAssistHeader, .externalAssistReviewHeading, .externalAssistReviewSummary { flex-direction: column; }
-  .investigationPageActions { justify-content: stretch; }
-  .investigationPageActions .button { max-width: 100%; white-space: normal; }
-  .investigationWorkspaceActions, .investigationWorkspaceActions .button { width: 100%; }
-  .investigationWorkspaceActions .button { justify-content: center; }
-  .investigationAction { flex-basis: 100%; width: 100%; }
+  .externalAssistHeader, .externalAssistReviewHeading, .externalAssistReviewSummary { flex-direction: column; }
   .methodChoiceAlternatives, .externalAssistReviewGrid { grid-template-columns: 1fr; }
   .materialReviewLead { flex-direction: column; }
   .materialReviewBadge { align-self: flex-start; }
@@ -1660,10 +1485,4 @@
   .externalAssistReviewStats { justify-content: flex-start; width: 100%; }
   .externalAssistActions, .externalAssistActions .button { width: 100%; }
   .externalAssistActions .button { justify-content: center; }
-  .investigationClaimList { grid-template-columns: 1fr; }
-  .investigationClaim { display: grid; }
-  .investigationClaimMeta { text-align: left; }
-  .investigationNextStep { align-items: stretch; flex-direction: column; }
-  .investigationNextStepActions, .investigationNextStepActions .button { width: 100%; }
-  .investigationNextStepActions .button { justify-content: center; }
 }

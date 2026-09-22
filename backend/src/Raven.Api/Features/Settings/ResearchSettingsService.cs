@@ -32,7 +32,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         }
 
         // Provider identifiers are persisted for compatibility with older
-        // workspaces. A removed provider (notably Firecrawl) must not make the
+        // workspaces. A removed provider must not make the
         // settings row unusable or cause routing to fail with an empty route.
         // Preserve every still-supported preference and use deterministic
         // product defaults only when a priority list has no usable entries.

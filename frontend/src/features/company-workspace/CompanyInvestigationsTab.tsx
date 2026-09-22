@@ -12,7 +12,10 @@ import type { InvestigationCategory, WorkspaceInvestigation } from "./investigat
 import { artifactToWorkspace, classifyInvestigation } from "./investigationTypes";
 import { dismissResearchActivity, hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
 import { hasUsableAcceptedProfile } from "../../utils/profileReadiness";
-import styles from "./company-workspace.module.css";
+import workspaceStyles from "./company-workspace.module.css";
+import investigationStyles from "./company-investigations.module.css";
+
+const styles = { ...workspaceStyles, ...investigationStyles };
 
 export interface CompanyInvestigationsTabProps {
   companyId: string;
