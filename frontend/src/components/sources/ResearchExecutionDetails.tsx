@@ -8,7 +8,7 @@ const seconds = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)} s
 export function ResearchExecutionDetails({ researchRunId }: { researchRunId: string }) {
   const [execution, setExecution] = useState<ResearchExecution | null>(null);
   useEffect(() => { void getResearchExecution(researchRunId).then(setExecution).catch(() => setExecution(null)); }, [researchRunId]);
-  if (!execution) return null;
+  if (!execution?.summary || !Array.isArray(execution.operations)) return null;
   const { summary, operations } = execution;
   return <details className="research-execution-details">
     <summary>Execution details · {seconds(summary.totalWallClockDurationMs)}</summary>
