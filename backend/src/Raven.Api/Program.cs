@@ -45,12 +45,7 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
 
     policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
 }));
-builder.Services.AddScoped<ICompanyService, CompanyService>();
-builder.Services.AddScoped<ICompanyLifecycleService, CompanyLifecycleService>();
-builder.Services.AddScoped<CompanyDeletionService>();
-builder.Services.AddSingleton<ICompanyHealthEvaluator, CompanyHealthEvaluator>();
-builder.Services.AddSingleton<ICompanyDuplicateGroupingService, CompanyDuplicateGroupingService>();
-builder.Services.AddScoped<ICompanyWorkspaceReviewService, CompanyWorkspaceReviewService>();
+builder.Services.AddCompanyFeatures();
 builder.Services.AddScoped<ITargetedProfileUpdateService, TargetedProfileUpdateService>();
 builder.Services.AddScoped<IResearchSettingsStore, EfResearchSettingsStore>();
 builder.Services.AddScoped<IResearchSettingsService, ResearchSettingsService>();
