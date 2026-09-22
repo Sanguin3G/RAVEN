@@ -12,6 +12,7 @@ using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.SavedArtifacts;
+using Raven.Api.Features.Companies.Lifecycle;
 
 namespace Raven.Api.Features.Companies;
 
@@ -20,7 +21,7 @@ namespace Raven.Api.Features.Companies;
 /// operations use one database transaction and explicitly handle the restrictive
 /// foreign keys used by the research model.
 /// </summary>
-public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompanyLifecycleService
+public sealed class CompanyLifecycleService(RavenDbContext dbContext, CompanyDeletionService? deletionService = null) : ICompanyLifecycleService
 {
     public async Task<CompanyResponse?> ArchiveAsync(
         Guid companyId,
@@ -77,7 +78,7 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            var deletedRecords = await DeleteCompanyRowsAsync(companyId, cancellationToken);
+            var deletedRecords = await (deletionService ?? new CompanyDeletionService(dbContext)).DeleteAsync(companyId, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new CompanyDeleteResult(CompanyDeleteOutcome.Deleted, deletedRecords);
         }
@@ -233,92 +234,6 @@ public sealed class CompanyLifecycleService(RavenDbContext dbContext) : ICompany
             await transaction.RollbackAsync(CancellationToken.None);
             throw;
         }
-    }
-
-    private async Task<int> DeleteCompanyRowsAsync(Guid companyId, CancellationToken cancellationToken)
-    {
-        var runIds = await dbContext.ResearchRuns
-            .Where(run => run.CompanyId == companyId)
-            .Select(run => run.Id)
-            .ToArrayAsync(cancellationToken);
-        var deepResearchRunIds = await dbContext.DeepResearchRuns
-            .Where(run => run.CompanyId == companyId)
-            .Select(run => run.Id)
-            .ToArrayAsync(cancellationToken);
-        var profileCandidateIds = await dbContext.CompanyProfileCandidates
-            .Where(profile => profile.CompanyId == companyId)
-            .Select(profile => profile.Id)
-            .ToArrayAsync(cancellationToken);
-        var profileVersionIds = await dbContext.CompanyProfileVersions
-            .Where(profile => profile.CompanyId == companyId)
-            .Select(profile => profile.Id)
-            .ToArrayAsync(cancellationToken);
-
-        var deleted = 0;
-        deleted += await dbContext.ProfileEvidences
-            .Where(evidence =>
-                (evidence.CompanyProfileCandidateId.HasValue && profileCandidateIds.Contains(evidence.CompanyProfileCandidateId.Value)) ||
-                (evidence.CompanyProfileVersionId.HasValue && profileVersionIds.Contains(evidence.CompanyProfileVersionId.Value)))
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.ProfileChanges
-            .Where(change => change.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.CompanyProfileCandidates
-            .Where(profile => profile.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.CompanyProfileVersions
-            .Where(profile => profile.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        if (runIds.Length > 0)
-        {
-            deleted += await dbContext.ResearchEvents
-                .Where(researchEvent => researchEvent.ResearchRunId.HasValue && runIds.Contains(researchEvent.ResearchRunId.Value))
-                .ExecuteDeleteAsync(cancellationToken);
-            deleted += await dbContext.ResearchIdentityCandidates
-                .Where(candidate => runIds.Contains(candidate.ResearchRunId))
-                .ExecuteDeleteAsync(cancellationToken);
-            deleted += await dbContext.ResearchCandidates
-                .Where(candidate => runIds.Contains(candidate.ResearchRunId))
-                .ExecuteDeleteAsync(cancellationToken);
-        }
-
-        deleted += await dbContext.SourceDocuments
-            .Where(source => source.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.InvestigationOrganizationRevisions
-            .Where(revision => revision.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.ExternalResearchAnalysisJobs
-            .Where(job => job.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.SavedResearchArtifacts
-            .Where(artifact => artifact.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        if (deepResearchRunIds.Length > 0)
-        {
-            deleted += await dbContext.DeepResearchActivities
-                .Where(activity => deepResearchRunIds.Contains(activity.DeepResearchRunId))
-                .ExecuteDeleteAsync(cancellationToken);
-        }
-
-        deleted += await dbContext.DeepResearchRuns
-            .Where(run => run.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.CompanyMonitoringSettings
-            .Where(setting => setting.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.WorkspaceResearchReviewStates
-            .Where(state => state.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.ResearchRuns
-            .Where(run => run.CompanyId == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.Companies
-            .Where(company => company.Id == companyId)
-            .ExecuteDeleteAsync(cancellationToken);
-        return deleted;
     }
 
     private async Task<CompanyMergePreviewResponse> BuildPreviewAsync(

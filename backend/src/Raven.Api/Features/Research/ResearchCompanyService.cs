@@ -21,7 +21,7 @@ using Raven.Api.Features.Research.Coverage;
 
 namespace Raven.Api.Features.Research;
 
-public sealed class ResearchCompanyService(
+public sealed partial class ResearchCompanyService(
     RavenDbContext dbContext,
     ISearchProvider searchProvider,
     ICrawlerProvider crawlerProvider,

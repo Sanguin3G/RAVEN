@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
 using Raven.Api.Features.Ai;
 using Raven.Api.Features.Companies;
+using Raven.Api.Features.Companies.Lifecycle;
 using Raven.Api.Features.Crawling;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles;
@@ -46,6 +47,7 @@ builder.Services.AddCors(options => options.AddPolicy("DevelopmentFrontend", pol
 }));
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<ICompanyLifecycleService, CompanyLifecycleService>();
+builder.Services.AddScoped<CompanyDeletionService>();
 builder.Services.AddSingleton<ICompanyHealthEvaluator, CompanyHealthEvaluator>();
 builder.Services.AddSingleton<ICompanyDuplicateGroupingService, CompanyDuplicateGroupingService>();
 builder.Services.AddScoped<ICompanyWorkspaceReviewService, CompanyWorkspaceReviewService>();
