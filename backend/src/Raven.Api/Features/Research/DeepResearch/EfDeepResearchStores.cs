@@ -54,7 +54,7 @@ public sealed class EfDeepResearchActivityStore(RavenDbContext dbContext) : IDee
         dbContext.DeepResearchActivities.Add(new DeepResearchActivityRecord
         {
             DeepResearchRunId = runId,
-            // Existing Day-4 rows use small per-run values. UTC ticks ensure
+            // Existing rows use small per-run values. UTC ticks ensure
             // newly appended rows sort after them even after a process restart,
             // while the atomic clock resolves same-tick concurrent writes.
             Sequence = NextSequence(),

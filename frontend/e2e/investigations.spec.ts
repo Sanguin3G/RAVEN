@@ -22,7 +22,7 @@ const artifact = {
   uncertainties: ["The partnership's current operating scale is not yet verified."],
 };
 
-async function installDay9Fixture(page: import("@playwright/test").Page) {
+async function installInvestigationFixture(page: import("@playwright/test").Page) {
   let analysisPolls = 0;
   await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -50,7 +50,7 @@ async function installDay9Fixture(page: import("@playwright/test").Page) {
 }
 
 test("external research assist is focused, resumable, and reviewable", async ({ page }) => {
-  await installDay9Fixture(page);
+  await installInvestigationFixture(page);
   await page.goto(`/companies/${companyId}`);
 
   await page.getByRole("button", { name: "Find leadership" }).click();
@@ -75,7 +75,7 @@ test("external research assist is focused, resumable, and reviewable", async ({ 
   await expect(page.getByText("Saved to Investigation as unverified research material.")).toBeVisible();
 });
 test("investigation workspace keeps organized findings and raw material accessible", async ({ page }) => {
-  await installDay9Fixture(page);
+  await installInvestigationFixture(page);
   await page.goto(`/companies/${companyId}`);
   await page.getByRole("tab", { name: "Investigations" }).click();
 
@@ -104,7 +104,7 @@ test.describe("mobile research workspace", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("workspace and external assist remain usable at 390 by 844", async ({ page }) => {
-    await installDay9Fixture(page);
+    await installInvestigationFixture(page);
     await page.goto(`/companies/${companyId}`);
     await page.getByRole("button", { name: "Collapse assistant" }).click();
     await page.getByRole("tab", { name: "Investigations" }).click();

@@ -40,7 +40,7 @@ public static class ResearchSettingsEndpoints
         try
         {
             var updated = await settings.UpdateAsync(request, cancellationToken);
-            // Preserve the Day-3 compatibility seam while settings become durable.
+            // Preserve the compatibility seam while settings remain durable.
             runtimeModels.TryUpdate(new UpdateRuntimeModelPreferencesRequest(
                 updated.ProfileModel,
                 updated.DeepResearchModel), out _);

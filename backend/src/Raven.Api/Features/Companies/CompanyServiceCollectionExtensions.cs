@@ -9,6 +9,7 @@ public static class CompanyServiceCollectionExtensions
         services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<ICompanyLifecycleService, CompanyLifecycleService>();
         services.AddScoped<Lifecycle.CompanyDeletionService>();
+        services.AddScoped<CompanyMergeService>();
         services.AddSingleton<ICompanyHealthEvaluator, CompanyHealthEvaluator>();
         services.AddSingleton<ICompanyDuplicateGroupingService, CompanyDuplicateGroupingService>();
         services.AddScoped<ICompanyWorkspaceReviewService, CompanyWorkspaceReviewService>();

@@ -1,8 +1,11 @@
 import { ArrowSquareOut, Sparkle } from "@phosphor-icons/react";
 import type { InvestigationOrganization } from "../../api/investigations";
 import type { DossierProfile } from "./dossierTypes";
-import styles from "./company-workspace.module.css";
+import workspaceStyles from "./company-workspace.module.css";
+import investigationStyles from "./company-investigations.module.css";
 import type { WorkspaceInvestigation } from "./investigationTypes";
+
+const styles = { ...workspaceStyles, ...investigationStyles };
 
 export interface InvestigationWorkspaceProps {
   companyName: string;
@@ -44,7 +47,7 @@ function ReviewSummary({ investigation, profile }: { investigation: WorkspaceInv
   const sourced = investigation.claims.filter((claim) => claim.supportingSourceLeadIds?.length).length;
   const needsSources = investigation.claims.length - sourced;
   const overlapsProfile = investigation.claims.filter((claim) => profileHasField(profile, claim.field)).length;
-  return <section className={styles.investigationReview} aria-labelledby="investigation-review-heading"><div className={styles.investigationSectionHeader}><div><h3 id="investigation-review-heading">RAVEN review</h3><p>Claims are compared with the accepted profile before any proposal is prepared. No second source crawl is started.</p></div><span>Reviewable material</span></div><div className={styles.investigationReviewStats}><span><strong>{sourced}</strong> with citations</span><span><strong>{needsSources}</strong> need citation context</span><span><strong>{overlapsProfile}</strong> overlap accepted fields</span></div><details><summary>See comprehensive review details</summary><ul className={styles.plainList}><li>Original provider material, claims, URLs, and uncertainties stay preserved.</li><li>The review distinguishes new profile gaps from information that overlaps the accepted profile.</li>{needsSources ? <li>{needsSources} claim{needsSources === 1 ? "" : "s"} need additional human scrutiny because the material has no attached citation.</li> : null}<li>Any proposed profile change remains a separate user-confirmed step.</li></ul></details></section>;
+  return <section className={styles.investigationReview} aria-labelledby="investigation-review-heading"><div className={styles.investigationSectionHeader}><div><h3 id="investigation-review-heading">RAVEN review</h3><p>Claims are compared with the accepted profile before any proposal is prepared. No second source crawl is started.</p></div><span>Reviewable material</span></div><div className={styles.investigationReviewStats}><span><strong>{sourced}</strong> with citations</span><span><strong>{needsSources}</strong> need citation context</span><span><strong>{overlapsProfile}</strong> overlap accepted fields</span></div><details><summary>See comprehensive review details</summary><ul className={`${styles.plainList} ${styles.investigationReviewList}`}><li>Original provider material, claims, URLs, and uncertainties stay preserved.</li><li>The review distinguishes new profile gaps from information that overlaps the accepted profile.</li>{needsSources ? <li>{needsSources} claim{needsSources === 1 ? "" : "s"} need additional human scrutiny because the material has no attached citation.</li> : null}<li>Any proposed profile change remains a separate user-confirmed step.</li></ul></details></section>;
 }
 
 function SectionSummary({ title, count }: { title: string; count?: number }) {

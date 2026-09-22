@@ -23,7 +23,7 @@ public sealed class SourceCandidateSelector(SourceUrlNormalizer urlNormalizer)
 
     /// <summary>
     /// Normalizes, filters, de-duplicates, and ranks discovery results without
-    /// applying the small Day-2 acquisition limit. Research review uses this
+    /// applying the bounded acquisition limit. Research review uses this
     /// bounded list so a person can choose among more than five candidates.
     /// </summary>
     public IReadOnlyList<SourceCandidate> Discover(Company company, IEnumerable<SearchResult> searchResults)

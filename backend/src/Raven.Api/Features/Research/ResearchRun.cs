@@ -21,7 +21,7 @@ public sealed class ResearchRun
     public Guid? ResolvedIdentityCandidateId { get; set; }
     /// <summary>
     /// Bounded identity/search hints captured when this run's target was
-    /// resolved. Null is the compatibility value for pre-Day-6 runs.
+    /// resolved. Null remains the compatibility value for older runs.
     /// </summary>
     public string? ResolvedIdentitySnapshotJson { get; set; }
     public DateTimeOffset StartedAt { get; init; } = DateTimeOffset.UtcNow;
@@ -33,7 +33,7 @@ public sealed class ResearchRun
     public string? ResearchHint { get; set; }
     public int QueriesTotal { get; set; }
     public int QueriesCompleted { get; set; }
-    // Retained for the Day-2 response contract. This is the raw search-result count.
+    // Retained for the response contract. This is the raw search-result count.
     public int SourcesFound { get; set; }
     public int UniqueCandidates { get; set; }
     public int RecommendedCandidates { get; set; }
