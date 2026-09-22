@@ -14,6 +14,6 @@ export function ResearchExecutionDetails({ researchRunId }: { researchRunId: str
     <summary>Execution details · {seconds(summary.totalWallClockDurationMs)}</summary>
     <p>{summary.searchCalls} search · {summary.crawlCalls} crawl · {summary.aiCalls} AI · {summary.providerAttempts} provider attempts · {summary.fallbacks} fallbacks</p>
     {summary.inputTokens != null || summary.outputTokens != null ? <p>{summary.inputTokens ?? "—"} input · {summary.outputTokens ?? "—"} output tokens</p> : null}
-    <ul>{operations.map((operation) => <li key={operation.id}><strong>{operation.category} · {operation.operation}</strong>{operation.provider ? ` · ${operation.provider}` : ""}{operation.model ? ` · ${operation.model}` : ""}{operation.durationMs != null ? ` · ${seconds(operation.durationMs)}` : ""}</li>)}</ul>
+    <ul>{operations.map((operation, index) => <li key={operation.id ?? `${operation.category}-${operation.operation}-${operation.provider ?? "unknown"}-${index}`}><strong>{operation.category} · {operation.operation}</strong>{operation.provider ? ` · ${operation.provider}` : ""}{operation.model ? ` · ${operation.model}` : ""}{operation.durationMs != null ? ` · ${seconds(operation.durationMs)}` : ""}</li>)}</ul>
   </details>;
 }
