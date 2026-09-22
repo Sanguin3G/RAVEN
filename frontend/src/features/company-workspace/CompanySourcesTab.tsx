@@ -1,5 +1,5 @@
 import { EvidenceCard, type EvidenceRecord } from "../../components/sources/EvidenceCard";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { DossierSource } from "./dossierTypes";
 
 export interface CompanySourcesTabProps {

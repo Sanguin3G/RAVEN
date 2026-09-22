@@ -11,7 +11,7 @@ import {
 } from "../../api/externalResearch";
 import type { ResearchTarget } from "../../api/coverage";
 import { dismissResearchActivity, upsertResearchActivity, updateResearchActivity } from "../../utils/researchActivity";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 
 type AssistStage = "brief" | "paste" | "review";

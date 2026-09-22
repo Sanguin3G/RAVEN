@@ -13,7 +13,7 @@ import type { ResearchTarget } from "../../api/coverage";
 import type { ResearchCandidate, ResearchRun, SourceDocument } from "../../types/research";
 import type { CompanyProfileVersion } from "../../types/profile";
 import { CandidateSourceCard, EvidenceCard, type CandidateSource, type EvidenceRecord } from "../../components/sources";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 import { upsertResearchActivity } from "../../utils/researchActivity";
 import { hasUsableAcceptedProfile } from "../../utils/profileReadiness";

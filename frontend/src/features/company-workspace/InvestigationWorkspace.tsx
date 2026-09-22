@@ -1,7 +1,7 @@
 import { ArrowSquareOut, Sparkle } from "@phosphor-icons/react";
 import type { InvestigationOrganization } from "../../api/investigations";
 import type { DossierProfile } from "./dossierTypes";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { WorkspaceInvestigation } from "./investigationTypes";
 
 export interface InvestigationWorkspaceProps {

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { safeExternalUrl } from "../../components/sources/sourceUtils";
 import type { CoverageLevel, ResearchTarget } from "../../api/coverage";
 import type { CompanyProfileVersion } from "../../types/profile";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import { CompanyCoveragePanel } from "./CompanyCoveragePanel";
 import { TargetedEnrichmentPanel } from "./TargetedEnrichmentPanel";
 import type { DossierCompany, DossierCoverage, DossierLocation, DossierProfile } from "./dossierTypes";

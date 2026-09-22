@@ -1,5 +1,5 @@
 import { safeExternalUrl } from "../../components/sources/sourceUtils";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 
 export interface CompanyIdentityHeaderProps {

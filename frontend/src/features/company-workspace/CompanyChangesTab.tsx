@@ -1,4 +1,4 @@
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import { ProfileChangesPanel, ProfileHistoryPanel } from "../../components/profile-tracking";
 import type { DossierTracking } from "./dossierTypes";
 

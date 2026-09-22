@@ -1,5 +1,5 @@
 import { CompanyMonitoringPanel } from "../../components/monitoring";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { DossierMonitoring, DossierResearch, DossierResearchStepState } from "./dossierTypes";
 
 export interface CompanyResearchTabProps {

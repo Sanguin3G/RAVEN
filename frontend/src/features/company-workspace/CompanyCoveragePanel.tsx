@@ -1,5 +1,5 @@
 import type { CoverageLevel, EvidenceCoverageItem, EvidenceCoverageResponse, ResearchTarget } from "../../api/coverage";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import type { DossierCoverage } from "./dossierTypes";
 
 export interface CompanyCoveragePanelProps {

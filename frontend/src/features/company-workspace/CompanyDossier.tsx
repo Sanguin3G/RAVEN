@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { ChatCircleDots, Sparkle } from "@phosphor-icons/react";
-import styles from "./dossier.module.css";
+import styles from "./company-workspace.module.css";
 import { CompanyChangesTab } from "./CompanyChangesTab";
 import { AskRavenHandoff } from "../ask-raven/AskRavenHandoff";
 import { CompanyIdentityHeader } from "./CompanyIdentityHeader";
