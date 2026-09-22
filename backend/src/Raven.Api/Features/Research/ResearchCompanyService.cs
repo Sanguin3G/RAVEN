@@ -231,6 +231,11 @@ public sealed class ResearchCompanyService(
         {
             return await FailAsync(run, "Research provider timed out.", cancellationToken);
         }
+        catch (Exception exception)
+        {
+            logger?.LogError(exception, "Research discovery failed for run {ResearchRunId}", run.Id);
+            return await FailAsync(run, "Research failed unexpectedly. Please retry.", cancellationToken);
+        }
     }
 
     public async Task<ResearchRunResponse?> AcquireAsync(
@@ -712,6 +717,11 @@ public sealed class ResearchCompanyService(
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return await FailAsync(run, "Research provider timed out.", cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger?.LogError(exception, "Identity-selected research discovery failed for run {ResearchRunId}", run.Id);
+            return await FailAsync(run, "Research failed unexpectedly. Please retry.", cancellationToken);
         }
     }
 

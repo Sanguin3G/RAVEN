@@ -92,6 +92,7 @@ export interface IdentityResolutionResponse {
   resolutionMethod: IdentityResolutionMethod;
   modelUsed?: string | null;
   warning?: string | null;
+  retryable?: boolean;
 }
 
 /** A bounded identity snapshot carried into the research handoff. */

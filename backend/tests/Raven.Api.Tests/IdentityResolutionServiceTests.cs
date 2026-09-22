@@ -149,6 +149,9 @@ public sealed class IdentityResolutionServiceTests
         Assert.Equal(IdentityResolutionStatus.NeedsMoreInfo, result.Response!.Status);
         Assert.Null(result.Response.RecommendedEntityId);
         Assert.DoesNotContain("provider details", result.Response.Message ?? string.Empty);
+        Assert.True(result.Response.Retryable);
+        Assert.Empty(result.Response.RequestedHints);
+        Assert.Contains("temporarily unavailable", result.Response.Message ?? string.Empty);
         Assert.Equal(1, knowledge.CallCount);
     }
 

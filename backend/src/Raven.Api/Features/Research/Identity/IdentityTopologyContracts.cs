@@ -104,7 +104,8 @@ public sealed record IdentityResolutionResponse(
     string? Message,
     IdentityResolutionMethod ResolutionMethod,
     string? ModelUsed = null,
-    string? Warning = null);
+    string? Warning = null,
+    bool Retryable = false);
 
 /// <summary>
 /// Sanitized provider failure information. The topology resolver does not

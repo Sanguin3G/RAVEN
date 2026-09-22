@@ -224,11 +224,12 @@ export function PreflightIdentityStage({ workflow }: { workflow: CompanyResearch
     </Panel>;
   }
   const suggestedHints = requestedHintLabels(preflightResponse.requestedHints);
-  return <Panel title={preflightResponse.status === "Unknown" ? "RAVEN needs a clearer target" : "A little more information will help"} eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
+  const retryableIdentityFailure = preflightResponse.status === "NeedsMoreInfo" && preflightResponse.retryable === true;
+  return <Panel title={retryableIdentityFailure ? "Identity assistance is temporarily unavailable" : preflightResponse.status === "Unknown" ? "RAVEN needs a clearer target" : "A little more information will help"} eyebrow="COMPANY IDENTITY" className={styles.identityResolutionPanel}>
     <p className={styles.panelIntro}>{preflightResponse.message || "RAVEN could not confidently distinguish the organization from the information supplied."}</p>
     <div className={identityStyles.guidanceCard} aria-live="polite">
       <p className={identityStyles.guidanceLabel}>WHAT WOULD HELP NEXT</p>
-      <p className={identityStyles.guidanceMessage}>Return to the original search form and add one detail that narrows the target. Your existing values will stay in place.</p>
+      <p className={identityStyles.guidanceMessage}>{retryableIdentityFailure ? "No public-source research has started. Retry the identity check, or continue with the exact name you entered if that is the intended organization." : "Return to the original search form and add one detail that narrows the target. Your existing values will stay in place."}</p>
       {suggestedHints.length > 0 ? <div className={identityStyles.guidanceSuggestions}><strong>Most useful details for this attempt:</strong><ul>{suggestedHints.map((hint) => <li key={hint}>{hint}</li>)}</ul></div> : null}
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}

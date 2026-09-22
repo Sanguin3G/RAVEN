@@ -13,7 +13,12 @@ public sealed class IdentityResolutionPolicy
         var hints = topology.RequestedHints?.Distinct().Take(3).ToArray() ?? [];
 
         if (topology.Failure is not null)
-            return Make(IdentityResolutionStatus.NeedsMoreInfo, IdentityAmbiguityType.Unclear, null, [], Useful(hints), "RAVEN couldn't confidently resolve this organization right now.", topology);
+        {
+            var message = topology.Failure.Retryable
+                ? "Identity assistance is temporarily unavailable. Retry in a moment or research the exact name you entered."
+                : "Identity assistance could not complete this check. Add an official website or research the exact name you entered.";
+            return Make(IdentityResolutionStatus.NeedsMoreInfo, IdentityAmbiguityType.Unclear, null, [], [], message, topology);
+        }
 
         // Non-negotiable: a model cannot auto-select a parent from a family shorthand.
         if (topology.Interpretation == IdentityQueryInterpretation.CorporateFamilyShorthand)
@@ -52,7 +57,7 @@ public sealed class IdentityResolutionPolicy
     }
 
     private static IdentityResolutionResponse Make(IdentityResolutionStatus status, IdentityAmbiguityType type, string? id, IReadOnlyList<IdentityOption> entities, IReadOnlyList<IdentityHintKind> hints, string? message, IdentityTopologyResponse topology) =>
-        new(status, type, id, entities, hints, message, IdentityResolutionMethod.ModelKnowledge, topology.ModelUsed, topology.Warning);
+        new(status, type, id, entities, hints, message, IdentityResolutionMethod.ModelKnowledge, topology.ModelUsed, topology.Warning, topology.Failure?.Retryable ?? false);
 
     private static IReadOnlyList<IdentityHintKind> Useful(IReadOnlyList<IdentityHintKind> hints) => hints.Count > 0 ? hints : [IdentityHintKind.Country, IdentityHintKind.Website];
 
