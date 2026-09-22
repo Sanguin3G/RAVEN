@@ -7,7 +7,6 @@ using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Ai;
 using Raven.Api.Features.Settings;
-using Raven.Api.Features.Firecrawl;
 using Raven.Api.Features.Search.Exa;
 using Raven.Api.Features.Crawling.Exa;
 using Raven.Api.Features.Research.Routing;
@@ -37,11 +36,6 @@ public static class ResearchDiscoveryServiceCollectionExtensions
         services.PostConfigure<ExaCrawlerOptions>(options =>
         {
             options.ApiKey ??= configuration[ExaCrawlerOptions.ApiKeyEnvironmentVariable];
-        });
-        services.Configure<FirecrawlOptions>(configuration.GetSection(FirecrawlOptions.SectionName));
-        services.PostConfigure<FirecrawlOptions>(options =>
-        {
-            options.ApiKey ??= configuration[FirecrawlOptions.ApiKeyEnvironmentVariable];
         });
 
         services.AddHttpClient<BraveSearchProvider>((serviceProvider, client) =>

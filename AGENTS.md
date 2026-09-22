@@ -1,15 +1,7 @@
 # RAVEN Agent Instructions
 RAVEN is an AI-assisted Company Intelligence Platform.
 
-Before substantial work, read:
-
-1. `docs/PROJECT.md`
-2. `docs/ARCHITECTURE.md`
-3. `docs/STATUS.md`
-4. `docs/PLAN.md`
-5. the GitHub Issue or task assigned to you
-
-`PROJECT.md` describes intended product scope. `ARCHITECTURE.md` defines technical boundaries. `PLAN.md` gives milestone direction. `STATUS.md` records what is integrated. When they disagree, inspect the code and treat code and `STATUS.md` as authoritative.
+Before substantial work, read `docs/ARCHITECTURE.md`, `docs/STATUS.md`, and the assigned task. When they disagree, inspect the code and treat code and `STATUS.md` as authoritative.
 
 ## Product priority
 
@@ -22,7 +14,7 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 
 ## Architecture rules
 
-- Search, crawling, and AI inference are separate provider capabilities. Do not couple domain logic directly to Brave, Exa, Crawl4AI, Firecrawl, or Gemini APIs.
+- Search, crawling, and AI inference are separate provider capabilities. Do not couple domain logic directly to Brave, Exa, Crawl4AI, or Gemini APIs.
 - Fast Research is deterministic. Deep Research may use Microsoft Agent Framework and MCP, and should use internal RAG before unnecessary external research.
 - Profiles are versioned; refresh preserves research and profile history.
 - Unknown company information remains unknown. Do not fabricate schema values.
@@ -30,7 +22,7 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 - LLMs must not receive unrestricted database mutation or raw SQL tools.
 - External provider calls must be mockable; normal tests must not require real credentials.
 
-## Day-5 evidence and workspace guardrails
+## Evidence and workspace guardrails
 
 - Five recommended research roots are an upper bound, not a five-document limit. Do not pad recommendations with unrelated pages.
 - Coverage drives bounded follow-up research. When the budget is exhausted, unsupported facts remain unknown.
@@ -72,7 +64,7 @@ RAG, Agent Framework, MCP, and provider diversity enhance this workflow; they mu
 - Generated EF migrations, designers, and snapshots are exempt. Split by cohesive responsibility, not arbitrary line count, and do not create a swarm of tiny Manager/Helper/Processor classes.
 - React pages coordinate page-level behavior; reusable workflow stages belong in components or hooks. Backend coordinators orchestrate; discovery, acquisition, telemetry, parsing, ranking, and persistence policy belong in focused boundaries.
 
-## Identity — Day-6 architecture
+## Identity architecture
 
 - Resolve who the user means before expensive public-source research. Explicit identifiers (official domain, tax/registration ID) outweigh probabilistic inference.
 - Model prior knowledge describes identity topology only; deterministic RAVEN policy derives Resolved, Ambiguous, NeedsMoreInfo, or Unknown. One logical model call is allowed for a weak identity attempt; no public Search or Crawl occurs before resolution.
@@ -129,11 +121,9 @@ Do not automatically spawn a reviewer after every task. Luna xhigh normally revi
 
 Do not assume a requested subagent model or reasoning override succeeded. If the runtime does not expose or honor it, do not describe a same-model agent as Terra or Luna High; continue with Luna xhigh where possible and report that stronger-model escalation could not be performed. Correctness matters more than pretending the routing policy was followed.
 
-See [Codex Agent Workflow](docs/codex-workflow.md) for the rationale, examples, decision tree, and consultant handoff format.
-
 ## Documentation
 
-Do not update every document for every code change. Update `PROJECT.md` for material scope changes, `ARCHITECTURE.md` for material architecture changes, `PLAN.md` for milestone or ownership changes, and `DEVELOPMENT.md` for setup or workflow changes. Only the integration/orchestration owner normally updates `STATUS.md`. Avoid new Markdown files unless established documents genuinely cannot hold the information.
+Do not update every document for every code change. Update `ARCHITECTURE.md` for material architecture changes and `DEVELOPMENT.md` for setup or workflow changes. Only the integration/orchestration owner normally updates `STATUS.md`. Avoid new Markdown files unless established documents genuinely cannot hold the information.
 
 ## Secrets and completion
 

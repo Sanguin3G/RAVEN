@@ -13,7 +13,7 @@ import {
 } from "../../components/sources";
 import type { CompanyResearchWorkflow } from "./types";
 import { confidenceLabel, entityTypeLabel, formatDate, matchStrengthLabel, toCandidateSource, toEvidenceRecord, targetLabel } from "./formatters";
-import styles from "../research-workspace.module.css";
+import styles from "./research-workspace.module.css";
 import { IdentityChoiceList } from "./identity/IdentityChoiceList";
 import identityStyles from "./identity/identity.module.css";
 import type { IdentityResolutionResponse } from "../../types/identity";

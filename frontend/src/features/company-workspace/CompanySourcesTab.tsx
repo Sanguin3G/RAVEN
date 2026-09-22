@@ -1,4 +1,4 @@
-import { EvidenceCard, type EvidenceRecord } from "../sources/EvidenceCard";
+import { EvidenceCard, type EvidenceRecord } from "../../components/sources/EvidenceCard";
 import styles from "./dossier.module.css";
 import type { DossierSource } from "./dossierTypes";
 

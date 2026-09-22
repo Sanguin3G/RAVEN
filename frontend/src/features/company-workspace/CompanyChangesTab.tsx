@@ -1,5 +1,5 @@
 import styles from "./dossier.module.css";
-import { ProfileChangesPanel, ProfileHistoryPanel } from "../profile-tracking";
+import { ProfileChangesPanel, ProfileHistoryPanel } from "../../components/profile-tracking";
 import type { DossierTracking } from "./dossierTypes";
 
 export interface CompanyChangesTabProps {

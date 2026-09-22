@@ -79,7 +79,7 @@ Close with: “The value is not merely a generated company description. It is a 
 
 ## Recovery paths to demonstrate only if asked
 
-### Day 8 research alternatives
+### Research alternatives
 
 From Ask RAVEN, open the plus menu and choose **Deep Research**. Submit a narrow question, then continue with normal Chat while the investigation runs. Open **Investigations** to show the durable result and explain that claims and cited URLs remain research material until reviewed.
 

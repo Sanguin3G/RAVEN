@@ -1,4 +1,4 @@
-import type { SourceKind } from "../sources/sourceUtils";
+import type { SourceKind } from "../../components/sources/sourceUtils";
 import type { CompanyProfileVersion } from "../../types/profile";
 import type { ProfileChange } from "../../api/profileTracking";
 import type { CompanyMonitoring, UpdateCompanyMonitoring } from "../../api/monitoring";

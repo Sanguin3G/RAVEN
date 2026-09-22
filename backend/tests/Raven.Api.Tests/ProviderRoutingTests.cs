@@ -96,16 +96,16 @@ public sealed class ProviderRoutingTests
     {
         var first = new FakeCrawlerProvider("crawl4ai-local", (_, _) => Task.FromResult(
             Failure("crawl4ai-local", "could not be reached")));
-        var second = new FakeCrawlerProvider("firecrawl", (_, _) => Task.FromResult(
-            new CrawlResult("firecrawl", "https://fpt.com", "https://fpt.com", "FPT", "content", true, null, DateTimeOffset.UtcNow)));
+        var second = new FakeCrawlerProvider("fallback-crawler", (_, _) => Task.FromResult(
+            new CrawlResult("fallback-crawler", "https://fpt.com", "https://fpt.com", "FPT", "content", true, null, DateTimeOffset.UtcNow)));
         var router = new RoutingCrawlerProvider(
             new ProviderCatalog<ICrawlerProvider>([first, second]),
-            new FixedSettings(crawlerProviders: ["crawl4ai-local", "firecrawl"]));
+            new FixedSettings(crawlerProviders: ["crawl4ai-local", "fallback-crawler"]));
 
         var result = await router.CrawlAsync(new CrawlRequest("https://fpt.com"));
 
         Assert.True(result.Success);
-        Assert.Equal("firecrawl", result.Provider);
+        Assert.Equal("fallback-crawler", result.Provider);
         Assert.Equal(1, first.CallCount);
         Assert.Equal(1, second.CallCount);
         Assert.Equal(ProviderRouteFailureKind.Unavailable, Assert.Single(router.LastRoute!.Attempts).FailureKind);
@@ -116,11 +116,11 @@ public sealed class ProviderRoutingTests
     {
         var first = new FakeCrawlerProvider("crawl4ai-local", (_, _) => Task.FromResult(
             Failure("crawl4ai-local", "Crawl4AI returned 400: bad request")));
-        var second = new FakeCrawlerProvider("firecrawl", (_, _) => Task.FromResult(
-            new CrawlResult("firecrawl", "https://fpt.com", "https://fpt.com", "FPT", "content", true, null, DateTimeOffset.UtcNow)));
+        var second = new FakeCrawlerProvider("fallback-crawler", (_, _) => Task.FromResult(
+            new CrawlResult("fallback-crawler", "https://fpt.com", "https://fpt.com", "FPT", "content", true, null, DateTimeOffset.UtcNow)));
         var router = new RoutingCrawlerProvider(
             new ProviderCatalog<ICrawlerProvider>([first, second]),
-            new FixedSettings(crawlerProviders: ["crawl4ai-local", "firecrawl"]));
+            new FixedSettings(crawlerProviders: ["crawl4ai-local", "fallback-crawler"]));
 
         var result = await router.CrawlAsync(new CrawlRequest("https://fpt.com"));
 
@@ -135,11 +135,11 @@ public sealed class ProviderRoutingTests
     {
         var first = new FakeCrawlerProvider("crawl4ai-local", (_, _) => throw new ProviderException(
             "crawl4ai-local", "authentication failed", ProviderFailureKind.Authentication));
-        var second = new FakeCrawlerProvider("firecrawl", (_, _) => Task.FromResult(
-            new CrawlResult("firecrawl", "https://fpt.com", "https://fpt.com", "FPT", "content", true, null, DateTimeOffset.UtcNow)));
+        var second = new FakeCrawlerProvider("fallback-crawler", (_, _) => Task.FromResult(
+            new CrawlResult("fallback-crawler", "https://fpt.com", "https://fpt.com", "FPT", "content", true, null, DateTimeOffset.UtcNow)));
         var router = new RoutingCrawlerProvider(
             new ProviderCatalog<ICrawlerProvider>([first, second]),
-            new FixedSettings(crawlerProviders: ["crawl4ai-local", "firecrawl"]));
+            new FixedSettings(crawlerProviders: ["crawl4ai-local", "fallback-crawler"]));
 
         var exception = await Assert.ThrowsAsync<ProviderException>(() =>
             router.CrawlAsync(new CrawlRequest("https://fpt.com")));

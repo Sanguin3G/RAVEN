@@ -4,6 +4,8 @@
 
 RAVEN is a modular ASP.NET Core API with a React/Vite client and SQLite as the system of record. Fast Research remains deterministic and staged. Bounded Deep Research and small in-process workers are implemented, but RAG, MCP, distributed queues, and microservices are not.
 
+Backend ownership is organized by Companies, Research, Investigations, Profiles, Chat, Monitoring, and Settings. Research obtains information; Investigations preserve durable research material; Profiles own accepted standardized truth; Chat is a conversational surface over permitted context; Monitoring coordinates review-ready refreshes. Frontend company-workspace, company-research, and Ask RAVEN features follow the same ownership direction.
+
 ```text
 Identity preflight
 → resolved identity snapshot
@@ -44,7 +46,7 @@ IAiModelProvider      → GeminiProvider
 
 Application workflows depend on those neutral capabilities rather than provider-specific DTOs. External calls are mockable in tests. Configuration and status endpoints expose only configured/available/model state; they never return credentials.
 
-Provider routing uses persisted priorities and falls back only after retryable rate-limit, timeout, unavailable, or retrieval failures. Authentication, configuration, invalid requests, and malformed responses remain visible failures. Brave/Exa discover candidate URLs; Crawl4AI Local and Exa Contents read selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts. Firecrawl adapters remain only as legacy compatibility code; it is not routed, configured in active status, or selectable in settings.
+Provider routing uses persisted priorities and falls back only after retryable rate-limit, timeout, unavailable, or retrieval failures. Authentication, configuration, invalid requests, and malformed responses remain visible failures. Brave/Exa discover candidate URLs; Crawl4AI Local and Exa Contents read selected pages. SQLite preserves evidence. Gemini normalizes bounded evidence into a profile candidate. The application validates and persists accepted facts. Legacy persisted provider identifiers are normalized to supported providers.
 
 ## Identity preflight and tracking
 

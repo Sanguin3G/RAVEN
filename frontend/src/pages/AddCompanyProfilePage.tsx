@@ -5,7 +5,7 @@ import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
 import { ResearchActivity, type ResearchStage as ActivityStage } from "../components/sources";
 import { ResearchExecutionDetails } from "../components/sources/ResearchExecutionDetails";
-import styles from "./research-workspace.module.css";
+import styles from "../features/company-research/research-workspace.module.css";
 import {
   CandidateReviewStage,
   CompletionStage,
@@ -17,10 +17,10 @@ import {
   MatchStage,
   ProfileReviewStage,
   PreflightIdentityStage,
-} from "./research-workflow/ResearchWorkflowStages";
-import { useCompanyResearchWorkflow } from "./research-workflow/useCompanyResearchWorkflow";
-import type { WorkspaceView } from "./research-workflow/types";
-import { ExternalResearchAssistModal } from "../components/dossier/ExternalResearchAssistModal";
+} from "../features/company-research/ResearchWorkflowStages";
+import { useCompanyResearchWorkflow } from "../features/company-research/useCompanyResearchWorkflow";
+import type { WorkspaceView } from "../features/company-research/types";
+import { ExternalResearchAssistModal } from "../features/company-workspace/ExternalResearchAssistModal";
 
 function activityStage(view: WorkspaceView): ActivityStage {
   switch (view) {

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const companyId = "88888888-8888-8888-8888-888888888888";
-const company = { id: companyId, name: "Northwind Day 8", website: "https://northwind.example", country: "Vietnam", legalName: "Northwind Day 8 Co.", registrationNumber: null, headquarters: "17 Duy Tan Street, Cau Giay, Hanoi, Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z", lastResearchedAt: null, archivedAt: null };
+const company = { id: companyId, name: "Northwind Research", website: "https://northwind.example", country: "Vietnam", legalName: "Northwind Research Co.", registrationNumber: null, headquarters: "17 Duy Tan Street, Cau Giay, Hanoi, Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z", lastResearchedAt: null, archivedAt: null };
 const profile = { id: "profile-day8", companyId, researchRunId: "run-day8", generatedAt: "2026-09-10T00:00:00Z", confirmedAt: "2026-09-10T00:00:00Z", version: 1, legalName: company.legalName, website: company.website, country: company.country, headquarters: company.headquarters, registrationNumberOrTaxId: null, foundedYear: null, primaryIndustry: "Research", secondaryIndustries: [], companySize: null, employeeCount: null, employeeCountRange: null, summary: "A research company.", productsServices: [], markets: [], leadership: [], locations: [], publicLinks: [], evidence: [], validationWarnings: [] };
 
 async function installDay8Fixture(page: import("@playwright/test").Page) {
@@ -39,7 +39,7 @@ async function installDay8Fixture(page: import("@playwright/test").Page) {
   });
 }
 
-test("Day 8 managed research and external import remain explicit review workflows", async ({ page }) => {
+test("managed research and external import remain explicit review workflows", async ({ page }) => {
   await installDay8Fixture(page);
   await page.goto(`/companies/${companyId}`);
 

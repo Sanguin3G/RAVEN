@@ -1,7 +1,7 @@
 ﻿import { expect, test } from "@playwright/test";
 
 const companyId = "99999999-9999-9999-9999-999999999999";
-const company = { id: companyId, name: "Northwind Day 9", website: "https://northwind.example", country: "Vietnam", legalName: "Northwind Day 9 Co.", registrationNumber: null, headquarters: "17 Duy Tan Street, Cau Giay, Hanoi, Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", lastResearchedAt: null, archivedAt: null };
+const company = { id: companyId, name: "Northwind Investigations", website: "https://northwind.example", country: "Vietnam", legalName: "Northwind Investigations Co.", registrationNumber: null, headquarters: "17 Duy Tan Street, Cau Giay, Hanoi, Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", lastResearchedAt: null, archivedAt: null };
 const profile = { id: "profile-day9", companyId, researchRunId: "run-day9", generatedAt: "2026-09-18T00:00:00Z", confirmedAt: "2026-09-18T00:00:00Z", version: 1, legalName: company.legalName, website: company.website, country: company.country, headquarters: company.headquarters, registrationNumberOrTaxId: null, foundedYear: null, primaryIndustry: "Research", secondaryIndustries: [], companySize: null, employeeCount: null, employeeCountRange: null, summary: "A research company.", productsServices: [], markets: [], leadership: [], locations: [], publicLinks: [], evidence: [], validationWarnings: [] };
 const artifact = {
   id: "artifact-day9",
@@ -35,7 +35,7 @@ async function installDay9Fixture(page: import("@playwright/test").Page) {
     else if (pathname.endsWith(`/companies/${companyId}/monitoring`)) body = { companyId, enabled: false, cadence: "Weekly", nextRunAt: null, lastRunAt: null, lastRunStatus: null };
     else if (pathname.endsWith(`/companies/${companyId}/saved-research`)) body = [artifact];
     else if (pathname.endsWith(`/companies/${companyId}/saved-research/${artifact.id}/organization`)) body = { id: "organization-day9", savedResearchArtifactId: artifact.id, version: 1, createdAt: "2026-09-18T00:00:00Z", executiveSummary: "Organized Japan expansion findings.", themes: [{ name: "Japan partnerships", summary: "Partner activity is the main theme.", claimCount: 1 }], evidenceGaps: ["Current operating scale"], suggestedFollowUps: ["Verify the partnership's current status."], uncertainties: artifact.uncertainties, isHumanEdited: false };
-    else if (pathname.endsWith("/external-research/brief")) body = { objective: "Current leadership", focusedTargets: ["Leadership"], markdown: "Company:\nNorthwind Day 9\n\nTarget:\nCurrent leadership\n\nFocus only on current senior leadership and supporting URLs." };
+    else if (pathname.endsWith("/external-research/brief")) body = { objective: "Current leadership", focusedTargets: ["Leadership"], markdown: "Company:\nNorthwind Investigations\n\nTarget:\nCurrent leadership\n\nFocus only on current senior leadership and supporting URLs." };
     else if (pathname.endsWith("/external-research/analyze") && method === "POST") body = { id: "analysis-day9", companyId, question: "Current leadership", status: "Queued", createdAt: "2026-09-18T00:00:00Z" };
     else if (pathname.includes("/external-research/analyze/")) {
       analysisPolls += 1;

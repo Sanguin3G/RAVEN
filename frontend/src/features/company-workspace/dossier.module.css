@@ -1506,7 +1506,7 @@
   }
 }
 
-/* Day-9 investigation workspace */
+/* Investigation workspace */
 .investigationsPage { display: grid; gap: 1rem; }
 .investigationsPageHeader { align-items: start; display: flex; gap: 1rem; justify-content: space-between; }
 .investigationsPageHeader h2 { font-size: clamp(1.3rem, 3vw, 1.8rem); margin: 0.15rem 0 0.35rem; }

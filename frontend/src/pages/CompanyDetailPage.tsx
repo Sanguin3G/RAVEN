@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Panel } from "../components/Panel";
-import { CompanyDossier } from "../components/dossier/CompanyDossier";
+import { CompanyDossier } from "../features/company-workspace/CompanyDossier";
 import { getApiErrorMessage } from "../api/client";
 import { getCompany } from "../api/companies";
 import { getCompanySources, getResearchRun, type ResearchRun, type SourceDocument } from "../api/research";
@@ -12,7 +12,7 @@ import { getCompanyMonitoring, updateCompanyMonitoring, type CompanyMonitoring, 
 import type { Company } from "../types/company";
 import type { CompanyProfileVersion } from "../types/profile";
 import type { ResearchTarget } from "../api/coverage";
-import type { DossierTab } from "../components/dossier/dossierTypes";
+import type { DossierTab } from "../features/company-workspace/dossierTypes";
 
 const validResearchTargets: ResearchTarget[] = ["LegalIdentity", "TaxRegistration", "FoundedHistory", "Industry", "EmployeeScale", "ProductsServices", "Markets", "Leadership", "Locations"];
 

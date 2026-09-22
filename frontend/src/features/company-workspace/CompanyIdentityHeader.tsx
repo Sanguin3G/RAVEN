@@ -1,4 +1,4 @@
-import { safeExternalUrl } from "../sources/sourceUtils";
+import { safeExternalUrl } from "../../components/sources/sourceUtils";
 import styles from "./dossier.module.css";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 

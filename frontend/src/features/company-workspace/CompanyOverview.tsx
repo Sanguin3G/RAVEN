@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { safeExternalUrl } from "../sources/sourceUtils";
+import { safeExternalUrl } from "../../components/sources/sourceUtils";
 import type { CoverageLevel, ResearchTarget } from "../../api/coverage";
 import type { CompanyProfileVersion } from "../../types/profile";
 import styles from "./dossier.module.css";

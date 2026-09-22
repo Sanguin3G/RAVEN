@@ -13,7 +13,7 @@ import {
 } from "../../api/managedResearch";
 import type { ChatAnswerStatus, ChatMessage } from "../../types/chat";
 import { hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
-import styles from "./AskRaven.module.css";
+import styles from "./ask-raven.module.css";
 
 export interface AskRavenHandoffProps {
   companyId: string;
