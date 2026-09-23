@@ -43,6 +43,14 @@ public enum ManagedResearchPurpose
     ProfileImprovement
 }
 
+/// <summary>Input for rewriting a user's request into one research question.</summary>
+public sealed record ManagedResearchBriefPreviewRequest(string Question);
+
+/// <summary>Rewrite result shown before managed research starts.</summary>
+public sealed record ManagedResearchBriefPreviewResponse(
+    string Question,
+    string ContextRevision);
+
 /// <summary>
 /// Durable state for a managed research execution. The result is research
 /// material only; this entity has no profile mutation operation by design.
@@ -160,7 +168,8 @@ public sealed record StartManagedResearchRequest(
     Guid? ConversationId = null,
     Guid? ChatMessageId = null,
     ManagedResearchEffort Effort = ManagedResearchEffort.Auto,
-    ManagedResearchPurpose Purpose = ManagedResearchPurpose.General);
+    ManagedResearchPurpose Purpose = ManagedResearchPurpose.General,
+    string? ContextRevision = null);
 
 /// <summary>Safe, pollable managed research job response.</summary>
 public sealed record ManagedResearchJobResponse(
@@ -204,6 +213,15 @@ public interface IManagedResearchCompanyContextReader
 {
     Task<ManagedResearchCompanyContext?> GetAsync(
         Guid companyId,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Rewrites a request into one reviewable, non-executing research question.</summary>
+public interface IManagedResearchBriefPreviewService
+{
+    Task<ManagedResearchBriefPreviewResponse> PreviewAsync(
+        Guid companyId,
+        ManagedResearchBriefPreviewRequest request,
         CancellationToken cancellationToken = default);
 }
 

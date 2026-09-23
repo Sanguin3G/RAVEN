@@ -36,6 +36,7 @@ public sealed class EfResearchSettingsStore(RavenDbContext dbContext) : IResearc
             existing.ProfileModel = settings.ProfileModel;
             existing.GroundingModel = settings.GroundingModel;
             existing.DeepResearchModel = settings.DeepResearchModel;
+            existing.ChatModel = settings.ChatModel;
             existing.ManagedResearchProvider = settings.ManagedResearchProvider;
             existing.ManagedResearchDepth = settings.ManagedResearchDepth;
             existing.AiSourceRerankingEnabled = settings.AiSourceRerankingEnabled;

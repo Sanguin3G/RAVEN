@@ -269,6 +269,7 @@ public sealed class ResearchSettingsEntityConfiguration : IEntityTypeConfigurati
             entity.Property(settings => settings.ProfileModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.GroundingModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.DeepResearchModel).HasMaxLength(200).IsRequired();
+            entity.Property(settings => settings.ChatModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.ManagedResearchProvider).HasMaxLength(64).IsRequired();
             entity.Property(settings => settings.ManagedResearchDepth).HasConversion<string>().HasMaxLength(32).IsRequired();
             // The Day-5.5 migration rewrites the persisted legacy value, but

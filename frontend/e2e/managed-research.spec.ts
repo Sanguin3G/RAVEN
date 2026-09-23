@@ -16,7 +16,9 @@ async function installManagedResearchFixture(page: import("@playwright/test").Pa
     else if (pathname.endsWith(`/companies/${companyId}`)) body = company;
     else if (pathname.endsWith(`/companies/${companyId}/coverage`)) body = { companyId, researchRunId: null, items: [], budgetExhausted: false };
     else if (pathname.endsWith(`/companies/${companyId}/monitoring`)) body = { companyId, enabled: false, cadence: "Weekly", nextRunAt: null, lastRunAt: null, lastRunStatus: null };
-    else if (pathname.endsWith("/managed-research") && method === "POST") {
+    else if (pathname.endsWith("/managed-research/preview") && method === "POST") {
+      body = { question: "What public evidence describes Northwind Research's expansion in Japan?", contextRevision: "fixture-revision" };
+    } else if (pathname.endsWith("/managed-research") && method === "POST") {
       const objective = (route.request().postDataJSON() as { objective: string }).objective;
       body = { id: "job-day8", companyId, objective, provider: "exa-agent", status: "Queued", createdAt: "2026-09-18T00:00:00Z" };
       jobs = [body];
@@ -48,6 +50,11 @@ test("managed research and external import remain explicit review workflows", as
   await page.getByRole("button", { name: /Deep Research/ }).click();
   await expect(page.getByRole("button", { name: "Remove Deep Research capability" })).toBeVisible();
   await page.getByRole("textbox", { name: /Research about/ }).fill("Expansion in Japan");
+   await page.getByRole("button", { name: "Review research question" }).click();
+  await expect(page.getByTestId("deep-research-brief")).toBeVisible();
+   await page.getByRole("button", { name: "Edit question" }).click();
+   await page.getByRole("textbox", { name: "Research question" }).fill("Which customers and expansion activities of Northwind Research in Japan are publicly documented?");
+  await page.getByRole("button", { name: "Done editing" }).click();
   await page.getByRole("button", { name: "Start Deep Research" }).click();
   await expect(page.getByText("Deep Research started")).toBeVisible();
   await expect(page.getByRole("textbox", { name: /Ask about/ })).toBeEnabled();
@@ -56,7 +63,7 @@ test("managed research and external import remain explicit review workflows", as
   await expect(page.getByText("Normal Chat remains available.")).toBeVisible();
 
   await page.getByRole("tab", { name: "Investigations" }).click();
-  await expect(page.getByTestId("dossier-investigations").getByRole("heading", { name: "Expansion in Japan" })).toBeVisible();
+   await expect(page.getByTestId("dossier-investigations").getByRole("heading", { name: "Which customers and expansion activities of Northwind Research in Japan are publicly documented?" })).toBeVisible();
   await expect(page.getByTestId("dossier-investigations").getByText("Running", { exact: true })).toBeVisible();
   await expect(page.getByTestId("dossier-investigations").getByText("Research material collected")).toBeVisible();
 });

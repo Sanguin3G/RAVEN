@@ -76,6 +76,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             ProfileModel = NormalizeModel(request.ProfileModel),
             GroundingModel = NormalizeModel(request.GroundingModel),
             DeepResearchModel = NormalizeModel(request.DeepResearchModel),
+            ChatModel = NormalizeModel(request.ChatModel ?? current.ChatModel),
             ManagedResearchProvider = NormalizeManagedResearchProvider(request.ManagedResearchProvider ?? current.ManagedResearchProvider),
             ManagedResearchDepth = request.ManagedResearchDepth ?? current.ManagedResearchDepth,
             AiSourceRerankingEnabled = request.AiSourceRerankingEnabled,
@@ -117,6 +118,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             ProfileModel = response.ProfileModel,
             GroundingModel = response.GroundingModel,
             DeepResearchModel = response.DeepResearchModel,
+            ChatModel = response.ChatModel,
             ManagedResearchProvider = response.ManagedResearchProvider,
             ManagedResearchDepth = response.ManagedResearchDepth,
             AiSourceRerankingEnabled = response.AiSourceRerankingEnabled,
@@ -149,6 +151,11 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         if (!AllowedModels.Contains(request.DeepResearchModel?.Trim() ?? string.Empty))
         {
             errors.Add("Deep Research model is not supported.");
+        }
+
+        if (request.ChatModel is not null && !AllowedModels.Contains(request.ChatModel.Trim()))
+        {
+            errors.Add("Chat model is not supported.");
         }
 
         if (!AllowedManagedResearchProviders.Contains(request.ManagedResearchProvider?.Trim() ?? ResearchSettingsDefaults.ManagedResearchProvider))
@@ -192,7 +199,8 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             settings.SearchProviderPriority,
             settings.CrawlerProviderPriority,
             settings.ManagedResearchProvider,
-            settings.ManagedResearchDepth));
+            settings.ManagedResearchDepth,
+            settings.ChatModel));
 
         if (string.IsNullOrWhiteSpace(settings.Id))
         {
@@ -292,5 +300,6 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         entity.CrawlerProviderPriority.AsReadOnly(),
         entity.UpdatedAt,
         entity.ManagedResearchProvider,
-        entity.ManagedResearchDepth);
+        entity.ManagedResearchDepth,
+        entity.ChatModel);
 }

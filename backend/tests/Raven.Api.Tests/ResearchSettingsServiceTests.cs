@@ -16,6 +16,7 @@ public sealed class ResearchSettingsServiceTests
 
         Assert.Equal(GroundingMode.Auto, settings.GroundingMode);
         Assert.Equal("gemini-3.5-flash-lite", settings.ProfileModel);
+        Assert.Equal("gemini-3.5-flash-lite", settings.ChatModel);
         Assert.Equal("gemini-3.5-flash-lite", settings.GroundingModel);
         Assert.Equal("gemini-3.8-flash", settings.DeepResearchModel);
         Assert.True(settings.AiSourceRerankingEnabled);
@@ -39,7 +40,8 @@ public sealed class ResearchSettingsServiceTests
             false,
             ProviderPreset.Custom,
             ["exa", "brave", "EXA"],
-            ["exa", "crawl4ai-local"]);
+            ["exa", "crawl4ai-local"],
+            ChatModel: "gemini-3.8-flash");
 
         var updated = await firstService.UpdateAsync(expectedUpdate);
         var reloaded = await new ResearchSettingsService(store).GetAsync();
@@ -48,6 +50,7 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(expectedUpdate.ProfileModel, reloaded.ProfileModel);
         Assert.Equal(expectedUpdate.GroundingModel, reloaded.GroundingModel);
         Assert.Equal(expectedUpdate.DeepResearchModel, reloaded.DeepResearchModel);
+        Assert.Equal("gemini-3.8-flash", reloaded.ChatModel);
         Assert.False(reloaded.AiSourceRerankingEnabled);
         Assert.Equal(ProviderPreset.Custom, reloaded.ProviderPreset);
         Assert.Equal(["exa", "brave"], reloaded.SearchProviderPriority);
@@ -76,6 +79,7 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal("gemini-3.5-flash-lite", reset.ProfileModel);
         Assert.Equal("gemini-3.5-flash-lite", reset.GroundingModel);
         Assert.Equal("gemini-3.8-flash", reset.DeepResearchModel);
+        Assert.Equal("gemini-3.5-flash-lite", reset.ChatModel);
         Assert.True(reset.AiSourceRerankingEnabled);
         Assert.Equal(ProviderPreset.LocalFirst, reset.ProviderPreset);
         Assert.Equal(["brave"], reset.SearchProviderPriority);
@@ -106,6 +110,43 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(before.ProfileModel, after.ProfileModel);
         Assert.Equal(before.AiSourceRerankingEnabled, after.AiSourceRerankingEnabled);
         Assert.Equal(before.SearchProviderPriority, after.SearchProviderPriority);
+    }
+
+    [Fact]
+    public async Task Update_without_chat_model_preserves_current_chat_choice()
+    {
+        var service = new ResearchSettingsService(new InMemoryResearchSettingsStore());
+        var defaults = await service.GetAsync();
+        var selected = await service.UpdateAsync(new UpdateResearchSettingsRequest(
+            defaults.GroundingMode, defaults.ProfileModel, defaults.GroundingModel,
+            defaults.DeepResearchModel, defaults.AiSourceRerankingEnabled, defaults.ProviderPreset,
+            defaults.SearchProviderPriority, defaults.CrawlerProviderPriority,
+            ChatModel: "gemini-3.8-flash"));
+
+        var legacyUpdate = await service.UpdateAsync(new UpdateResearchSettingsRequest(
+            selected.GroundingMode, selected.ProfileModel, selected.GroundingModel,
+            selected.DeepResearchModel, selected.AiSourceRerankingEnabled, selected.ProviderPreset,
+            selected.SearchProviderPriority, selected.CrawlerProviderPriority));
+
+        Assert.Equal("gemini-3.8-flash", legacyUpdate.ChatModel);
+    }
+
+    [Fact]
+    public async Task Invalid_chat_model_is_rejected_without_changing_other_settings()
+    {
+        var store = new InMemoryResearchSettingsStore();
+        var service = new ResearchSettingsService(store);
+        var before = await service.GetAsync();
+
+        var error = await Assert.ThrowsAsync<ResearchSettingsValidationException>(() => service.UpdateAsync(
+            new UpdateResearchSettingsRequest(
+                before.GroundingMode, before.ProfileModel, before.GroundingModel, before.DeepResearchModel,
+                before.AiSourceRerankingEnabled, before.ProviderPreset,
+                before.SearchProviderPriority, before.CrawlerProviderPriority,
+                ChatModel: "unsupported-model")));
+
+        Assert.Contains("Chat model is not supported.", error.Errors);
+        Assert.Equal(before.ChatModel, (await service.GetAsync()).ChatModel);
     }
 
     [Fact]

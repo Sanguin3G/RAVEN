@@ -19,6 +19,7 @@ import styles from "./settings.module.css";
 const fallbackSettings: ResearchSettings = {
   groundingMode: "Auto",
   profileModel: "gemini-3.5-flash-lite",
+  chatModel: "gemini-3.5-flash-lite",
   groundingModel: "gemini-3.5-flash-lite",
   deepResearchModel: "gemini-3.8-flash",
   aiSourceRerankingEnabled: true,
@@ -84,6 +85,7 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
   if (
     (candidate.groundingMode !== "Auto" && candidate.groundingMode !== "Always" && candidate.groundingMode !== "Off")
     || typeof candidate.profileModel !== "string"
+    || typeof candidate.chatModel !== "string"
     || typeof candidate.groundingModel !== "string"
     || typeof candidate.deepResearchModel !== "string"
     || typeof candidate.aiSourceRerankingEnabled !== "boolean"
@@ -98,6 +100,7 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
   return {
     groundingMode: candidate.groundingMode,
     profileModel: candidate.profileModel,
+    chatModel: candidate.chatModel,
     groundingModel: candidate.groundingModel,
     deepResearchModel: candidate.deepResearchModel,
     aiSourceRerankingEnabled: candidate.aiSourceRerankingEnabled,
@@ -383,6 +386,13 @@ export function SettingsPage() {
             <small>Company disambiguation and source relevance decisions.</small>
             <select id="grounding-model" value={draft.groundingModel} disabled={isLoading || isSaving || isResetting} onChange={(event) => updateDraft({ groundingModel: event.target.value })}>
               {roleOptions(draft.groundingModel).map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+            </select>
+          </div>
+          <div className={styles.modelRole}>
+            <label htmlFor="chat-model">Ask RAVEN &amp; research question brief</label>
+            <small>Gemini model for chat answers and the editable Deep Research question.</small>
+            <select id="chat-model" value={draft.chatModel} disabled={isLoading || isSaving || isResetting} onChange={(event) => updateDraft({ chatModel: event.target.value })}>
+              {roleOptions(draft.chatModel).map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
             </select>
           </div>
         </div>

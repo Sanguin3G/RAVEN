@@ -45,6 +45,7 @@ public sealed class ProviderPresetMigrationTests
             Assert.Equal(GroundingMode.Always, settings.GroundingMode);
             Assert.Equal("gemini-3.8-flash", settings.ProfileModel);
             Assert.Equal("gemini-3.5-flash-lite", settings.GroundingModel);
+            Assert.Equal("gemini-3.8-flash", settings.ChatModel);
             Assert.False(settings.AiSourceRerankingEnabled);
             Assert.Equal(["brave", "exa"], settings.SearchProviderPriority);
             Assert.Equal(["crawl4ai-local", "firecrawl"], settings.CrawlerProviderPriority);

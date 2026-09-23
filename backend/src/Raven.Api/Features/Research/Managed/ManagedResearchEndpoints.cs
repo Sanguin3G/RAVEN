@@ -7,6 +7,16 @@ public static class ManagedResearchEndpoints
 {
     public static IEndpointRouteBuilder MapManagedResearchEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapPost("/api/companies/{companyId:guid}/managed-research/preview", PreviewBriefAsync)
+            .WithTags("Managed Research")
+            .WithName("PreviewManagedResearchBrief")
+            .WithSummary("Rewrite a request into one reviewable Deep Research question")
+            .WithDescription("Uses bounded AI rewriting and current company context. It does not queue research or contact the managed research provider.")
+            .Produces<ManagedResearchBriefPreviewResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status503ServiceUnavailable)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapPost("/api/companies/{companyId:guid}/managed-research", StartAsync)
             .WithTags("Managed Research")
             .WithName("StartManagedResearch")
@@ -14,6 +24,7 @@ public static class ManagedResearchEndpoints
             .WithDescription("Starts an asynchronous provider run. Results remain investigation material and never update the accepted Company Profile automatically.")
             .Produces<ManagedResearchJobResponse>(StatusCodes.Status202Accepted)
             .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status404NotFound);
 
         app.MapGet("/api/companies/{companyId:guid}/managed-research/{jobId:guid}", GetAsync)
@@ -62,7 +73,35 @@ public static class ManagedResearchEndpoints
         return app;
     }
 
-    private static async Task<Results<Accepted<ManagedResearchJobResponse>, BadRequest, NotFound>> StartAsync(
+    private static async Task<Results<Ok<ManagedResearchBriefPreviewResponse>, BadRequest, NotFound, ProblemHttpResult>> PreviewBriefAsync(
+        Guid companyId,
+        ManagedResearchBriefPreviewRequest request,
+        IManagedResearchBriefPreviewService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return TypedResults.Ok(await service.PreviewAsync(companyId, request, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+        catch (ArgumentException)
+        {
+            return TypedResults.BadRequest();
+        }
+        catch (ManagedResearchBriefGenerationException exception)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Research question unavailable",
+                detail: exception.Message,
+                extensions: new Dictionary<string, object?> { ["code"] = exception.Code });
+        }
+    }
+
+    private static async Task<Results<Accepted<ManagedResearchJobResponse>, BadRequest, NotFound, Conflict>> StartAsync(
         Guid companyId,
         StartManagedResearchRequest request,
         IManagedResearchJobService service,
@@ -82,6 +121,10 @@ public static class ManagedResearchEndpoints
         catch (ArgumentException)
         {
             return TypedResults.BadRequest();
+        }
+        catch (ManagedResearchPreviewStaleException)
+        {
+            return TypedResults.Conflict();
         }
     }
 

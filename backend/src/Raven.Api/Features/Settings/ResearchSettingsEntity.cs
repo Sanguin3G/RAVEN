@@ -24,6 +24,8 @@ public sealed class ResearchSettingsEntity
 
     public string DeepResearchModel { get; set; } = ResearchSettingsDefaults.DeepResearchModel;
 
+    public string ChatModel { get; set; } = ResearchSettingsDefaults.ChatModel;
+
     public string ManagedResearchProvider { get; set; } = ResearchSettingsDefaults.ManagedResearchProvider;
 
     public ManagedResearchDepth ManagedResearchDepth { get; set; } = ManagedResearchDepth.Adaptive;
@@ -47,6 +49,7 @@ public sealed class ResearchSettingsEntity
         ProfileModel = ProfileModel,
         GroundingModel = GroundingModel,
         DeepResearchModel = DeepResearchModel,
+        ChatModel = ChatModel,
         ManagedResearchProvider = ManagedResearchProvider,
         ManagedResearchDepth = ManagedResearchDepth,
         AiSourceRerankingEnabled = AiSourceRerankingEnabled,

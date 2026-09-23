@@ -3,7 +3,7 @@ using System.Text;
 namespace Raven.Api.Features.ManagedResearch;
 
 /// <summary>
-/// Builds a bounded, provider-neutral research brief from the resolved company
+/// Builds a bounded, provider-neutral research query from the resolved company
 /// identity, accepted profile context, and known evidence gaps.
 /// </summary>
 public static class ManagedResearchQueryBuilder
@@ -16,7 +16,7 @@ public static class ManagedResearchQueryBuilder
             throw new ArgumentException("A company display name is required.", nameof(context));
         }
 
-        var normalizedObjective = NormalizeRequired(objective, ManagedResearchLimits.MaxObjectiveLength, nameof(objective));
+        var question = ManagedResearchQuestionValidation.NormalizeRequired(objective, nameof(objective));
         var builder = new StringBuilder();
         builder.AppendLine("Research the following company using current public sources.");
         builder.AppendLine("Treat the identity and profile context below as hints to disambiguate the entity, not as evidence.");
@@ -50,8 +50,8 @@ public static class ManagedResearchQueryBuilder
         }
 
         builder.AppendLine();
-        builder.AppendLine("Research objective:");
-        builder.AppendLine(normalizedObjective);
+        builder.AppendLine("Research question:");
+        builder.AppendLine(question);
         builder.AppendLine();
         builder.AppendLine("Use authoritative public sources where possible. Return a concise summary, reviewable claims, source URLs, and uncertainties. Do not invent missing facts.");
 
@@ -67,17 +67,6 @@ public static class ManagedResearchQueryBuilder
         {
             builder.Append(label).Append(": ").AppendLine(Bound(value, maxLength));
         }
-    }
-
-    private static string NormalizeRequired(string value, int maxLength, string parameterName)
-    {
-        var normalized = value?.Trim();
-        if (string.IsNullOrWhiteSpace(normalized) || normalized.Length > maxLength)
-        {
-            throw new ArgumentException($"A non-empty value of at most {maxLength} characters is required.", parameterName);
-        }
-
-        return normalized;
     }
 
     private static string Bound(string value, int maxLength)

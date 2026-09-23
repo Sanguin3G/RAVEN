@@ -7,6 +7,7 @@ export type ManagedResearchDepth = "Adaptive" | "Focused" | "Standard" | "Thorou
 export interface ResearchSettings {
   groundingMode: GroundingMode;
   profileModel: string;
+  chatModel: string;
   groundingModel: string;
   deepResearchModel: string;
   aiSourceRerankingEnabled: boolean;

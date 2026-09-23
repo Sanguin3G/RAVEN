@@ -12,6 +12,7 @@ using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.Settings;
 
 namespace Raven.Api.Tests;
 
@@ -284,6 +285,38 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     }
 
     [Fact]
+    public async Task Chat_uses_the_configured_chat_model_not_the_profile_model()
+    {
+        var provider = new FixedAiProvider("""
+            {"action":"final","status":"insufficient_evidence","answer":"No verified answer.","sourceDocumentId":null,"query":null,"webCandidateId":null,"citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":[],"followUpQuestion":null}
+            """);
+        var settings = new ResearchSettingsService(new InMemoryResearchSettingsStore());
+        var defaults = await settings.GetAsync();
+        await settings.UpdateAsync(new UpdateResearchSettingsRequest(
+            defaults.GroundingMode, defaults.ProfileModel, defaults.GroundingModel,
+            defaults.DeepResearchModel, defaults.AiSourceRerankingEnabled, defaults.ProviderPreset,
+            defaults.SearchProviderPriority, defaults.CrawlerProviderPriority,
+            ChatModel: "gemini-3.8-flash"));
+        using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiModelProvider>();
+            services.AddScoped<IAiModelProvider>(_ => provider);
+            services.RemoveAll<IResearchSettingsService>();
+            services.AddSingleton<IResearchSettingsService>(settings);
+        })).CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("What achievements did the company have?"));
+
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        Assert.Equal("gemini-3.8-flash", provider.LastRequest?.Model);
+    }
+
+    [Fact]
     public async Task Invalid_cross_company_citation_is_rejected_and_marked_failed()
     {
         var profileAgent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Answered, "unsupported", [Guid.NewGuid()], null));
@@ -415,9 +448,11 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     private sealed class FixedAiProvider(string response) : IAiModelProvider
     {
         public string Id => "fake";
+        public AiModelRequest? LastRequest { get; private set; }
 
         public Task<AiModelResult> GenerateStructuredAsync(AiModelRequest request, CancellationToken cancellationToken = default)
         {
+            LastRequest = request;
             using var document = JsonDocument.Parse(response);
             return Task.FromResult(new AiModelResult(
                 "fake",

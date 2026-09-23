@@ -118,8 +118,9 @@ public sealed class ManagedResearchTests
         var provider = new FakeAgentClient();
         var service = CreateService(jobs, investigations, provider, queue);
 
+        const string question = "Which leaders and markets are publicly documented for FPT Software?";
         var started = await service.StartAsync(CompanyId, new StartManagedResearchRequest(
-            "Find leadership and markets",
+            question,
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
             ManagedResearchEffort.Medium));
@@ -128,7 +129,7 @@ public sealed class ManagedResearchTests
         Assert.Equal(CompanyId, started.CompanyId);
         Assert.Equal(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), started.ConversationId);
         Assert.Equal(Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), started.ChatMessageId);
-        Assert.Contains("leadership", started.Objective, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(question, started.Objective);
         Assert.Contains(queue.JobIds, id => id == started.Id);
 
         var completed = await service.ProcessAsync(started.Id);
@@ -144,6 +145,10 @@ public sealed class ManagedResearchTests
         Assert.Single(completed.Result!.Claims);
         Assert.Contains("FPT Software", provider.LastCreateRequest?.Query, StringComparison.Ordinal);
         Assert.Contains("EmployeeScale", provider.LastCreateRequest?.Query, StringComparison.Ordinal);
+        Assert.Contains("Research question:", provider.LastCreateRequest?.Query, StringComparison.Ordinal);
+        Assert.Contains(question, provider.LastCreateRequest?.Query, StringComparison.Ordinal);
+        Assert.Contains("Use authoritative public sources", provider.LastCreateRequest?.Query, StringComparison.Ordinal);
+        Assert.DoesNotContain("Investigation brief:", provider.LastCreateRequest?.Query, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -166,6 +171,23 @@ public sealed class ManagedResearchTests
         Assert.Equal(0, provider.CancelCount);
         Assert.Empty(await service.ListForCompanyAsync(CompanyId).ContinueWith(task =>
             task.Result.Where(item => item.Status == ManagedResearchJobStatus.Researching)));
+    }
+
+    [Fact]
+    public async Task Start_rejects_a_stale_investigation_brief_before_it_queues_a_job()
+    {
+        var queue = new RecordingQueue();
+        var service = CreateService(
+            new InMemoryManagedResearchJobStore(),
+            new InMemoryManagedResearchInvestigationStore(),
+            new FakeAgentClient(),
+            queue);
+
+        await Assert.ThrowsAsync<ManagedResearchPreviewStaleException>(() => service.StartAsync(
+            CompanyId,
+            new StartManagedResearchRequest("Research products", ContextRevision: "outdated")));
+
+        Assert.Empty(queue.JobIds);
     }
 
     [Fact]

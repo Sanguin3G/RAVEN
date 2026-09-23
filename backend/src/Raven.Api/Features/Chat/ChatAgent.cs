@@ -26,7 +26,7 @@ public sealed class CompanyChatAgent(IAiModelProvider aiProvider, IResearchSetti
     public async Task<ChatAgentCompletion> RunAsync(ChatAgentRequest request, CancellationToken cancellationToken = default)
     {
         var configured = await settings.GetAsync(cancellationToken);
-        var model = string.IsNullOrWhiteSpace(configured.ProfileModel) ? "gemini-2.5-flash" : configured.ProfileModel;
+        var model = configured.ChatModel;
         var profile = JsonSerializer.Serialize(request.Profile, JsonOptions);
         var history = string.Join('\n', request.RecentMessages.Select(m => $"{m.Role}: {ChatText.Bound(m.Content, 4000)}"));
         var toolResult = "none";

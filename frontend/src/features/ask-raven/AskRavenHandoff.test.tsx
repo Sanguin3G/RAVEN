@@ -2,10 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatConversation, getChatConversation, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
+import { ApiError } from "../../api/client";
 import {
   attachResearchContext,
   getManagedResearchJobs,
   getResearchContextAttachments,
+  previewManagedResearchBrief,
   removeResearchContext,
   startManagedResearch,
 } from "../../api/managedResearch";
@@ -22,6 +24,7 @@ vi.mock("../../api/managedResearch", () => ({
   attachResearchContext: vi.fn(),
   getManagedResearchJobs: vi.fn(),
   getResearchContextAttachments: vi.fn(),
+  previewManagedResearchBrief: vi.fn(),
   removeResearchContext: vi.fn(),
   startManagedResearch: vi.fn(),
 }));
@@ -33,6 +36,11 @@ const props = {
   profileVersionId: "profile-2",
   sourceCount: 17,
   lastResearchedAt: "2026-09-11T09:00:00Z",
+};
+
+const briefPreview = {
+  question: "What public evidence describes FPT Smart Cloud's market presence, customers, and expansion in Japan?",
+  contextRevision: "preview-revision",
 };
 
 function renderHandoff(path = "/companies/company-1") {
@@ -48,6 +56,7 @@ describe("AskRavenHandoff", () => {
     vi.clearAllMocks();
     vi.mocked(getManagedResearchJobs).mockResolvedValue([]);
     vi.mocked(getResearchContextAttachments).mockResolvedValue([]);
+    vi.mocked(previewManagedResearchBrief).mockResolvedValue(briefPreview as never);
   });
 
   it("renders the profile-only boundary", () => {
@@ -207,12 +216,12 @@ describe("AskRavenHandoff", () => {
     await waitFor(() => expect(screen.getByPlaceholderText(/investigate about FPT Smart Cloud/i)).toBeInTheDocument());
   });
 
-  it("starts managed research without sending a normal Chat turn", async () => {
+  it("requires confirmation of one editable research question before starting managed research", async () => {
     vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
     vi.mocked(startManagedResearch).mockResolvedValue({
       id: "job-1",
       companyId: "company-1",
-      objective: "FPT Smart Cloud expansion in Japan",
+      objective: "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?",
       provider: "exa-agent",
       status: "Queued",
       createdAt: "2026-09-18T09:00:00Z",
@@ -222,14 +231,102 @@ describe("AskRavenHandoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
     fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
     fireEvent.change(await screen.findByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "FPT Smart Cloud expansion in Japan" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review research question" }));
+
+    await waitFor(() => expect(previewManagedResearchBrief).toHaveBeenCalledWith("company-1", "FPT Smart Cloud expansion in Japan"));
+    expect(startManagedResearch).not.toHaveBeenCalled();
+    expect(createChatConversation).not.toHaveBeenCalled();
+    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent(briefPreview.question);
+    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("FPT Smart Cloud");
+    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("v2");
+    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("17 sources");
+    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("Likely category");
+    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("Profile improvement");
+    expect(screen.getByTestId("deep-research-brief")).not.toHaveTextContent("FPT Smart Cloud expansion in Japan");
+    fireEvent.click(screen.getByRole("button", { name: "Edit question" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Research question" }), { target: { value: "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Done editing" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Deep Research" }));
 
     await waitFor(() => expect(screen.getByText(/Deep Research started/)).toBeInTheDocument());
-    expect(startManagedResearch).toHaveBeenCalledWith("company-1", "FPT Smart Cloud expansion in Japan", { conversationId: "conversation-1" });
+    expect(startManagedResearch).toHaveBeenCalledWith("company-1", "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?", {
+      conversationId: "conversation-1",
+      contextRevision: "preview-revision",
+    });
     expect(createChatConversation).toHaveBeenCalledWith("company-1");
     expect(sendChatMessageStream).not.toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "View investigation" })).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=job-1");
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
+  });
+
+  it("updates the category preview when the research question is edited", async () => {
+    vi.mocked(previewManagedResearchBrief).mockResolvedValue({
+      question: "Mô hình kinh doanh của Masan Group là gì?",
+      contextRevision: "preview-revision",
+    });
+    renderHandoff();
+
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
+    fireEvent.change(await screen.findByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "Mô hình kinh doanh của Masan Group" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review research question" }));
+
+    const brief = await screen.findByTestId("deep-research-brief");
+    expect(brief).toHaveTextContent("Market / strategy");
+    fireEvent.click(screen.getByRole("button", { name: "Edit question" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Research question" }), { target: { value: "Doanh thu và lợi nhuận của Masan Group là bao nhiêu?" } });
+    expect(brief).toHaveTextContent("Financial / performance");
+    expect(startManagedResearch).not.toHaveBeenCalled();
+  });
+
+  it("shows the provider outage and does not start research when question preview fails", async () => {
+    vi.mocked(previewManagedResearchBrief).mockRejectedValue(new ApiError(503, {
+      detail: "Gemini is temporarily unavailable. Retry the research question; Deep Research has not started.",
+      code: "unavailable",
+    }));
+    renderHandoff();
+
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
+    fireEvent.change(await screen.findByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "FPT Smart Cloud customers" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review research question" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Gemini is temporarily unavailable");
+    expect(startManagedResearch).not.toHaveBeenCalled();
+    expect(createChatConversation).not.toHaveBeenCalled();
+  });
+
+  it("does not start research when the edited question is empty", async () => {
+    renderHandoff();
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
+    fireEvent.change(screen.getByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "Expansion in Japan" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review research question" }));
+    await screen.findByTestId("deep-research-brief");
+    fireEvent.click(screen.getByRole("button", { name: "Edit question" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Research question" }), { target: { value: " " } });
+    fireEvent.click(screen.getByRole("button", { name: "Done editing" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Deep Research" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter one research question");
+    expect(startManagedResearch).not.toHaveBeenCalled();
+    expect(createChatConversation).not.toHaveBeenCalled();
+  });
+
+  it("cancels an investigation brief without creating a conversation or job", async () => {
+    renderHandoff();
+
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
+    fireEvent.change(screen.getByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "Expansion in Japan" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review research question" }));
+
+    await screen.findByTestId("deep-research-brief");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByTestId("deep-research-brief")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Expansion in Japan")).toBeInTheDocument();
+    expect(createChatConversation).not.toHaveBeenCalled();
+    expect(startManagedResearch).not.toHaveBeenCalled();
   });
 
   it("keeps completed research out of the floating notification layer", async () => {

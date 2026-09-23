@@ -24,9 +24,9 @@ export interface WorkspaceInvestigation {
 
 export type InvestigationCategory = "Profile improvement" | "Financial / performance" | "Market / strategy" | "General research";
 
-const profileTerms = ["leadership", "leader", "executive", "employee", "headcount", "workforce", "market", "customer", "location", "office", "headquarter", "product", "service", "industry", "founded", "history", "legal", "identity", "registration", "tax"];
-const financialTerms = ["revenue", "financial", "profit", "ebitda", "margin", "cash flow", "funding", "valuation", "earnings", "annual report", "income"];
-const marketTerms = ["market", "expansion", "competitor", "competition", "partnership", "customer", "strategy", "geography", "country"];
+const profileTerms = ["leadership", "leader", "executive", "employee", "headcount", "workforce", "market", "customer", "location", "office", "headquarter", "product", "service", "industry", "founded", "history", "legal", "identity", "registration", "tax", "lãnh đạo", "nhân sự", "sản phẩm", "dịch vụ", "khách hàng", "địa điểm", "ngành", "thành lập", "pháp lý", "đăng ký thuế"];
+const financialTerms = ["revenue", "financial", "profit", "ebitda", "margin", "cash flow", "funding", "valuation", "earnings", "annual report", "income", "doanh thu", "lợi nhuận", "tài chính", "dòng tiền"];
+const marketTerms = ["market", "expansion", "competitor", "competition", "partnership", "customer", "strategy", "geography", "country", "business model", "mô hình kinh doanh", "chiến lược", "cạnh tranh", "mở rộng thị trường"];
 
 export function classifyInvestigation(text: string, claims: ResearchClaim[] = []): InvestigationCategory {
   const normalized = `${text} ${claims.map((claim) => `${claim.field} ${claim.statement}`).join(" ")}`.toLowerCase();

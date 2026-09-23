@@ -7,6 +7,7 @@ import { jsonResponse, renderWithRouter } from "../test/test-utils";
 const settings = {
   groundingMode: "Auto",
   profileModel: "gemini-3.5-flash-lite",
+  chatModel: "gemini-3.5-flash-lite",
   groundingModel: "gemini-3.5-flash-lite",
   deepResearchModel: "gemini-3.8-flash",
   aiSourceRerankingEnabled: true,
@@ -46,10 +47,12 @@ it("loads persistent settings and saves the explicit model roles", async () => {
   expect(await screen.findByRole("heading", { name: "Research intelligence" })).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: /Auto/ })).toBeChecked();
   expect(screen.getByLabelText("Identity grounding")).toHaveValue("gemini-3.5-flash-lite");
+  expect(screen.getByLabelText("Ask RAVEN & research question brief")).toHaveValue("gemini-3.5-flash-lite");
   expect(screen.getAllByText("Operational")).toHaveLength(3);
 
   await user.click(screen.getByRole("radio", { name: /^Always/ }));
   await user.selectOptions(screen.getByLabelText("Identity grounding"), "gemini-3.8-flash");
+  await user.selectOptions(screen.getByLabelText("Ask RAVEN & research question brief"), "gemini-3.8-flash");
   expect(screen.getByText("You have unsaved changes.")).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Save changes" }));
@@ -57,6 +60,7 @@ it("loads persistent settings and saves the explicit model roles", async () => {
   expect(savedBody).toEqual({
     groundingMode: "Always",
     profileModel: settings.profileModel,
+    chatModel: "gemini-3.8-flash",
     groundingModel: "gemini-3.8-flash",
     deepResearchModel: settings.deepResearchModel,
     aiSourceRerankingEnabled: settings.aiSourceRerankingEnabled,

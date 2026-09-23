@@ -6,12 +6,15 @@ import {
   attachResearchContext,
   getManagedResearchJobs,
   getResearchContextAttachments,
+  previewManagedResearchBrief,
   removeResearchContext,
   startManagedResearch,
+  type ManagedResearchBriefPreview,
   type ManagedResearchJob,
   type ResearchContextAttachment,
 } from "../../api/managedResearch";
 import type { ChatAnswerStatus, ChatMessage } from "../../types/chat";
+import { classifyInvestigation } from "../company-workspace/investigationTypes";
 import { hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
 import styles from "./ask-raven.module.css";
 
@@ -110,6 +113,10 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const [activeCapability, setActiveCapability] = useState<ComposerCapability | null>(null);
+  const [deepResearchBrief, setDeepResearchBrief] = useState<ManagedResearchBriefPreview | null>(null);
+  const [deepResearchOriginalQuestion, setDeepResearchOriginalQuestion] = useState<string | null>(null);
+  const [deepResearchBriefEditing, setDeepResearchBriefEditing] = useState(false);
+  const [deepResearchBriefLoading, setDeepResearchBriefLoading] = useState(false);
   const [deepResearchStarting, setDeepResearchStarting] = useState(false);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [capabilitySaving, setCapabilitySaving] = useState(false);
@@ -125,6 +132,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const investigationsLinkRef = useRef<HTMLAnchorElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const researchContextLoadVersionRef = useRef(0);
+  const researchBriefVersionRef = useRef(0);
   const researched = formatDate(lastResearchedAt);
 
   const setConversationInUrl = (nextConversationId: string | null) => {
@@ -136,11 +144,16 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
 
   const startNewConversation = () => {
     if (pending || conversationLoading) return;
+    researchBriefVersionRef.current += 1;
     setConversationId(null);
     setMessages([]);
     setQuestion("");
     setWebSearchEnabled(false);
     setActiveCapability(null);
+    setDeepResearchBrief(null);
+    setDeepResearchOriginalQuestion(null);
+    setDeepResearchBriefEditing(false);
+    setDeepResearchBriefLoading(false);
     setCapabilitiesOpen(false);
     setExpandedSourceMessageId(null);
     setError(null);
@@ -299,6 +312,72 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     syncManagedResearchActivity(companyName, job);
   };
 
+  const cancelDeepResearchBrief = () => {
+    if (!deepResearchBrief || deepResearchStarting) return;
+    researchBriefVersionRef.current += 1;
+    setQuestion(deepResearchOriginalQuestion ?? "");
+    setDeepResearchBrief(null);
+    setDeepResearchOriginalQuestion(null);
+    setDeepResearchBriefEditing(false);
+    window.setTimeout(() => questionInputRef.current?.focus(), 0);
+  };
+
+  const startDeepResearchBrief = async () => {
+    if (!deepResearchBrief || deepResearchStarting || pending) return;
+    const approvedQuestion = deepResearchBrief.question.trim();
+    if (!approvedQuestion || approvedQuestion.length > 4_000) {
+      setError("Enter one research question of at most 4,000 characters before starting Deep Research.");
+      return;
+    }
+
+    setError(null);
+    setDeepResearchStarting(true);
+    try {
+      // The brief remains local until it is explicitly approved. The server
+      // validates the current company-context revision before queueing work.
+      const activeConversationId = conversationId ?? (await beginConversation(false)).id;
+      const job = await startManagedResearch(companyId, approvedQuestion, {
+        conversationId: activeConversationId,
+        contextRevision: deepResearchBrief.contextRevision,
+      });
+      const createdAt = new Date().toISOString();
+      addManagedResearchJob(job);
+      setMessages((current) => [...current,
+        {
+          id: `local-user-${Date.now()}`,
+          role: "User",
+          content: approvedQuestion,
+          status: "Completed",
+          citations: [],
+          webEvidenceSnapshots: [],
+          toolExecutions: [],
+          createdAt,
+        },
+        {
+          id: `managed-research-started-${job.id}`,
+          role: "Assistant",
+          content: "Deep Research started\n\nRunning in the background. Results will appear in Investigations.",
+          status: "Completed",
+          citations: [],
+          webEvidenceSnapshots: [],
+          toolExecutions: [],
+          createdAt,
+          managedResearchJobId: job.id,
+        },
+      ]);
+      setQuestion("");
+      setDeepResearchBrief(null);
+      setDeepResearchOriginalQuestion(null);
+      setDeepResearchBriefEditing(false);
+      setActiveCapability(null);
+      setCapabilitiesOpen(false);
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : "Deep Research could not start.");
+    } finally {
+      setDeepResearchStarting(false);
+    }
+  };
+
   const ensureConversation = async () => {
     if (conversationId) return conversationId;
     const conversation = await beginConversation();
@@ -338,52 +417,24 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const submitQuestion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = question.trim();
-    if (!trimmed || pending || deepResearchStarting || (activeCapability !== "deepResearch" && !profileVersionId)) return;
+    if (!trimmed || pending || deepResearchBriefLoading || deepResearchStarting || deepResearchBrief || (activeCapability !== "deepResearch" && !profileVersionId)) return;
 
     if (activeCapability === "deepResearch") {
       setError(null);
-      const userMessage: HandoffMessage = {
-        id: `local-user-${Date.now()}`,
-        role: "User",
-        content: trimmed,
-        status: "Completed",
-        citations: [],
-        webEvidenceSnapshots: [],
-        toolExecutions: [],
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((current) => [...current, userMessage]);
-      setQuestion("");
-      setDeepResearchStarting(true);
-      setActiveCapability(null);
-      setCapabilitiesOpen(false);
-
+      const previewVersion = ++researchBriefVersionRef.current;
+      setDeepResearchBriefLoading(true);
       try {
-        // Creating the conversation here gives the durable managed job a
-        // conversation relationship without fabricating a ChatMessage. The
-        // existing Chat API has no launch-message-only operation.
-        // A Deep Research launch is not a persisted ChatMessage. Keep a newly
-        // created conversation off the URL until a normal Chat turn exists;
-        // otherwise the restore effect can replace this local launch status
-        // with an empty server-side message list.
-        const activeConversationId = conversationId ?? (await beginConversation(false)).id;
-        const job = await startManagedResearch(companyId, trimmed, { conversationId: activeConversationId });
-        addManagedResearchJob(job);
-        setMessages((current) => [...current, {
-          id: `managed-research-started-${job.id}`,
-          role: "Assistant",
-          content: `Deep Research started\n\nRunning in the background. Results will appear in Investigations.`,
-          status: "Completed",
-          citations: [],
-          webEvidenceSnapshots: [],
-          toolExecutions: [],
-          createdAt: new Date().toISOString(),
-          managedResearchJobId: job.id,
-        }]);
+        const preview = await previewManagedResearchBrief(companyId, trimmed);
+        if (previewVersion !== researchBriefVersionRef.current) return;
+        setDeepResearchBrief(preview);
+        setDeepResearchOriginalQuestion(trimmed);
+        setDeepResearchBriefEditing(false);
+        setQuestion("");
       } catch (submissionError) {
-        setError(submissionError instanceof Error ? submissionError.message : "Deep Research could not start.");
+        if (previewVersion !== researchBriefVersionRef.current) return;
+        setError(submissionError instanceof Error ? submissionError.message : "The research question could not be prepared. Retry to continue.");
       } finally {
-        setDeepResearchStarting(false);
+        if (previewVersion === researchBriefVersionRef.current) setDeepResearchBriefLoading(false);
       }
       return;
     }
@@ -451,11 +502,11 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <Plus size={14} weight="bold" aria-hidden="true" />
           <span>New chat</span>
         </button>
-        <span className={styles.handoffStatus}>{pending ? "Thinking" : deepResearchStarting ? "Launching research" : conversationLoading ? "Loading chat" : profileVersionId ? webSearchEnabled ? "Web permitted" : "Profile only" : activeCapability === "deepResearch" ? "Deep Research ready" : "Profile required"}</span>
+        <span className={styles.handoffStatus}>{pending ? "Thinking" : deepResearchBriefLoading ? "Preparing research question" : deepResearchStarting ? "Launching research" : conversationLoading ? "Loading chat" : profileVersionId ? webSearchEnabled ? "Web permitted" : "Profile only" : activeCapability === "deepResearch" ? "Deep Research ready" : "Profile required"}</span>
       </header>
 
       <div className={styles.chatViewport} aria-live="polite" aria-label="Ask RAVEN conversation">
-        {messages.length === 0 ? <div className={styles.chatEmptyState}>
+        {messages.length === 0 && !deepResearchBrief && !deepResearchBriefLoading ? <div className={styles.chatEmptyState}>
           <span className={styles.chatEmptyMark} aria-hidden="true">✦</span>
           <strong>{profileVersionId ? "Ask about this company" : activeCapability === "deepResearch" ? "Start a Deep Research investigation" : "Accept a profile first"}</strong>
           <p>{profileVersionId ? "Answers are grounded in the accepted profile and its evidence." : activeCapability === "deepResearch" ? "Deep Research can investigate the company while the accepted profile is still incomplete." : "Ask RAVEN becomes available after a company profile is accepted."}</p>
@@ -489,6 +540,29 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
             </> : null}
           </article>
         ))}
+        {deepResearchBriefLoading ? <div className={styles.researchBriefPreparing} role="status">Preparing research question…</div> : null}
+        {deepResearchBrief ? <section className={styles.researchBriefCard} data-testid="deep-research-brief" aria-labelledby="deep-research-brief-heading">
+          <header className={styles.researchBriefHeader}>
+            <h3 id="deep-research-brief-heading">Review question</h3>
+            <button type="button" className="button button--quiet" aria-label={deepResearchBriefEditing ? "Done editing" : "Edit question"} onClick={() => setDeepResearchBriefEditing((editing) => !editing)} disabled={deepResearchStarting}>
+              {deepResearchBriefEditing ? "Done" : "Edit"}
+            </button>
+          </header>
+          <div className={styles.researchBriefContext} aria-label="Research context">
+            <span className={styles.researchBriefCompany} title={companyName}><strong>Company:</strong> {companyName}</span>
+            <span className={styles.researchBriefProfile}>{profileVersionId && profileVersion ? `v${profileVersion} · ${sourceCount} sources` : "Identity only"}</span>
+            <span className={styles.researchBriefCategory} title="Estimated from the question. The final category may change after research results are organized."><strong>Likely category:</strong> {classifyInvestigation(deepResearchBrief.question)}</span>
+          </div>
+          <div className={styles.researchBriefRecord}>
+            {deepResearchBriefEditing ? <label className={styles.researchBriefEditor}>Question
+              <textarea aria-label="Research question" value={deepResearchBrief.question} onChange={(event) => setDeepResearchBrief((current) => current ? { ...current, question: event.target.value } : current)} rows={3} maxLength={4_000} />
+            </label> : <p className={styles.researchBriefQuestion}>{deepResearchBrief.question}</p>}
+          </div>
+          <footer className={styles.researchBriefActions}>
+            <button type="button" className="button button--quiet" onClick={cancelDeepResearchBrief} disabled={deepResearchStarting}>Cancel</button>
+            <button type="button" className="button button--ai" onClick={() => void startDeepResearchBrief()} disabled={deepResearchStarting || deepResearchBriefEditing}>{deepResearchStarting ? "Starting…" : "Start Deep Research"}</button>
+          </footer>
+        </section> : null}
         {pending ? <div className={styles.chatSystemMessage} role="status">{[...messages].reverse().find((message) => message.role === "Assistant" && message.status === "Pending")?.activity ?? "RAVEN is preparing an answer…"}</div> : null}
         {deepResearchStarting ? <div className={styles.chatSystemMessage} role="status">Starting Deep Research in the background...</div> : null}
         {error ? <div className={styles.chatSystemMessage} role="alert">{error}</div> : null}
@@ -511,7 +585,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           id="ask-raven-question"
           ref={questionInputRef}
           value={question}
-          disabled={(!profileVersionId && activeCapability !== "deepResearch") || pending || deepResearchStarting || conversationLoading}
+          disabled={(!profileVersionId && activeCapability !== "deepResearch") || pending || deepResearchBriefLoading || deepResearchStarting || conversationLoading || deepResearchBrief !== null}
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -578,6 +652,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
                     type="button"
                     onClick={() => {
                       setActiveCapability("deepResearch");
+                      setDeepResearchBrief(null);
+                      setDeepResearchOriginalQuestion(null);
+                      setDeepResearchBriefEditing(false);
                       setCapabilitiesOpen(false);
                       window.setTimeout(() => questionInputRef.current?.focus(), 0);
                     }}
@@ -589,9 +666,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
               </ul>
             </div> : null}
           </div>
-          {activeCapability === "deepResearch" ? <button className={styles.capabilityChip} type="button" onClick={() => setActiveCapability(null)} aria-label="Remove Deep Research capability">✦ Deep Research ×</button> : null}
+          {activeCapability === "deepResearch" ? <button className={styles.capabilityChip} type="button" onClick={() => { researchBriefVersionRef.current += 1; setDeepResearchBriefLoading(false); setActiveCapability(null); setDeepResearchBrief(null); setDeepResearchOriginalQuestion(null); setDeepResearchBriefEditing(false); }} aria-label="Remove Deep Research capability">✦ Deep Research ×</button> : null}
           <span className={styles.assistantProfileBoundary} title={profileVersionId ? "Normal answers use the accepted Company Profile and its evidence" : "Deep Research can start from company identity and current research context"}><span aria-hidden="true">◉</span> {profileVersionId ? `v${profileVersion} · ${webSearchEnabled ? "web permitted" : "profile-only"}` : activeCapability === "deepResearch" ? "Company context · no accepted profile yet" : "Profile required for Chat"}</span>
-          <button className={styles.assistantSubmit} type="submit" disabled={!question.trim() || pending || deepResearchStarting || conversationLoading || (activeCapability !== "deepResearch" && !profileVersionId)} aria-label={activeCapability === "deepResearch" ? "Start Deep Research" : "Send question"}>
+          <button className={styles.assistantSubmit} type="submit" disabled={!question.trim() || pending || deepResearchBriefLoading || deepResearchStarting || deepResearchBrief !== null || conversationLoading || (activeCapability !== "deepResearch" && !profileVersionId)} aria-label={activeCapability === "deepResearch" ? "Review research question" : "Send question"}>
             <ArrowUp size={17} weight="bold" aria-hidden="true" />
           </button>
         </div>

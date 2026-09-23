@@ -4,6 +4,11 @@ export type ManagedResearchJobStatus = "Queued" | "Researching" | "Completed" | 
 export type ManagedResearchEffort = "Auto" | "Low" | "Medium" | "High" | "XHigh";
 export type ManagedResearchPurpose = "General" | "ProfileImprovement";
 
+export interface ManagedResearchBriefPreview {
+  question: string;
+  contextRevision: string;
+}
+
 export interface ManagedResearchJob {
   id: string;
   companyId: string;
@@ -40,6 +45,7 @@ export interface StartManagedResearchOptions {
   chatMessageId?: string;
   effort?: ManagedResearchEffort;
   purpose?: ManagedResearchPurpose;
+  contextRevision?: string;
 }
 
 function companyPath(companyId: string) {
@@ -47,16 +53,27 @@ function companyPath(companyId: string) {
 }
 
 export function startManagedResearch(companyId: string, objective: string, options?: StartManagedResearchOptions) {
-  const body: Record<string, string> = { objective: objective.trim() };
+  const body: Record<string, unknown> = { objective: objective.trim() };
   if (options?.conversationId) body.conversationId = options.conversationId;
   if (options?.chatMessageId) body.chatMessageId = options.chatMessageId;
   if (options?.effort) body.effort = options.effort;
   if (options?.purpose) body.purpose = options.purpose;
+  if (options?.contextRevision) body.contextRevision = options.contextRevision;
 
   return request<ManagedResearchJob>(companyPath(companyId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+export function previewManagedResearchBrief(
+  companyId: string,
+  question: string) {
+  return request<ManagedResearchBriefPreview>(`${companyPath(companyId)}/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question: question.trim() }),
   });
 }
 

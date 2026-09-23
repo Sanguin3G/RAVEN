@@ -43,13 +43,7 @@ public sealed class ManagedResearchJobService(
             throw new ArgumentException("The managed research effort is not supported.", nameof(request));
         }
 
-        var objective = request.Objective?.Trim();
-        if (string.IsNullOrWhiteSpace(objective) || objective.Length > ManagedResearchLimits.MaxObjectiveLength)
-        {
-            throw new ArgumentException(
-                $"A research objective between 1 and {ManagedResearchLimits.MaxObjectiveLength} characters is required.",
-                nameof(request));
-        }
+        var objective = ManagedResearchQuestionValidation.NormalizeRequired(request.Objective, nameof(request.Objective));
 
         var context = await contextReader.GetAsync(companyId, cancellationToken);
         if (context is null)
@@ -60,6 +54,12 @@ public sealed class ManagedResearchJobService(
         if (context.CompanyId != companyId)
         {
             throw new InvalidOperationException("The company context does not match the requested company.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ContextRevision) &&
+            !ManagedResearchBriefContext.MatchesContextRevision(context, request.ContextRevision))
+        {
+            throw new ManagedResearchPreviewStaleException();
         }
 
         var configuredDepth = settings is null
@@ -73,7 +73,7 @@ public sealed class ManagedResearchJobService(
             ChatMessageId = request.ChatMessageId,
             Objective = objective,
             ProviderQuery = ManagedResearchQueryBuilder.Build(context, objective),
-            Effort = ToEffortValue(request.Effort == ManagedResearchEffort.Auto ? ToProviderEffort(configuredDepth) : request.Effort),
+            Effort = ToEffortValue(request.Effort == ManagedResearchEffort.Auto ? ManagedResearchEffortResolver.FromDepth(configuredDepth) : request.Effort),
             Purpose = request.Purpose,
             CreatedAt = clock.UtcNow,
             Provider = ExaAgentClient.ProviderId
@@ -83,15 +83,6 @@ public sealed class ManagedResearchJobService(
         await queue.EnqueueAsync(job.Id, cancellationToken);
         return ToResponse(job);
     }
-
-    private static ManagedResearchEffort ToProviderEffort(ManagedResearchDepth depth) => depth switch
-    {
-        ManagedResearchDepth.Focused => ManagedResearchEffort.Low,
-        ManagedResearchDepth.Standard => ManagedResearchEffort.Medium,
-        ManagedResearchDepth.Thorough => ManagedResearchEffort.High,
-        ManagedResearchDepth.Exhaustive => ManagedResearchEffort.XHigh,
-        _ => ManagedResearchEffort.Auto
-    };
 
     public async Task<ManagedResearchJobResponse?> GetAsync(
         Guid companyId,
