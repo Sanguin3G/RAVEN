@@ -10,7 +10,8 @@ const groups: InvestigationStatus[] = ["Ready", "Running", "Done", "Failed"];
 export function InvestigationSwitcher({ items, selectedId, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("Ready");
+  const [filter, setFilter] = useState<Filter>("All");
+  const [showFilters, setShowFilters] = useState(false);
   const [purpose, setPurpose] = useState("All");
   const [topic, setTopic] = useState("All");
   const [origin, setOrigin] = useState("All");
@@ -45,19 +46,24 @@ export function InvestigationSwitcher({ items, selectedId, onSelect }: Props) {
     if (event.key === "Escape" && open) { event.preventDefault(); setOpen(false); trigger.current?.focus(); }
   }}>
     <button ref={trigger} className={styles.trigger} type="button" aria-expanded={open} aria-controls="investigation-switcher-panel" onClick={() => setOpen(value => !value)}>
-      <span className={styles.triggerTitle}>{selected?.title || "Select investigation"}</span><span aria-hidden="true">⌄</span>
-      {selected ? <><small>{selected.origin} · {investigationPurposeLabel(selected.purpose)}</small><small>{selected.topics[0] || "Topic unspecified"} · {investigationStatusLabel(selected.status)}</small></> : null}
+      <span className={styles.viewingLabel}>Viewing investigation</span><span className={styles.triggerChevron} aria-hidden="true">⌄</span>
+      <strong className={styles.triggerTitle}>{selected?.title || "Select investigation"}</strong>
+      {selected ? <small className={styles.triggerMeta}>{selected.origin} · {investigationPurposeLabel(selected.purpose)} · Updated {new Date(selected.materialUpdatedAt).toLocaleDateString()}</small> : null}
+      {selected ? <span className={`${styles.triggerStatus} ${styles[`status${selected.status}`]}`}>{investigationStatusLabel(selected.status)}</span> : null}
     </button>
     {open ? <div ref={panel} id="investigation-switcher-panel" className={styles.panel} role="dialog" aria-label="Switch investigation">
       <label htmlFor="investigation-search">Search investigations</label>
       <input ref={search} id="investigation-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search investigations..." />
-      <div className={styles.filters} aria-label="Filter by status">{(["Ready", "Running", "Done", "Failed", "All"] as Filter[]).map(value =>
-        <button type="button" key={value} className={filter === value ? styles.active : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "Ready" ? "Ready for review" : value} {value === "All" ? items.length : counts[value]}</button>)}</div>
-      <div className={styles.advanced}>
-        <label>Purpose <select value={purpose} onChange={event => setPurpose(event.target.value)}><option value="All">All</option><option value="GeneralResearch">General research</option><option value="ProfileImprovement">Profile improvement</option></select></label>
-        <label>Topic <select value={topic} onChange={event => setTopic(event.target.value)}><option value="All">All</option>{topics.map(value => <option key={value}>{value}</option>)}</select></label>
-        <label>Origin <select value={origin} onChange={event => setOrigin(event.target.value)}><option value="All">All</option>{origins.map(value => <option key={value}>{value}</option>)}</select></label>
+      <div className={styles.filterRow}>
+        <div className={styles.filters} aria-label="Filter by status">{(["Ready", "Running", "Done", "Failed", "All"] as Filter[]).map(value =>
+          <button type="button" key={value} className={filter === value ? styles.active : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "Ready" ? "Ready" : value} {value === "All" ? items.length : counts[value]}</button>)}</div>
+        <button type="button" className={styles.filterToggle} aria-expanded={showFilters} onClick={() => setShowFilters(value => !value)}>{showFilters ? "Hide filters" : "Filters"}</button>
       </div>
+      {showFilters ? <div className={styles.advanced}>
+          <label>Purpose <select value={purpose} onChange={event => setPurpose(event.target.value)}><option value="All">All</option><option value="GeneralResearch">General research</option><option value="ProfileImprovement">Profile improvement</option></select></label>
+          <label>Topic <select value={topic} onChange={event => setTopic(event.target.value)}><option value="All">All</option>{topics.map(value => <option key={value}>{value}</option>)}</select></label>
+          <label>Origin <select value={origin} onChange={event => setOrigin(event.target.value)}><option value="All">All</option>{origins.map(value => <option key={value}>{value}</option>)}</select></label>
+        </div> : null}
       {visible.length ? <div className={styles.results}>{groups.map(group => {
         const groupItems = visible.filter(item => item.status === group);
         return groupItems.length ? <section key={group} aria-label={investigationStatusLabel(group)}><h3>{investigationStatusLabel(group)}</h3><ul>{groupItems.map(item =>

@@ -55,6 +55,9 @@ export function CompanyInvestigationsTab({ companyId, companyName = "Company", p
   useEffect(() => { void getBriefings(companyId).then(setBriefings).catch(() => undefined); }, [companyId]);
 
   const selected = useMemo(() => items.find(item => item.id === selectedId) ?? null, [items, selectedId]);
+  const readyCount = items.filter(item => item.status === "Ready").length;
+  const runningCount = items.filter(item => item.status === "Running").length;
+  const doneCount = items.filter(item => item.status === "Done").length;
   useEffect(() => {
     if (!selected || selected.materialKind !== "Saved" || Object.hasOwn(organizations, selected.id)) return;
     let active = true;
@@ -79,7 +82,7 @@ export function CompanyInvestigationsTab({ companyId, companyName = "Company", p
   };
   const targets = selected ? [...new Set(selected.topics.map(topic => topicTargets[topic]).filter((target): target is ResearchTarget => Boolean(target)))] : [];
   return <section className={styles.investigationsPage} aria-labelledby="dossier-investigations-heading" data-testid="dossier-investigations">
-    <header className={styles.investigationsPageHeader}><div><p className={styles.eyebrow}>COMPANY · INVESTIGATIONS</p><h2 id="dossier-investigations-heading">Investigations</h2><p>Research questions, findings, source leads, and uncertainty.</p></div></header>
+    <header className={styles.investigationsPageHeader}><div><p className={styles.eyebrow}>COMPANY · INVESTIGATIONS</p><h2 id="dossier-investigations-heading">Investigations</h2><p>Research questions, findings, source leads, and uncertainty.</p></div>{items.length ? <p className={styles.investigationsSummary}>{readyCount} ready · {runningCount} running · {doneCount} done</p> : null}</header>
     {loading ? <p role="status">Loading investigations…</p> : null}
     {error ? <p className={styles.errorMessage} role="alert">{error}</p> : null}
     {!loading && items.length === 0 ? <div className={styles.emptyState}><h3>No investigations yet</h3><p>Research a focused question to build a reusable record.</p><button className="button" type="button" onClick={() => onOpenDeepResearch?.()}>Open Deep Research in Ask RAVEN</button></div> : null}

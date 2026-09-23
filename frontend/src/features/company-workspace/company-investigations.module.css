@@ -1,6 +1,7 @@
 .investigationsPage { display: grid; gap: 1rem; }
 .investigationsPageHeader { align-items: start; display: flex; gap: 1rem; justify-content: space-between; }
 .investigationsPageHeader h2 { font-size: clamp(1.3rem, 3vw, 1.8rem); margin: 0.15rem 0 0.35rem; }
+.investigationsSummary { color: var(--text-muted); font-size: 0.74rem; margin: 1rem 0 0; white-space: nowrap; }
 .investigationPageActions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.65rem; justify-content: flex-start; }
 .investigationPageActions .button { font-size: 0.72rem; }
 .investigationPageHint { color: var(--text-muted); font-size: 0.7rem; }
@@ -16,8 +17,11 @@
 .investigationLockedPanel { background: color-mix(in srgb, var(--warning) 9%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--warning) 38%, var(--border)); border-radius: 5px; color: var(--text-muted); display: grid; gap: 0.25rem; margin-bottom: 0.8rem; padding: 0.7rem 0.8rem; }
 .investigationLockedPanel strong { color: var(--text); font-size: 0.78rem; }
 .investigationLockedPanel p { font-size: 0.72rem; line-height: 1.45; margin: 0; }
-.investigationWorkspaceHeader h2 { font-size: clamp(1.2rem, 3vw, 1.8rem); margin: 0.2rem 0 0.35rem; overflow-wrap: anywhere; }
+.investigationWorkspaceHeader h2 { font-size: clamp(1.12rem, 1.65vw, 1.38rem); line-height: 1.3; margin: 0.2rem 0 0.35rem; max-width: 44ch; overflow-wrap: anywhere; }
 .investigationObjective { font-size: 0.9rem; line-height: 1.55; margin: 0; max-width: 72ch; }
+.investigationObjective summary { color: var(--primary); cursor: pointer; font-size: 0.72rem; font-weight: 750; margin-top: 0.45rem; }
+.investigationObjective p { color: var(--text-muted); font-size: 0.78rem; margin: 0.35rem 0 0; max-width: 72ch; }
+.investigationOrigin { align-items: center; color: var(--primary); display: flex; font-size: 0.68rem; font-weight: 850; gap: 0.35rem; letter-spacing: 0.08em; margin: 0; text-transform: uppercase; }
 .investigationWorkspaceActions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
 .investigationWorkspaceActions .button { font-size: 0.72rem; }
 .investigationAction { align-items: center; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.42rem; color: var(--text); cursor: pointer; display: inline-flex; flex: 0 1 10.75rem; gap: 0.45rem; min-height: 3.1rem; padding: 0.4rem 0.55rem; text-align: left; }
@@ -31,6 +35,28 @@
 .investigationActionExternal { color: var(--text-muted); }
 .investigationOrganizationNotice { background: color-mix(in srgb, var(--success) 9%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--success) 35%, var(--border)); border-radius: 0.35rem; color: var(--success); flex-basis: 100%; font-size: 0.69rem; margin: 0.1rem 0 0; padding: 0.4rem 0.55rem; }
 .investigationStats { align-items: center; border-bottom: 1px solid var(--border); color: var(--text-muted); display: flex; flex-wrap: wrap; font-size: 0.7rem; gap: 0.45rem 0.8rem; padding-bottom: 0.8rem; }
+.investigationPurpose { color: var(--primary); font-size: 0.69rem; font-weight: 750; }
+.investigationTopicList { display: flex; flex: 1 1 22rem; flex-wrap: wrap; gap: 0.3rem; }
+.investigationTopic { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: 0.65rem; padding: 0.2rem 0.45rem; }
+.investigationState { background: color-mix(in srgb, var(--success) 10%, var(--surface-raised)); border-radius: 999px; color: var(--success); font-size: 0.67rem; font-weight: 800; padding: 0.23rem 0.55rem; }
+.investigationPrimaryPanel { align-items: center; background: color-mix(in srgb, var(--primary) 7%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border)); border-radius: 0.55rem; display: flex; gap: 1rem; justify-content: space-between; padding: 0.85rem 1rem; }
+.investigationPrimaryPanel > div { display: grid; gap: 0.2rem; }
+.investigationPrimaryPanel p { color: var(--primary); font-size: 0.65rem; font-weight: 850; letter-spacing: 0.08em; margin: 0; text-transform: uppercase; }
+.investigationPrimaryPanel strong { font-size: 0.85rem; }
+.investigationPrimaryPanel span { color: var(--text-muted); font-size: 0.73rem; line-height: 1.45; }
+.investigationOtherActions { align-items: center; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; padding-bottom: 0.75rem; }
+.investigationLifecycleActions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.investigationLifecycleActions .button { font-size: 0.7rem; }
+.investigationUsageHint { color: var(--text-muted); font-size: 0.68rem; }
+.investigationResearchMenu { position: relative; }
+.investigationResearchMenu summary { color: var(--primary); cursor: pointer; font-size: 0.72rem; font-weight: 750; list-style: none; }
+.investigationResearchMenu summary::-webkit-details-marker { display: none; }
+.investigationResearchMenu div { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.45rem; box-shadow: 0 0.6rem 1.4rem var(--shadow); display: grid; min-width: 11rem; padding: 0.25rem; position: absolute; right: 0; z-index: 3; }
+.investigationResearchMenu button { background: transparent; border: 0; border-radius: 0.3rem; color: var(--text); cursor: pointer; padding: 0.45rem 0.55rem; text-align: left; }
+.investigationResearchMenu button:hover { background: var(--surface-muted); }
+.investigationEvidenceStrip { border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 1rem; padding: 0 0 0.75rem; }
+.investigationEvidenceStrip span { color: var(--text-muted); font-size: 0.72rem; }
+.investigationEvidenceStrip strong { color: var(--text); font-size: 0.94rem; margin-right: 0.2rem; }
 .investigationCategory { background: color-mix(in srgb, var(--primary) 10%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border)); border-radius: 999px; color: var(--primary); font-weight: 800; padding: 0.22rem 0.5rem; }
 .investigationStats span:not(:last-child)::after { color: var(--border-strong); content: "·"; margin-left: 0.8rem; }
 .investigationStatusRunning, .investigationStatusReady { border: 1px solid; border-radius: 999px; font-weight: 800; padding: 0.2rem 0.45rem; }
@@ -104,6 +130,9 @@
   .investigationClaim { display: grid; }
   .investigationClaimMeta { text-align: left; }
   .investigationNextStep { align-items: stretch; flex-direction: column; }
+  .investigationPrimaryPanel { align-items: stretch; flex-direction: column; }
   .investigationNextStepActions, .investigationNextStepActions .button { width: 100%; }
   .investigationNextStepActions .button { justify-content: center; }
+  .investigationOtherActions { align-items: stretch; flex-direction: column; }
+  .investigationResearchMenu { align-self: flex-start; }
 }

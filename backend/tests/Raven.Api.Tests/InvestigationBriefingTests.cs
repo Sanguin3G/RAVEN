@@ -66,6 +66,7 @@ public sealed class InvestigationBriefingTests : IDisposable
 
         var created = await briefings.CreateAsync(CompanyId,
             new CreateBriefingRequest("Hiring", "Talent & Hiring", "Hiring signals", [first.Id]), default);
+        Assert.DoesNotContain("additionalProperties", ai.LastRequest!.ResponseSchema.GetRawText(), StringComparison.Ordinal);
         Assert.Equal(1, created.CurrentVersion.VersionNumber);
         Assert.Equal(first.Id, Assert.Single(created.CurrentVersion.Sources).InvestigationId);
         Assert.Equal(created.CurrentVersion.Sources[0].MaterialUpdatedAt, created.CurrentVersion.ResearchThrough);
@@ -80,6 +81,27 @@ public sealed class InvestigationBriefingTests : IDisposable
         Assert.Equal(2, db.ResearchBriefingVersions.Count());
         Assert.Empty(db.CompanyProfileVersions);
         Assert.Equal(2, ai.Calls);
+    }
+
+    [Fact]
+    public async Task Failed_briefing_update_does_not_advance_version_or_change_definition()
+    {
+        var first = await SaveAsync("European hiring", InvestigationPurpose.GeneralResearch);
+        var created = await briefings.CreateAsync(CompanyId,
+            new CreateBriefingRequest("Hiring", "Talent & Hiring", "Hiring signals", [first.Id]), default);
+        ai.FailNext = true;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => briefings.UpdateAsync(CompanyId, created.Id,
+            new UpdateBriefingRequest([], Title: "Changed title", Objective: "Changed objective"), default));
+
+        var current = await briefings.GetAsync(CompanyId, created.Id, default);
+        Assert.Equal("Hiring", current!.Title);
+        Assert.Equal("Hiring signals", current.Objective);
+        Assert.Equal(1, current.VersionCount);
+        Assert.Equal(1, db.ResearchBriefingVersions.Count());
+        var versions = await briefings.VersionsAsync(CompanyId, created.Id, default);
+        var version = Assert.Single(versions!);
+        Assert.Equal(1, version.VersionNumber);
     }
 
     [Fact]
@@ -115,9 +137,18 @@ public sealed class InvestigationBriefingTests : IDisposable
     {
         public string Id => "fake";
         public int Calls { get; private set; }
+        public bool FailNext { get; set; }
+        public AiModelRequest? LastRequest { get; private set; }
         public Task<AiModelResult> GenerateStructuredAsync(AiModelRequest request, CancellationToken cancellationToken = default)
         {
             Calls++;
+            LastRequest = request;
+            if (FailNext)
+            {
+                FailNext = false;
+                return Task.FromResult(new AiModelResult(Id, request.Model, null, TimeSpan.Zero,
+                    Failure: new AiFailure("unavailable", "Synthetic provider failure.", true)));
+            }
             using var json = JsonDocument.Parse("""
                 { "sections": [{ "title": "Key takeaways", "items": ["Hiring signal from selected material"], "sourceInvestigationIds": [] }] }
                 """);

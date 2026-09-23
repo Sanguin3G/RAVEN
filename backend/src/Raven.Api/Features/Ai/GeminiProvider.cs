@@ -103,18 +103,32 @@ public sealed class GeminiProvider(HttpClient httpClient, IOptions<GeminiOptions
 
             if ((int)response.StatusCode >= 500)
             {
+                var providerMessage = await ReadErrorMessageAsync(response, cancellationToken);
                 return Failure(
                     request.Model,
                     stopwatch,
-                    new AiFailure("unavailable", "Gemini is currently unavailable.", true, (int)response.StatusCode));
+                    new AiFailure(
+                        "unavailable",
+                        providerMessage is null
+                            ? $"Gemini is currently unavailable ({(int)response.StatusCode})."
+                            : $"Gemini is currently unavailable ({(int)response.StatusCode}): {providerMessage}",
+                        true,
+                        (int)response.StatusCode));
             }
 
             if (!response.IsSuccessStatusCode)
             {
+                var providerMessage = await ReadErrorMessageAsync(response, cancellationToken);
                 return Failure(
                     request.Model,
                     stopwatch,
-                    new AiFailure("invalid_request", "Gemini rejected the structured-generation request.", false, (int)response.StatusCode));
+                    new AiFailure(
+                        "invalid_request",
+                        providerMessage is null
+                            ? $"Gemini rejected the structured-generation request ({(int)response.StatusCode})."
+                            : $"Gemini rejected the structured-generation request ({(int)response.StatusCode}): {providerMessage}",
+                        false,
+                        (int)response.StatusCode));
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -327,6 +341,32 @@ public sealed class GeminiProvider(HttpClient httpClient, IOptions<GeminiOptions
 
     private static int? ReadInt(JsonElement parent, string propertyName) =>
         parent.TryGetProperty(propertyName, out var property) && property.TryGetInt32(out var value) ? value : null;
+
+    private static async Task<string?> ReadErrorMessageAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var buffer = new MemoryStream();
+            var chunk = new byte[4096];
+            while (buffer.Length < 16_384)
+            {
+                var count = await stream.ReadAsync(chunk.AsMemory(0, Math.Min(chunk.Length, 16_384 - (int)buffer.Length)), cancellationToken);
+                if (count == 0) break;
+                buffer.Write(chunk, 0, count);
+            }
+            using var document = JsonDocument.Parse(buffer.ToArray());
+            if (document.RootElement.TryGetProperty("error", out var error) &&
+                error.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String)
+            {
+                var value = message.GetString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(value)) return value.Length <= 400 ? value : value[..400];
+            }
+        }
+        catch (JsonException) { }
+        catch (IOException) { }
+        return null;
+    }
 
     private static AiModelResult Failure(
         string model,

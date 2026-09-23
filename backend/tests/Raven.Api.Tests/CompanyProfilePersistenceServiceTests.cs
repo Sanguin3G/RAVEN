@@ -103,6 +103,8 @@ public sealed class CompanyProfilePersistenceServiceTests : IDisposable
         var state = Assert.Single(await dbContext.InvestigationReviewStates.ToListAsync());
         Assert.Equal(materialId, state.MaterialId);
         Assert.Equal(confirmed!.Id, state.AppliedProfileVersionId);
+        Assert.NotNull(state.AppliedAt);
+        Assert.NotNull(state.DoneAt);
         Assert.Equal(materialUpdatedAt, state.DoneThrough);
         Assert.Equal(InvestigationMaterialKind.Saved, state.MaterialKind);
     }

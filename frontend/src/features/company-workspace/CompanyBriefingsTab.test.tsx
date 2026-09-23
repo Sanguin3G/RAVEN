@@ -48,8 +48,8 @@ describe("CompanyBriefingsTab", () => {
     const user = userEvent.setup();
     vi.mocked(createBriefing).mockResolvedValue(briefing);
     render(<CompanyBriefingsTab companyId="company-1" />);
-    await screen.findByText(/No Briefings yet/);
-    await user.click(screen.getByRole("button", { name: "Create briefing" }));
+    await screen.findByRole("heading", { name: /Turn selected research into reusable company intelligence/ });
+    await user.click(screen.getByRole("button", { name: "Create your first Briefing" }));
     const dialog = screen.getByRole("dialog", { name: "Create briefing" });
     await user.type(within(dialog).getByRole("textbox", { name: "Title" }), "Talent & Hiring");
     await user.type(within(dialog).getByRole("textbox", { name: /Objective/ }), "Hiring trends");
@@ -77,9 +77,20 @@ describe("CompanyBriefingsTab", () => {
     await user.click(await within(dialog).findByRole("checkbox", { name: /European hiring/ }));
     await user.click(within(dialog).getByRole("button", { name: "Update briefing" }));
     await waitFor(() => expect(updateBriefing).toHaveBeenCalledWith("company-1", briefing.id, { newInvestigationIds: [second.id] }));
-    await user.click(screen.getByText("More"));
+    await user.click(screen.getByText(/More/));
     await user.click(screen.getByRole("button", { name: "Version history" }));
-    expect(await screen.findByRole("heading", { name: "Version history" })).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Version history" })).getByRole("button", { name: /v1/ })).toBeInTheDocument();
+    const history = await screen.findByRole("dialog", { name: "Version history" });
+    expect(within(history).getByRole("button", { name: /v1/ })).toBeInTheDocument();
+  });
+
+  it("disables an Add to briefing target that already contains the Investigation", async () => {
+    vi.mocked(getBriefings).mockResolvedValue([{ id: briefing.id, title: briefing.title, template: briefing.template,
+      generatedAt: briefing.currentVersion.generatedAt, researchThrough: briefing.currentVersion.researchThrough,
+      versionNumber: 1, sourceCount: 1, newerRelevantCount: 0 }]);
+    render(<CompanyBriefingsTab companyId="company-1" initialInvestigationId={material.id} />);
+
+    const existingTarget = await screen.findByRole("button", { name: /Talent & Hiring.*Already included/ });
+    expect(existingTarget).toBeDisabled();
+    expect(updateBriefing).not.toHaveBeenCalled();
   });
 });

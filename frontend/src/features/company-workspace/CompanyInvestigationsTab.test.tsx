@@ -39,6 +39,9 @@ describe("CompanyInvestigationsTab", () => {
     expect(screen.getByText("General research")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Improve profile" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Japan expansion.*External AI Assist/ }));
+    expect(screen.queryByLabelText("Purpose")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByLabelText("Purpose")).toBeInTheDocument();
     await user.type(screen.getByRole("searchbox", { name: "Search investigations" }), "legal identity");
     await user.click(screen.getByRole("button", { name: /Strengthen legal identity.*RAVEN Research/ }));
     expect(screen.getByRole("heading", { name: "Strengthen legal identity" })).toBeInTheDocument();
@@ -53,10 +56,10 @@ describe("CompanyInvestigationsTab", () => {
     vi.mocked(getInvestigations).mockResolvedValueOnce([general]).mockResolvedValueOnce([{ ...general, status: "Done" }]).mockResolvedValueOnce([general]);
     render(<MemoryRouter><CompanyInvestigationsTab companyId="company-1" /></MemoryRouter>);
     await screen.findByRole("heading", { name: "Japan expansion" });
-    await user.click(screen.getByRole("button", { name: "Mark as done" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Reopen" })).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: "Reopen" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Mark as done" })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /Mark as done/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Reopen/ })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /Reopen/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Mark as done/ })).toBeInTheDocument());
     expect(markInvestigationDone).toHaveBeenCalledWith("company-1", "artifact-1");
     expect(reopenInvestigation).toHaveBeenCalledWith("company-1", "artifact-1");
   });

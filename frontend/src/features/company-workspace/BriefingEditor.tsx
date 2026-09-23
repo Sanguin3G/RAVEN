@@ -4,18 +4,19 @@ import { briefingTemplates, suggestedForTemplate, type BriefingTemplate } from "
 import styles from "./company-briefings.module.css";
 
 interface Props {
-  open: boolean; investigations: Investigation[]; initialInvestigationId?: string | null;
+  open: boolean; investigations: Investigation[]; initialInvestigationId?: string | null; initialTemplate?: BriefingTemplate;
   busy: boolean; error?: string | null; onClose: () => void;
   onCreate: (value: { title: string; template: BriefingTemplate; objective: string; investigationIds: string[] }) => void;
 }
 
-export function BriefingEditor({ open, investigations, initialInvestigationId, busy, error, onClose, onCreate }: Props) {
+export function BriefingEditor({ open, investigations, initialInvestigationId, initialTemplate, busy, error, onClose, onCreate }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [template, setTemplate] = useState<BriefingTemplate>("Talent & Hiring");
   const [title, setTitle] = useState("");
   const [objective, setObjective] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   useEffect(() => { if (open && !dialog.current?.open) dialog.current?.showModal(); if (!open && dialog.current?.open) dialog.current.close(); }, [open]);
+  useEffect(() => { if (open) { setTemplate(initialTemplate ?? "Talent & Hiring"); setTitle(initialTemplate ?? ""); setObjective(""); } }, [initialTemplate, open]);
   useEffect(() => { if (open) setSelected(initialInvestigationId ? [initialInvestigationId] : []); }, [initialInvestigationId, open]);
   const options = useMemo(() => suggestedForTemplate(template, investigations), [template, investigations]);
   const toggle = (id: string) => setSelected(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
