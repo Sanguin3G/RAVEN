@@ -40,6 +40,16 @@ public sealed class ResearchSettingsEntity
     public List<string> CrawlerProviderPriority { get; set; } =
         [ResearchSettingsDefaults.Crawl4AiLocalProvider];
 
+    /// <summary>
+    /// Last explicitly configured route, retained while a named preset is
+    /// active so switching back to Custom restores the user's choices.
+    /// </summary>
+    public List<string> CustomSearchProviderPriority { get; set; } =
+        [ResearchSettingsDefaults.BraveSearchProvider, ResearchSettingsDefaults.ExaSearchProvider];
+
+    public List<string> CustomCrawlerProviderPriority { get; set; } =
+        [ResearchSettingsDefaults.Crawl4AiLocalProvider, ResearchSettingsDefaults.ExaCrawlerProvider];
+
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ResearchSettingsEntity Clone() => new()
@@ -56,6 +66,8 @@ public sealed class ResearchSettingsEntity
         ProviderPreset = ProviderPreset,
         SearchProviderPriority = [.. SearchProviderPriority],
         CrawlerProviderPriority = [.. CrawlerProviderPriority],
+        CustomSearchProviderPriority = [.. CustomSearchProviderPriority],
+        CustomCrawlerProviderPriority = [.. CustomCrawlerProviderPriority],
         UpdatedAt = UpdatedAt
     };
 }

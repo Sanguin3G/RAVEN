@@ -30,6 +30,15 @@ public sealed class ProviderPresetMigrationTests
                     ('research', 'Always', 'gemini-3.8-flash', 'gemini-3.5-flash-lite',
                      'gemini-3.5-flash-lite', 0, 'Balanced', '["brave","exa"]',
                      '["crawl4ai-local","firecrawl"]', '2026-09-11T00:00:00.0000000+00:00');
+
+                INSERT INTO ResearchSettings
+                    (Id, GroundingMode, ProfileModel, GroundingModel, DeepResearchModel,
+                     AiSourceRerankingEnabled, ProviderPreset, SearchProviderPriority,
+                     CrawlerProviderPriority, UpdatedAt)
+                VALUES
+                    ('custom', 'Auto', 'gemini-3.5-flash-lite', 'gemini-3.5-flash-lite',
+                     'gemini-3.8-flash', 1, 'Custom', '["exa","brave"]',
+                     '["exa","crawl4ai-local"]', '2026-09-11T00:00:00.0000000+00:00');
                 """);
         }
 
@@ -39,7 +48,7 @@ public sealed class ProviderPresetMigrationTests
 
             var settings = await context.ResearchSettings
                 .AsNoTracking()
-                .SingleAsync();
+                .SingleAsync(item => item.Id == ResearchSettingsEntity.SingletonKey);
 
             Assert.Equal(ProviderPreset.Resilient, settings.ProviderPreset);
             Assert.Equal(GroundingMode.Always, settings.GroundingMode);
@@ -49,6 +58,14 @@ public sealed class ProviderPresetMigrationTests
             Assert.False(settings.AiSourceRerankingEnabled);
             Assert.Equal(["brave", "exa"], settings.SearchProviderPriority);
             Assert.Equal(["crawl4ai-local", "firecrawl"], settings.CrawlerProviderPriority);
+            Assert.Equal(["brave", "exa"], settings.CustomSearchProviderPriority);
+            Assert.Equal(["crawl4ai-local", "exa"], settings.CustomCrawlerProviderPriority);
+
+            var previouslyCustom = await context.ResearchSettings
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == "custom");
+            Assert.Equal(["exa", "brave"], previouslyCustom.CustomSearchProviderPriority);
+            Assert.Equal(["exa", "crawl4ai-local"], previouslyCustom.CustomCrawlerProviderPriority);
 
             // The migration preserves the legacy value on disk. The settings
             // boundary rewrites it before any routing workflow consumes it.

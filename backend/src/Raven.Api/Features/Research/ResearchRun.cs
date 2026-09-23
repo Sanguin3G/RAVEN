@@ -1,6 +1,7 @@
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Research.Coverage;
 using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Features.Research;
 
@@ -16,6 +17,9 @@ public sealed class ResearchRun
     public ResearchMode Mode { get; set; } = ResearchMode.Initial;
     /// <summary>The accepted profile version a targeted enrichment patch starts from, when applicable.</summary>
     public Guid? BaseProfileVersionId { get; set; }
+    public InvestigationMaterialKind? SourceInvestigationKind { get; set; }
+    public Guid? SourceInvestigationId { get; set; }
+    public DateTimeOffset? SourceInvestigationUpdatedAt { get; set; }
     /// <summary>Serialized <see cref="ResearchTarget"/> values. Kept as JSON so the target set remains extensible.</summary>
     public string ResearchTargetsJson { get; set; } = "[]";
     public Guid? ResolvedIdentityCandidateId { get; set; }

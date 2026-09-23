@@ -21,7 +21,7 @@ function parseResearchTargets(value: string | null): ResearchTarget[] {
   return value.split(",").map((item) => item.trim()).filter((item): item is ResearchTarget => validResearchTargets.includes(item as ResearchTarget));
 }
 
-const validDossierTabs: DossierTab[] = ["overview", "sources", "investigations", "changes", "monitoring"];
+const validDossierTabs: DossierTab[] = ["overview", "sources", "investigations", "briefings", "changes", "monitoring"];
 
 function parseDossierTab(value: string | null): DossierTab | undefined {
   return value && validDossierTabs.includes(value as DossierTab) ? value as DossierTab : undefined;

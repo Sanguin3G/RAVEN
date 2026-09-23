@@ -15,6 +15,34 @@ export interface ProviderStatusResponse {
   deepResearchModel: string;
 }
 
+export interface ProviderModelHealth {
+  provider: string;
+  model?: string | null;
+  state: "Configured" | "RecentlyHealthy" | "Degraded";
+  lastSuccessAt?: string | null;
+  lastFailureAt?: string | null;
+  lastFailureHttpStatus?: number | null;
+  lastFailureCode?: string | null;
+  lastFailureSummary?: string | null;
+  requestsLastMinute: number;
+}
+
+export interface ProviderActivityItem {
+  timestamp: string;
+  provider: string;
+  model?: string | null;
+  operation: string;
+  status: string;
+  httpStatus?: number | null;
+  failureKind?: string | null;
+}
+
+export interface ProviderHealthResponse {
+  generatedAt: string;
+  models: ProviderModelHealth[];
+  recentActivity: ProviderActivityItem[];
+}
+
 export interface RuntimeModelPreferences {
   fastModel: string;
   deepModel: string;
@@ -22,6 +50,10 @@ export interface RuntimeModelPreferences {
 
 export function getProviderStatus() {
   return request<ProviderStatusResponse>("/api/system/provider-status");
+}
+
+export function getProviderHealth() {
+  return request<ProviderHealthResponse>("/api/system/provider-health");
 }
 
 export async function getApiHealth() {

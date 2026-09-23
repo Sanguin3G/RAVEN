@@ -42,7 +42,8 @@ public sealed record ExternalResearchImportResult(
         string title,
         string question,
         DateTimeOffset? completedAt = null,
-        Guid? conversationId = null) =>
+        Guid? conversationId = null,
+        InvestigationPurpose purpose = InvestigationPurpose.GeneralResearch) =>
         new(
             companyId,
             title,
@@ -57,7 +58,8 @@ public sealed record ExternalResearchImportResult(
             SourceLeads: SourceLeads,
             Claims: Claims,
             Uncertainties: Uncertainties,
-            RawResponse: RawMarkdown);
+            RawResponse: RawMarkdown,
+            Purpose: purpose);
 }
 
 public interface IExternalResearchBriefGenerator

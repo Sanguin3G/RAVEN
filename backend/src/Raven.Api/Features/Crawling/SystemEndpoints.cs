@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Search;
 using Raven.Api.Features.Search.Exa;
 
@@ -21,6 +22,13 @@ public static class SystemEndpoints
             .WithSummary("Return safe provider configuration and availability state")
             .Produces<ProviderStatusResponse>(StatusCodes.Status200OK);
 
+        app.MapGet("/api/system/provider-health", GetProviderHealthAsync)
+            .WithTags("System")
+            .WithName("GetProviderHealth")
+            .WithSummary("Summarize recent provider health from real RAVEN requests")
+            .WithDescription("Reads bounded persisted execution telemetry and does not make provider calls.")
+            .Produces<ProviderHealthResponse>(StatusCodes.Status200OK);
+
         app.MapPut("/api/system/model-preferences", UpdateModelPreferences)
             .WithTags("System")
             .WithSummary("Set the approved runtime Gemini model preferences for this local workspace")
@@ -34,6 +42,11 @@ public static class SystemEndpoints
         ICrawlerStatusProbe crawlerStatusProbe,
         CancellationToken cancellationToken) =>
         TypedResults.Ok(await crawlerStatusProbe.CheckAsync(cancellationToken));
+
+    private static async Task<Ok<ProviderHealthResponse>> GetProviderHealthAsync(
+        IProviderHealthService providerHealth,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await providerHealth.GetAsync(cancellationToken));
 
     private static async Task<Ok<ProviderStatusResponse>> GetProviderStatusAsync(
         IOptions<BraveSearchOptions> brave,

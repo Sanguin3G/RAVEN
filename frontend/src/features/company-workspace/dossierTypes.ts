@@ -6,7 +6,7 @@ import type { EvidenceCoverageResponse } from "../../api/coverage";
 import type { ResearchTarget } from "../../api/coverage";
 import type { SavedResearchArtifact } from "../../api/investigations";
 
-export type DossierTab = "overview" | "sources" | "investigations" | "changes" | "monitoring";
+export type DossierTab = "overview" | "sources" | "investigations" | "briefings" | "changes" | "monitoring";
 
 export interface DossierCompany {
   id: string;

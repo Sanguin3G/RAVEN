@@ -138,6 +138,39 @@ public sealed class AiProviderTests
     }
 
     [Fact]
+    public async Task Gemini_preserves_a_bounded_provider_validation_message()
+    {
+        using var client = new HttpClient(new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent("""{"error":{"message":"Unknown name 'additionalProperties' at 'generationConfig.responseSchema'"}}""", Encoding.UTF8, "application/json")
+        }))) { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
+        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions { ApiKey = "key" }));
+
+        var result = await provider.GenerateStructuredAsync(CreateRequest());
+
+        Assert.Equal("invalid_request", result.Failure!.Code);
+        Assert.Equal(400, result.Failure.HttpStatus);
+        Assert.Contains("Unknown name 'additionalProperties'", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Gemini_preserves_bounded_retryable_unavailability_detail()
+    {
+        using var client = new HttpClient(new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+        {
+            Content = new StringContent("""{"error":{"message":"The service is temporarily running out of capacity."}}""", Encoding.UTF8, "application/json")
+        }))) { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
+        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions { ApiKey = "key" }));
+
+        var result = await provider.GenerateStructuredAsync(CreateRequest());
+
+        Assert.Equal("unavailable", result.Failure!.Code);
+        Assert.True(result.Failure.Retryable);
+        Assert.Equal(503, result.Failure.HttpStatus);
+        Assert.Contains("temporarily running out of capacity", result.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Gemini_maps_rate_limit_and_malformed_response_failures()
     {
         using var rateClient = new HttpClient(new StubHandler(_ =>

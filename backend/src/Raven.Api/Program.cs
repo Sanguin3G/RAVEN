@@ -19,6 +19,7 @@ using Raven.Api.Features.Chat;
 using Raven.Api.Features.ManagedResearch;
 using Raven.Api.Features.Research.ExternalImport;
 using Raven.Api.Features.Research.Organization;
+using Raven.Api.Features.Research.Briefings;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,6 +72,9 @@ builder.Services.AddScoped<ISavedResearchArtifactStore, EfSavedResearchArtifactS
 builder.Services.AddScoped<ISourceDocumentOwnershipReader, EfSourceDocumentOwnershipReader>();
 builder.Services.AddSingleton<ISavedResearchArtifactClock, SystemSavedResearchArtifactClock>();
 builder.Services.AddScoped<ISavedResearchArtifactService, SavedResearchArtifactService>();
+builder.Services.AddScoped<InvestigationService>();
+builder.Services.AddScoped<BriefingGenerator>();
+builder.Services.AddScoped<BriefingService>();
 builder.Services.AddScoped<IInvestigationOrganizationService, InvestigationOrganizationService>();
 builder.Services.AddScoped<IExternalResearchAnalysisJobStore, EfExternalResearchAnalysisJobStore>();
 builder.Services.AddScoped<IExternalResearchAnalysisService, ExternalResearchAnalysisService>();
@@ -139,6 +143,8 @@ app.MapChatEndpoints();
 app.MapManagedResearchEndpoints();
 app.MapExternalResearchEndpoints();
 app.MapInvestigationOrganizationEndpoints();
+app.MapInvestigationEndpoints();
+app.MapBriefingEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

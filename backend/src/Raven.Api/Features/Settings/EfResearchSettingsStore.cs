@@ -43,6 +43,8 @@ public sealed class EfResearchSettingsStore(RavenDbContext dbContext) : IResearc
             existing.ProviderPreset = settings.ProviderPreset;
             existing.SearchProviderPriority = [.. settings.SearchProviderPriority];
             existing.CrawlerProviderPriority = [.. settings.CrawlerProviderPriority];
+            existing.CustomSearchProviderPriority = [.. settings.CustomSearchProviderPriority];
+            existing.CustomCrawlerProviderPriority = [.. settings.CustomCrawlerProviderPriority];
             existing.UpdatedAt = settings.UpdatedAt;
         }
 

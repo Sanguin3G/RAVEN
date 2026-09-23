@@ -6,6 +6,7 @@ using Raven.Api.Data;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Research.Coverage;
+using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Features.Profiles.Persistence;
 
@@ -207,6 +208,27 @@ public sealed class CompanyProfilePersistenceService(
             run.Stage = ResearchStage.Completed;
             run.CompletedAt = confirmedAt;
             run.Error = null;
+            if (run.SourceInvestigationKind is { } materialKind &&
+                run.SourceInvestigationId is { } materialId &&
+                run.SourceInvestigationUpdatedAt is { } materialUpdatedAt)
+            {
+                var review = await dbContext.InvestigationReviewStates.SingleOrDefaultAsync(item =>
+                    item.CompanyId == company.Id && item.MaterialKind == materialKind && item.MaterialId == materialId,
+                    cancellationToken);
+                if (review is null)
+                {
+                    review = new InvestigationReviewState
+                    {
+                        CompanyId = company.Id, MaterialKind = materialKind, MaterialId = materialId
+                    };
+                    dbContext.InvestigationReviewStates.Add(review);
+                }
+                review.DoneThrough = materialUpdatedAt;
+                review.DoneAt = confirmedAt;
+                review.ReopenedAt = null;
+                review.AppliedProfileVersionId = accepted.Id;
+                review.AppliedAt = confirmedAt;
+            }
             company.LastResearchedAt = confirmedAt;
             company.UpdatedAt = confirmedAt;
 

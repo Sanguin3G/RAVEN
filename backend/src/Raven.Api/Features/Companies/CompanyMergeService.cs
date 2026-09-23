@@ -107,6 +107,11 @@ public sealed class CompanyMergeService(RavenDbContext dbContext)
             await ReassignCompanyAsync(dbContext.ProfileChanges, change => change.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.DeepResearchRuns, run => run.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.SavedResearchArtifacts, artifact => artifact.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.ManagedResearchJobs, job => job.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.ManagedResearchInvestigations, item => item.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.ResearchContextAttachments, item => item.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.InvestigationReviewStates, state => state.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.ResearchBriefings, brief => brief.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.InvestigationOrganizationRevisions, revision => revision.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.ExternalResearchAnalysisJobs, job => job.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await RewriteMovedProfilePayloadsAsync(

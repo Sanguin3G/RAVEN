@@ -21,9 +21,10 @@ public sealed record UpdateRuntimeModelPreferencesRequest(string FastModel, stri
 public sealed class RuntimeModelPreferences : IRuntimeModelPreferences
 {
     public const string FlashLite = "gemini-3.5-flash-lite";
+    public const string FlashStandard = "gemini-3.5-flash";
     public const string Flash = "gemini-3.8-flash";
 
-    private static readonly HashSet<string> AllowedModels = [FlashLite, Flash];
+    private static readonly HashSet<string> AllowedModels = [FlashLite, FlashStandard, Flash];
     private readonly object sync = new();
     private RuntimeModelPreferenceResponse current;
 

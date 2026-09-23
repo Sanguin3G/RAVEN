@@ -43,6 +43,8 @@ public sealed class SavedResearchArtifact
     /// research material and is never an accepted profile fact by itself.
     /// </summary>
     public SavedResearchOrigin Origin { get; init; } = SavedResearchOrigin.RavenNative;
+    public InvestigationPurpose Purpose { get; init; } = InvestigationPurpose.GeneralResearch;
+    public string TopicsJson { get; internal set; } = "[]";
     public string? Model { get; init; }
     public string? Provider { get; init; }
     public string? Objective { get; init; }
@@ -121,6 +123,8 @@ public sealed class SavedResearchArtifact
             CreatedAt = CreatedAt,
             ResearchType = ResearchType,
             Origin = Origin,
+            Purpose = Purpose,
+            TopicsJson = TopicsJson,
             Model = Model,
             Provider = Provider,
             Objective = Objective,

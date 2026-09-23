@@ -284,8 +284,6 @@ describe("AskRavenHandoff", () => {
     expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("FPT Smart Cloud");
     expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("v2");
     expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("17 sources");
-    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("Likely category");
-    expect(screen.getByTestId("deep-research-brief")).toHaveTextContent("Profile improvement");
     expect(screen.getByTestId("deep-research-brief")).not.toHaveTextContent("FPT Smart Cloud expansion in Japan");
     fireEvent.click(screen.getByRole("button", { name: "Edit question" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Research question" }), { target: { value: "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?" } });
@@ -302,26 +300,6 @@ describe("AskRavenHandoff", () => {
     expect(sendChatMessageStream).not.toHaveBeenCalled();
     expect(screen.getByText("Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
-  });
-
-  it("updates the category preview when the research question is edited", async () => {
-    vi.mocked(previewManagedResearchBrief).mockResolvedValue({
-      question: "Mô hình kinh doanh của Masan Group là gì?",
-      contextRevision: "preview-revision",
-    });
-    renderHandoff();
-
-    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
-    fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
-    fireEvent.change(await screen.findByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "Mô hình kinh doanh của Masan Group" } });
-    fireEvent.click(screen.getByRole("button", { name: "Review research question" }));
-
-    const brief = await screen.findByTestId("deep-research-brief");
-    expect(brief).toHaveTextContent("Market / strategy");
-    fireEvent.click(screen.getByRole("button", { name: "Edit question" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Research question" }), { target: { value: "Doanh thu và lợi nhuận của Masan Group là bao nhiêu?" } });
-    expect(brief).toHaveTextContent("Financial / performance");
-    expect(startManagedResearch).not.toHaveBeenCalled();
   });
 
   it("shows the provider outage and does not start research when question preview fails", async () => {

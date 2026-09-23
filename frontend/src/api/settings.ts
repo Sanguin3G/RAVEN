@@ -14,6 +14,8 @@ export interface ResearchSettings {
   providerPreset: ProviderPreset;
   searchProviderPriority: string[];
   crawlerProviderPriority: string[];
+  customSearchProviderPriority: string[];
+  customCrawlerProviderPriority: string[];
   managedResearchProvider: string;
   managedResearchDepth: ManagedResearchDepth;
   updatedAt: string;
@@ -21,8 +23,25 @@ export interface ResearchSettings {
 
 export type UpdateResearchSettings = Omit<ResearchSettings, "updatedAt">;
 
+export interface GeminiModelOption {
+  id: string;
+  displayName: string;
+  description: string;
+  availability: "Available" | "Unavailable" | "Unverified";
+}
+
+export interface GeminiModelCatalog {
+  projectAvailabilityVerified: boolean;
+  message: string;
+  models: GeminiModelOption[];
+}
+
 export function getResearchSettings() {
   return request<ResearchSettings>("/api/settings/research");
+}
+
+export function getGeminiModelCatalog() {
+  return request<GeminiModelCatalog>("/api/settings/ai-models");
 }
 
 export function updateResearchSettings(settings: UpdateResearchSettings) {

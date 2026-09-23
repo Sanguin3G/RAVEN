@@ -5,6 +5,7 @@ import { CompanyChangesTab } from "./CompanyChangesTab";
 import { AskRavenHandoff } from "../ask-raven/AskRavenHandoff";
 import { CompanyIdentityHeader } from "./CompanyIdentityHeader";
 import { CompanyInvestigationsTab } from "./CompanyInvestigationsTab";
+import { CompanyBriefingsTab } from "./CompanyBriefingsTab";
 import { CompanyMonitoringTab } from "./CompanyMonitoringTab";
 import { CompanyOverview } from "./CompanyOverview";
 import { CompanySourcesTab } from "./CompanySourcesTab";
@@ -12,12 +13,12 @@ import { ExternalResearchAssistModal } from "./ExternalResearchAssistModal";
 import { TargetedEnrichmentPanel } from "./TargetedEnrichmentPanel";
 import type { ResearchTarget } from "../../api/coverage";
 import type { CompanyDossierProps, DossierTab } from "./dossierTypes";
-import { readProfileImprovementMaterialIds, rememberProfileImprovementMaterial } from "../../utils/profileImprovementState";
 
 const tabs: Array<{ id: DossierTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "sources", label: "Sources" },
   { id: "investigations", label: "Investigations" },
+  { id: "briefings", label: "Briefings" },
   { id: "changes", label: "Changes" },
   { id: "monitoring", label: "Monitoring" },
 ];
@@ -27,7 +28,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
   const [assistantCollapsed, setAssistantCollapsed] = useState(false);
   const [externalAssist, setExternalAssist] = useState<{ targets?: ResearchTarget[]; objective?: string } | null>(null);
   const [materialReview, setMaterialReview] = useState<{ targets: ResearchTarget[]; id: string; kind: "saved" | "managed" } | null>(null);
-  const [profileImprovedMaterialIds, setProfileImprovedMaterialIds] = useState<Set<string>>(() => readProfileImprovementMaterialIds(company.id));
+  const [briefingSeedId, setBriefingSeedId] = useState<string | null>(null);
   const [chatLaunch, setChatLaunch] = useState<{ capability?: "deepResearch"; question?: string | null }>({ capability: initialChatCapability, question: initialChatQuestion });
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const idPrefix = useId();
@@ -69,15 +70,16 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
         })}
       </div>
       <div aria-labelledby={`${idPrefix}-tab-${selectedTab}`} className={styles.tabPanel} id={tabPanelId} role="tabpanel" tabIndex={0}>
-        {selectedTab === "overview" && <CompanyOverview company={company} profile={profile} coverage={coverage} profileImprovedMaterialIds={profileImprovedMaterialIds} initialEnrichmentTargets={initialEnrichmentTargets} initialEnrichmentArtifactId={initialEnrichmentArtifactId} initialManagedResearchInvestigationId={initialManagedResearchInvestigationId} openEnrichment={openEnrichment} onProfileConfirmed={onProfileConfirmed} onOpenExternalResearch={(targets) => setExternalAssist({ targets })} />}
+        {selectedTab === "overview" && <CompanyOverview company={company} profile={profile} coverage={coverage} initialEnrichmentTargets={initialEnrichmentTargets} initialEnrichmentArtifactId={initialEnrichmentArtifactId} initialManagedResearchInvestigationId={initialManagedResearchInvestigationId} openEnrichment={openEnrichment} onProfileConfirmed={onProfileConfirmed} onOpenExternalResearch={(targets) => setExternalAssist({ targets })} onOpenBriefings={() => selectTab("briefings")} />}
         {selectedTab === "sources" && <CompanySourcesTab sources={sources} />}
-        {selectedTab === "investigations" && <CompanyInvestigationsTab companyId={company.id} companyName={company.displayName} profile={profile} investigations={investigations} profileImprovedMaterialIds={profileImprovedMaterialIds} onOpenExternalResearch={(objective) => setExternalAssist({ objective })} onOpenDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective || null }); }} onImproveProfile={(targets, sourceMaterialId, sourceMaterialKind) => {
+        {selectedTab === "investigations" && <CompanyInvestigationsTab companyId={company.id} companyName={company.displayName} profile={profile} onAddToBriefing={(id) => { setBriefingSeedId(id); selectTab("briefings"); }} onOpenExternalResearch={(objective) => setExternalAssist({ objective })} onOpenDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective || null }); }} onImproveProfile={(targets, sourceMaterialId, sourceMaterialKind) => {
           if (sourceMaterialId && sourceMaterialKind) {
             setMaterialReview({ targets, id: sourceMaterialId, kind: sourceMaterialKind });
             return;
           }
           onOpenProfileImprovement?.(targets, sourceMaterialId, sourceMaterialKind);
         }} />}
+        {selectedTab === "briefings" && <CompanyBriefingsTab companyId={company.id} initialInvestigationId={briefingSeedId} onSeedConsumed={() => setBriefingSeedId(null)} onExternalResearch={(objective) => setExternalAssist({ objective })} onDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective }); }} />}
         {selectedTab === "changes" && <CompanyChangesTab tracking={tracking} />}
         {selectedTab === "monitoring" && <CompanyMonitoringTab companyName={company.displayName} monitoring={monitoring} research={research} />}
       </div>
@@ -89,7 +91,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
       </button>
       {!assistantCollapsed && <AskRavenHandoff companyId={company.id} companyName={company.displayName} lastResearchedAt={company.lastResearchedAt} profileVersion={profile?.version} profileVersionId={profile?.id} sourceCount={sources?.length ?? profile?.evidenceCount ?? 0} initialCapability={chatLaunch.capability} initialQuestion={chatLaunch.question} />}
     </aside>
-    {materialReview ? <TargetedEnrichmentPanel company={company} profile={profile} initialTargets={materialReview.targets} initialMaterialArtifactId={materialReview.kind === "saved" ? materialReview.id : null} initialManagedResearchInvestigationId={materialReview.kind === "managed" ? materialReview.id : null} open onClose={() => setMaterialReview(null)} onConfirmed={(nextProfile) => { rememberProfileImprovementMaterial(company.id, materialReview.id); setProfileImprovedMaterialIds((current) => new Set(current).add(materialReview.id)); setMaterialReview(null); onProfileConfirmed?.(nextProfile); }} /> : null}
+    {materialReview ? <TargetedEnrichmentPanel company={company} profile={profile} initialTargets={materialReview.targets} initialMaterialArtifactId={materialReview.kind === "saved" ? materialReview.id : null} initialManagedResearchInvestigationId={materialReview.kind === "managed" ? materialReview.id : null} open onClose={() => setMaterialReview(null)} onConfirmed={(nextProfile) => { setMaterialReview(null); onProfileConfirmed?.(nextProfile); }} /> : null}
     <ExternalResearchAssistModal
       company={company}
       profile={profile}

@@ -130,6 +130,20 @@ public sealed class ResearchExecutionInstrumentationTests
     }
 
     [Fact]
+    public async Task Ai_briefing_generation_is_not_mislabeled_as_profile_generation()
+    {
+        var writer = new RecordingEventWriter();
+        using var document = JsonDocument.Parse("{\"sections\":[]}");
+        var provider = new FixedAiProvider(new AiModelResult(
+            "gemini", "gemini-3.8-flash", document.RootElement.Clone(), TimeSpan.FromMilliseconds(15)));
+        var instrumented = new InstrumentedAiModelProvider(provider, writer, new ResearchExecutionContext());
+
+        await instrumented.GenerateStructuredAsync(CreateRequest("research-briefing-v1"));
+
+        Assert.Equal("briefing_generation", Assert.Single(writer.Events).Operation);
+    }
+
+    [Fact]
     public async Task Telemetry_writer_failure_does_not_change_successful_result()
     {
         var writer = new RecordingEventWriter(throwOnWrite: true);

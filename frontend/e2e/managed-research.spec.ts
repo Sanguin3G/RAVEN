@@ -19,10 +19,16 @@ async function installManagedResearchFixture(page: import("@playwright/test").Pa
     else if (pathname.endsWith("/managed-research/preview") && method === "POST") {
       body = { question: "What public evidence describes Northwind Research's expansion in Japan?", contextRevision: "fixture-revision" };
     } else if (pathname.endsWith("/managed-research") && method === "POST") {
-      const objective = (route.request().postDataJSON() as { objective: string }).objective;
-      body = { id: "job-day8", companyId, objective, provider: "exa-agent", status: "Queued", createdAt: "2026-09-18T00:00:00Z" };
+      const request = route.request().postDataJSON() as { objective: string; conversationId?: string; answerInChat?: boolean };
+      const objective = request.objective;
+      body = { id: "job-day8", companyId, objective, provider: "exa-agent", status: "Queued", conversationId: request.conversationId, answerInChat: request.answerInChat, chatMessageId: "research-user-day8", createdAt: "2026-09-18T00:00:00Z" };
       jobs = [body];
+      messages = [...messages, { id: "research-user-day8", role: "User", content: objective, status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" }];
     } else if (pathname.endsWith("/managed-research")) body = jobs;
+    else if (pathname.endsWith(`/companies/${companyId}/investigations`)) body = jobs.map((job) => {
+      const managed = job as { id: string; objective: string; status: string };
+      return { id: managed.id, companyId, materialKind: "Managed", materialId: managed.id, title: managed.objective, objective: managed.objective, summary: "", origin: "Deep Research", purpose: "GeneralResearch", topics: [], status: "Running", materialUpdatedAt: "2026-09-18T00:00:00Z", profileImprovementLocked: false, provider: "exa-agent", claims: [], sourceLeads: [], uncertainties: [], briefingIds: [] };
+    });
     else if (pathname.endsWith("/external-research/brief")) body = { markdown: "# Research Summary\n\nNorthwind notes", evidenceGaps: [] };
     else if (pathname.endsWith("/external-research/import/preview")) body = { summary: "Imported research notes", claims: [{ field: "Markets", statement: "Operates in Vietnam", notes: null }], sourceLeads: [{ id: "lead-1", title: "Northwind", url: "https://northwind.example", publisher: "Northwind" }], uncertainties: [], suggestedFollowUps: [], rawMarkdown: "# Research Summary" };
     else if (pathname.endsWith("/external-research/import")) body = { id: "artifact-day8", title: "External research", question: "Markets", summary: "Imported research notes", result: "Imported research notes", sourceCount: 0, researchType: "Fast", createdAt: "2026-09-18T00:00:00Z" };
@@ -56,7 +62,7 @@ test("managed research and external import remain explicit review workflows", as
    await page.getByRole("textbox", { name: "Research question" }).fill("Which customers and expansion activities of Northwind Research in Japan are publicly documented?");
   await page.getByRole("button", { name: "Done editing" }).click();
   await page.getByRole("button", { name: "Start Deep Research" }).click();
-  await expect(page.getByText("Deep Research started")).toBeVisible();
+  await expect(page.getByText(/Deep Research is running/)).toBeVisible();
   await expect(page.getByRole("textbox", { name: /Ask about/ })).toBeEnabled();
   await page.getByRole("textbox", { name: /Ask about/ }).fill("Hello");
   await page.getByRole("button", { name: "Send question" }).click();
@@ -64,6 +70,6 @@ test("managed research and external import remain explicit review workflows", as
 
   await page.getByRole("tab", { name: "Investigations" }).click();
    await expect(page.getByTestId("dossier-investigations").getByRole("heading", { name: "Which customers and expansion activities of Northwind Research in Japan are publicly documented?" })).toBeVisible();
-  await expect(page.getByTestId("dossier-investigations").getByText("Running", { exact: true })).toBeVisible();
-  await expect(page.getByTestId("dossier-investigations").getByText("Research material collected")).toBeVisible();
+  await expect(page.getByLabel("Investigation details").getByText("Running", { exact: true })).toBeVisible();
+  await expect(page.getByText("Research is running. Findings will appear here when ready.")).toBeVisible();
 });

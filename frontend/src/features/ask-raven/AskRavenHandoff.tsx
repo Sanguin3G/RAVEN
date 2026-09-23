@@ -14,7 +14,6 @@ import {
   type ResearchContextAttachment,
 } from "../../api/managedResearch";
 import type { ChatAnswerStatus, ChatMessage } from "../../types/chat";
-import { classifyInvestigation } from "../company-workspace/investigationTypes";
 import { hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
 import styles from "./ask-raven.module.css";
 
@@ -572,7 +571,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <div className={styles.researchBriefContext} aria-label="Research context">
             <span className={styles.researchBriefCompany} title={companyName}><strong>Company:</strong> {companyName}</span>
             <span className={styles.researchBriefProfile}>{profileVersionId && profileVersion ? `v${profileVersion} · ${sourceCount} sources` : "Identity only"}</span>
-            <span className={styles.researchBriefCategory} title="Estimated from the question. The final category may change after research results are organized."><strong>Likely category:</strong> {classifyInvestigation(deepResearchBrief.question)}</span>
           </div>
           <div className={styles.researchBriefRecord}>
             {deepResearchBriefEditing ? <label className={styles.researchBriefEditor}>Question

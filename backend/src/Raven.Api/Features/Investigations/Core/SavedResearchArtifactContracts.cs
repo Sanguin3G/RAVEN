@@ -24,7 +24,9 @@ public record SavedResearchArtifactRequest(
     IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
     IReadOnlyList<ResearchClaim>? Claims = null,
     IReadOnlyList<string>? Uncertainties = null,
-    string? RawResponse = null)
+    string? RawResponse = null,
+    InvestigationPurpose Purpose = InvestigationPurpose.GeneralResearch,
+    IReadOnlyList<string>? Topics = null)
 {
     /// <summary>Vocabulary alias for callers that use Result instead of Summary.</summary>
     public string Result => Summary;
@@ -50,7 +52,9 @@ public sealed record CreateSavedResearchArtifactRequest(
     IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
     IReadOnlyList<ResearchClaim>? Claims = null,
     IReadOnlyList<string>? Uncertainties = null,
-    string? RawResponse = null)
+    string? RawResponse = null,
+    InvestigationPurpose Purpose = InvestigationPurpose.GeneralResearch,
+    IReadOnlyList<string>? Topics = null)
     : SavedResearchArtifactRequest(
         CompanyId,
         Title,
@@ -70,7 +74,9 @@ public sealed record CreateSavedResearchArtifactRequest(
         SourceLeads,
         Claims,
         Uncertainties,
-        RawResponse);
+        RawResponse,
+        Purpose,
+        Topics);
 
 /// <summary>
 /// Response-shaped contract for a future endpoint. The current domain service
@@ -98,7 +104,9 @@ public sealed record SavedResearchArtifactResponse(
     IReadOnlyList<ResearchSourceLead>? SourceLeads = null,
     IReadOnlyList<ResearchClaim>? Claims = null,
     IReadOnlyList<string>? Uncertainties = null,
-    string? RawResponse = null)
+    string? RawResponse = null,
+    InvestigationPurpose Purpose = InvestigationPurpose.GeneralResearch,
+    IReadOnlyList<string>? Topics = null)
 {
     public string Result => Summary;
 
@@ -128,7 +136,9 @@ public sealed record SavedResearchArtifactResponse(
             artifact.SourceLeads.ToArray(),
             artifact.Claims.ToArray(),
             artifact.Uncertainties.ToArray(),
-            artifact.RawResponse);
+            artifact.RawResponse,
+            artifact.Purpose,
+            InvestigationTopics.Parse(artifact.TopicsJson));
     }
 }
 

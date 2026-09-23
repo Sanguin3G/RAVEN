@@ -7,6 +7,7 @@ using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Sources;
+using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Tests;
 
@@ -81,6 +82,31 @@ public sealed class CompanyProfilePersistenceServiceTests : IDisposable
         Assert.Equal(2, await dbContext.CompanyProfileVersions.CountAsync());
         Assert.Contains("First snapshot", (await dbContext.CompanyProfileVersions
             .SingleAsync(profile => profile.Version == 1)).ProfileJson);
+    }
+
+    [Fact]
+    public async Task Confirmation_records_the_applied_investigation_in_the_same_profile_transaction()
+    {
+        var materialId = Guid.NewGuid();
+        var materialUpdatedAt = DateTimeOffset.Parse("2026-09-18T10:00:00Z");
+        var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == RunId);
+        run.SourceInvestigationKind = InvestigationMaterialKind.Saved;
+        run.SourceInvestigationId = materialId;
+        run.SourceInvestigationUpdatedAt = materialUpdatedAt;
+        await dbContext.SaveChangesAsync();
+
+        var service = new CompanyProfilePersistenceService(dbContext);
+        await service.SaveCandidateAsync(Candidate(FirstCandidateId, "Applied investigation"));
+        var confirmed = await service.ConfirmCandidateAsync(FirstCandidateId);
+
+        Assert.NotNull(confirmed);
+        var state = Assert.Single(await dbContext.InvestigationReviewStates.ToListAsync());
+        Assert.Equal(materialId, state.MaterialId);
+        Assert.Equal(confirmed!.Id, state.AppliedProfileVersionId);
+        Assert.NotNull(state.AppliedAt);
+        Assert.NotNull(state.DoneAt);
+        Assert.Equal(materialUpdatedAt, state.DoneThrough);
+        Assert.Equal(InvestigationMaterialKind.Saved, state.MaterialKind);
     }
 
     [Fact]

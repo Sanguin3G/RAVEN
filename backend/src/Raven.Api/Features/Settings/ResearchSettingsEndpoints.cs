@@ -12,6 +12,12 @@ public static class ResearchSettingsEndpoints
             .WithSummary("Get non-secret persisted Research Intelligence settings")
             .Produces<ResearchSettingsResponse>(StatusCodes.Status200OK);
 
+        app.MapGet("/api/settings/ai-models", GetAiModelsAsync)
+            .WithTags("Settings")
+            .WithName("GetAiModelCatalog")
+            .WithSummary("List RAVEN-compatible Gemini models and configured-project availability")
+            .Produces<GeminiModelCatalogResponse>(StatusCodes.Status200OK);
+
         app.MapPut("/api/settings/research", UpdateAsync)
             .WithTags("Settings")
             .WithSummary("Update non-secret persisted Research Intelligence settings")
@@ -30,6 +36,11 @@ public static class ResearchSettingsEndpoints
         IResearchSettingsService settings,
         CancellationToken cancellationToken) =>
         TypedResults.Ok(await settings.GetAsync(cancellationToken));
+
+    private static async Task<Ok<GeminiModelCatalogResponse>> GetAiModelsAsync(
+        IGeminiModelCatalog catalog,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await catalog.GetAsync(cancellationToken));
 
     private static async Task<Results<Ok<ResearchSettingsResponse>, ValidationProblem>> UpdateAsync(
         UpdateResearchSettingsRequest request,

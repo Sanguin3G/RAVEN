@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { CompanyListPage } from "./CompanyListPage";
@@ -129,4 +129,39 @@ it("reviews workspace duplicates and confirms a human-readable merge", async () 
   await user.click(screen.getByRole("button", { name: "Merge companies" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(fetchMock).toHaveBeenCalledWith("/api/companies/merge/confirm", expect.objectContaining({ method: "POST", body: JSON.stringify({ canonicalCompanyId: firstId, duplicateCompanyId: duplicateId, confirm: true }) }));
+});
+
+it("marks research review items individually and confirms the explicit bulk action", async () => {
+  const user = userEvent.setup();
+  const readyAt = "2026-09-22T10:00:00Z";
+  const issueAt = "2026-09-22T11:00:00Z";
+  const researchReview = {
+    ...review,
+    duplicateGroups: [], recommendations: [],
+    researchReady: [{ itemId: "managed-1", investigationId: "investigation-1", companyId: firstId, companyName: "FPT Software", method: "Deep Research", title: "European hiring", state: "Ready", updatedAt: readyAt, reviewKey: "ready-key" }],
+    researchIssues: [{ itemId: "managed-2", investigationId: "investigation-2", companyId: firstId, companyName: "FPT Software", method: "External AI Assist", title: "Leadership research", state: "Issue", updatedAt: issueAt, reviewKey: "issue-key", detail: "Provider timeout" }],
+  };
+  const fetchMock = installApi((url, init) => url.endsWith("/workspace-review")
+    ? jsonResponse(researchReview)
+    : url.endsWith("/workspace-review/acknowledge") && init?.method === "POST"
+      ? jsonResponse({ acknowledgedCount: 1, hiddenOccurrenceCount: 1, skippedCount: 0 })
+      : undefined);
+  renderWithRouter(<CompanyListPage />, "/companies");
+
+  await user.click(await screen.findByRole("button", { name: /Review workspace/i }));
+  const readyCard = await screen.findByText(/Deep Research · European hiring/);
+  const readyRow = readyCard.closest("article");
+  expect(readyRow).not.toBeNull();
+  expect(within(readyRow!).getByRole("button", { name: "Review" })).toBeInTheDocument();
+  await user.click(within(readyRow!).getByRole("button", { name: "Mark done" }));
+  await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/workspace-review/acknowledge"))).toHaveLength(1));
+  const acknowledgement = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/workspace-review/acknowledge"));
+  expect(JSON.parse(String(acknowledgement?.[1]?.body))).toEqual({ items: [{ reviewKey: "ready-key", acknowledgedThrough: readyAt }] });
+
+  await user.click(screen.getByText("More"));
+  await user.click(screen.getByRole("button", { name: "Mark all research reviewed" }));
+  expect(screen.getByRole("dialog", { name: "Mark all research reviewed?" })).toHaveTextContent("2 current research notifications");
+  expect(screen.getByRole("dialog", { name: "Mark all research reviewed?" })).toHaveTextContent("research, Investigations, and evidence are preserved");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/workspace-review/acknowledge"))).toHaveLength(1);
 });

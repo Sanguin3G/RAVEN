@@ -18,6 +18,7 @@ export interface ImportExternalResearchRequest {
   markdown: string;
   title?: string;
   conversationId?: string;
+  purpose?: "GeneralResearch" | "ProfileImprovement";
 }
 
 export interface ExternalResearchImportPreview {
