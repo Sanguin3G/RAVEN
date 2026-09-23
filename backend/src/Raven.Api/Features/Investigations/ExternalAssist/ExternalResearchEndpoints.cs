@@ -24,7 +24,8 @@ public sealed record ImportExternalResearchRequest(
     string Question,
     string Markdown,
     string? Title = null,
-    Guid? ConversationId = null);
+    Guid? ConversationId = null,
+    InvestigationPurpose Purpose = InvestigationPurpose.GeneralResearch);
 
 /// <summary>
 /// HTTP boundary for provider-neutral external research interoperability. The
@@ -166,7 +167,8 @@ public static class ExternalResearchEndpoints
             title,
             request.Question.Trim(),
             DateTimeOffset.UtcNow,
-            request.ConversationId);
+            request.ConversationId,
+            request.Purpose);
 
         try
         {

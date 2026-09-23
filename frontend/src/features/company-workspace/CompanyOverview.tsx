@@ -7,8 +7,8 @@ import styles from "./company-workspace.module.css";
 import { CompanyCoveragePanel } from "./CompanyCoveragePanel";
 import { TargetedEnrichmentPanel } from "./TargetedEnrichmentPanel";
 import type { DossierCompany, DossierCoverage, DossierLocation, DossierProfile } from "./dossierTypes";
-import { getSavedInvestigations } from "../../api/investigations";
-import { getManagedResearchJobs } from "../../api/managedResearch";
+import { getInvestigations, type Investigation } from "../../api/investigations";
+import { getBriefings, type BriefingListItem } from "../../api/briefings";
 import { getProfileReadiness, hasUsableAcceptedProfile } from "../../utils/profileReadiness";
 
 export interface CompanyOverviewProps {
@@ -21,7 +21,7 @@ export interface CompanyOverviewProps {
   openEnrichment?: boolean;
   onProfileConfirmed?: (profile: CompanyProfileVersion) => void;
   onOpenExternalResearch?: (targets: ResearchTarget[]) => void;
-  profileImprovedMaterialIds?: ReadonlySet<string>;
+  onOpenBriefings?: () => void;
 }
 
 function UnknownValue() {
@@ -67,26 +67,6 @@ const targetLabels: Record<ResearchTarget, string> = {
   Markets: "markets", Leadership: "leadership", Locations: "locations",
 };
 
-const targetKeywords: Array<[ResearchTarget, string[]]> = [
-  ["Leadership", ["leadership", "leader", "executive", "ceo"]],
-  ["EmployeeScale", ["employee", "headcount", "workforce", "scale"]],
-  ["Markets", ["market", "expansion", "customer"]],
-  ["Locations", ["location", "office", "headquarter"]],
-  ["ProductsServices", ["product", "service"]],
-  ["Industry", ["industry", "sector"]],
-  ["FoundedHistory", ["founded", "history", "established"]],
-  ["LegalIdentity", ["legal", "identity", "registration", "tax"]],
-];
-
-function inferInvestigationTargets(text: string): ResearchTarget[] {
-  const normalized = text.toLowerCase();
-  return targetKeywords.filter(([, keywords]) => keywords.some((keyword) => normalized.includes(keyword))).map(([target]) => target);
-}
-
-function isProfileImprovementMaterial(text: string): boolean {
-  return /strengthen|improve\s+(this\s+)?profile|profile\s+improvement|profile\s+update|dossier/i.test(text);
-}
-
 function coverageLevel(response: DossierCoverage["response"] | undefined, target: ResearchTarget): CoverageLevel {
   return response?.items?.find((item) => item.target === target)?.level ?? "Missing";
 }
@@ -96,12 +76,13 @@ function ResearchAction({ target, level, onClick }: { target: ResearchTarget; le
   return <button className={styles.coverageAction} type="button" onClick={onClick}>{level === "Missing" ? `Find ${targetLabels[target]}` : `Strengthen ${targetLabels[target]}`}</button>;
 }
 
-export function CompanyOverview({ company, profile, coverage, profileImprovedMaterialIds, initialEnrichmentTargets, initialEnrichmentArtifactId, initialManagedResearchInvestigationId, openEnrichment = false, onProfileConfirmed, onOpenExternalResearch }: CompanyOverviewProps) {
+export function CompanyOverview({ company, profile, coverage, onOpenBriefings, initialEnrichmentTargets, initialEnrichmentArtifactId, initialManagedResearchInvestigationId, openEnrichment = false, onProfileConfirmed, onOpenExternalResearch }: CompanyOverviewProps) {
   const [displayProfile, setDisplayProfile] = useState<DossierProfile | null | undefined>(profile);
   const [enrichmentTargets, setEnrichmentTargets] = useState<ResearchTarget[]>([]);
   const [enrichmentArtifactId, setEnrichmentArtifactId] = useState<string | null>(null);
   const [enrichmentManagedInvestigationId, setEnrichmentManagedInvestigationId] = useState<string | null>(null);
-  const [investigationSummary, setInvestigationSummary] = useState<{ count: number; targets: ResearchTarget[]; appliedCount: number }>({ count: 0, targets: [], appliedCount: 0 });
+  const [pendingImprovements, setPendingImprovements] = useState<Investigation[]>([]);
+  const [briefings, setBriefings] = useState<BriefingListItem[]>([]);
   const [enrichmentOpen, setEnrichmentOpen] = useState(false);
   const autoOpenRef = useRef(false);
   const current = displayProfile || {};
@@ -112,28 +93,13 @@ export function CompanyOverview({ company, profile, coverage, profileImprovedMat
 
   useEffect(() => {
     let active = true;
-    void Promise.all([getSavedInvestigations(company.id).catch(() => []), getManagedResearchJobs(company.id).catch(() => [])]).then(([loadedArtifacts, loadedJobs]) => {
+    void Promise.all([getInvestigations(company.id).catch(() => []), getBriefings(company.id).catch(() => [])]).then(([loadedInvestigations, loadedBriefings]) => {
       if (!active) return;
-      const artifacts = Array.isArray(loadedArtifacts) ? loadedArtifacts : [];
-      const jobs = Array.isArray(loadedJobs) ? loadedJobs : [];
-      const appliedIds = profileImprovedMaterialIds ?? new Set<string>();
-      const artifactRecords = artifacts.filter((artifact) => isProfileImprovementMaterial(artifact.title + " " + (artifact.objective || artifact.question))).map((artifact) => ({
-        id: artifact.id,
-        targets: inferInvestigationTargets(artifact.title + " " + (artifact.objective || artifact.question) + " " + (artifact.claims || []).map((claim) => claim.field + " " + claim.statement).join(" ")),
-      }));
-      const managedRecords = jobs
-        .filter((job) => hasAcceptedProfile && job.status === "Completed" && job.purpose === "ProfileImprovement")
-        .map((job) => ({ id: job.investigationId ?? job.id, targets: inferInvestigationTargets(job.objective) }));
-      const relevant = [...artifactRecords, ...managedRecords].filter((item) => item.targets.length > 0);
-      const pending = relevant.filter((item) => !appliedIds.has(item.id));
-      setInvestigationSummary({
-        count: pending.length,
-        targets: [...new Set(pending.flatMap((item) => item.targets))],
-        appliedCount: relevant.length - pending.length,
-      });
+      setPendingImprovements((Array.isArray(loadedInvestigations) ? loadedInvestigations : []).filter(item => item.purpose === "ProfileImprovement" && item.status === "Ready" && !item.appliedProfileVersionId && !item.profileImprovementLocked));
+      setBriefings(Array.isArray(loadedBriefings) ? loadedBriefings : []);
     });
     return () => { active = false; };
-  }, [company.id, displayProfile, hasAcceptedProfile, profile, profileImprovedMaterialIds]);
+  }, [company.id, displayProfile]);
 
   useEffect(() => setDisplayProfile(profile), [profile]);
 
@@ -238,16 +204,22 @@ export function CompanyOverview({ company, profile, coverage, profileImprovedMat
           <div className={styles.coverageActions}><Link className="button button--secondary" to={`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`}>Refresh research</Link><Link className="button button--quiet" to="/companies?review=true">Review workspace</Link></div>
         </section> : null}
         <CompanyCoveragePanel coverage={coverage} />
+        <section className={styles.contextCard} aria-labelledby="dossier-briefings-heading">
+          <div className={styles.sectionHeader}><h2 id="dossier-briefings-heading">Research briefings</h2><span>{briefings.length}</span></div>
+          {briefings.length ? <ul className={styles.plainList}>{briefings.slice(0, 3).map(brief => <li key={brief.id}><strong>{brief.title}</strong><span>Research through {new Date(brief.researchThrough).toLocaleDateString()}{brief.newerRelevantCount ? " · New research available" : ""}</span></li>)}</ul>
+            : <p className={styles.contextNote}>Turn selected Investigations into focused, reusable company Briefings.</p>}
+          <div className={styles.coverageActions}><button className="button button--secondary" type="button" onClick={onOpenBriefings}>{briefings.length ? "Open briefings" : "Create briefing"}</button></div>
+        </section>
         <section className={styles.contextCard} aria-labelledby="dossier-improve-heading">
           <div className={styles.sectionHeader}><h2 id="dossier-improve-heading">Improve this profile</h2><span>{gapTargets.length ? gapTargets.length + " gap" + (gapTargets.length === 1 ? "" : "s") + " remain" : coverage?.response ? "No obvious gaps" : "Checking gaps"}</span></div>
           {!hasAcceptedProfile ? <>
             <p className={styles.contextNote}>Profile Improvement unlocks after RAVEN creates a supported profile baseline. The current row is preserved for review but is not actionable.</p>
             <div className={styles.coverageActions}><Link className="button button--secondary" to={`/companies/new?refreshCompanyId=${encodeURIComponent(company.id)}`}>Create or repair profile</Link></div>
-          </> : investigationSummary.count > 0 ? <>
-            <p className={styles.contextNote}><strong>{investigationSummary.targets.slice(0, 2).map((target) => targetLabels[target]).join(" · ")}</strong><br />{investigationSummary.count} investigation{investigationSummary.count === 1 ? "" : "s"} with new profile material.</p>
-            <div className={styles.coverageActions}><Link className="button button--secondary" to={"/companies/" + encodeURIComponent(company.id) + "?tab=investigations"}>Review investigations</Link></div>
+          </> : pendingImprovements.length > 0 ? <>
+            <p className={styles.contextNote}>New research is ready for {pendingImprovements[0].topics[0] || "profile review"}.{pendingImprovements.length > 1 ? ` ${pendingImprovements.length - 1} more Investigation(s) are ready.` : ""}</p>
+            <div className={styles.coverageActions}><Link className="button button--secondary" to={"/companies/" + encodeURIComponent(company.id) + "?tab=investigations&research=" + encodeURIComponent(pendingImprovements[0].id)}>Review profile improvement</Link></div>
           </> : gapTargets.length > 0 ? <>
-            <p className={styles.contextNote}>{investigationSummary.appliedCount > 0 ? investigationSummary.appliedCount + " investigation" + (investigationSummary.appliedCount === 1 ? "" : "s") + " already applied. " : ""}Targeted research adds evidence to selected gaps and preserves unrelated accepted fields.</p>
+            <p className={styles.contextNote}>Targeted research adds evidence to selected gaps and preserves unrelated accepted fields.</p>
             <div className={styles.coverageActions}><button className="button button--secondary" type="button" onClick={() => beginEnrichment(gapTargets)}>Improve this profile</button></div>
           </> : <p className={styles.contextNote}>All tracked profile areas currently have supported coverage. Refresh research if the company information has changed.</p>}
         </section>

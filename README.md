@@ -4,14 +4,13 @@ RAVEN is an AI-assisted Company Intelligence Platform. It turns public-source re
 
 ## Current capabilities
 
-- Company Workspace for company identity, sources, profile history, changes, monitoring, and investigations.
+- Company Workspace for company identity, sources, investigations, Briefings, profile history, changes, and monitoring.
 - Native RAVEN Research: identity resolution, public-source discovery, source review, acquisition, evidence storage, and human-confirmed profiles.
 - Evidence-backed, immutable Company Profile versions with field-level provenance.
-- Investigations from managed AI research, bounded Deep Research, and provider-neutral External Research Assist. Investigation material never becomes accepted profile truth automatically.
+- Investigations with explicit origin, purpose, topics, and durable review state across saved and managed research.
+- Research Briefings built from selected Investigations, with controlled templates, immutable versions, source snapshots, and reviewable updates.
 - Ask RAVEN: profile-grounded conversations with citations and optional, conversation-scoped Web Search.
 - Monitoring and targeted profile improvement, both review and confirmation gated.
-
-Research Briefings and the redesigned Investigation lifecycle are not implemented yet.
 
 ## Quick start
 

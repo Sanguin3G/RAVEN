@@ -100,6 +100,7 @@ public sealed class ResearchRunConfiguration : IEntityTypeConfiguration<Research
             entity.Property(researchRun => researchRun.Stage).HasConversion<string>().HasMaxLength(48).IsRequired();
             entity.Property(researchRun => researchRun.GroundingMode).HasConversion<string>().HasMaxLength(32).IsRequired();
             entity.Property(researchRun => researchRun.Mode).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(researchRun => researchRun.SourceInvestigationKind).HasConversion<string>().HasMaxLength(16);
             entity.Property(researchRun => researchRun.ResearchTargetsJson).HasMaxLength(2_000).IsRequired();
             entity.Property(researchRun => researchRun.RequestedSearchProvider).HasMaxLength(100).IsRequired();
             entity.Property(researchRun => researchRun.ActualSearchProvider).HasMaxLength(100);
@@ -219,6 +220,8 @@ public sealed class SavedResearchArtifactConfiguration : IEntityTypeConfiguratio
             entity.Property(artifact => artifact.RawResponse).HasMaxLength(200_000);
             entity.Property(artifact => artifact.Model).HasMaxLength(200);
             entity.Property(artifact => artifact.Origin).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(artifact => artifact.Purpose).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(artifact => artifact.TopicsJson).HasMaxLength(4_000).IsRequired();
             entity.Property(artifact => artifact.Provider).HasMaxLength(200);
             entity.Property(artifact => artifact.Objective).HasMaxLength(4_000);
             entity.Property(artifact => artifact.ManagedResearchJobId).HasMaxLength(200);
@@ -233,6 +236,47 @@ public sealed class SavedResearchArtifactConfiguration : IEntityTypeConfiguratio
             entity.HasIndex(artifact => new { artifact.CompanyId, artifact.CreatedAt });
             entity.HasOne<Company>().WithMany().HasForeignKey(artifact => artifact.CompanyId).OnDelete(DeleteBehavior.Restrict);
         
+    }
+}
+
+public sealed class InvestigationReviewStateConfiguration : IEntityTypeConfiguration<InvestigationReviewState>
+{
+    public void Configure(EntityTypeBuilder<InvestigationReviewState> entity)
+    {
+        entity.HasKey(item => item.Id);
+        entity.Property(item => item.MaterialKind).HasConversion<string>().HasMaxLength(16).IsRequired();
+        entity.HasIndex(item => new { item.CompanyId, item.MaterialKind, item.MaterialId }).IsUnique();
+        entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        entity.HasOne<CompanyProfileVersion>().WithMany().HasForeignKey(item => item.AppliedProfileVersionId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class ResearchBriefingConfiguration : IEntityTypeConfiguration<Raven.Api.Features.Research.Briefings.ResearchBriefing>
+{
+    public void Configure(EntityTypeBuilder<Raven.Api.Features.Research.Briefings.ResearchBriefing> entity)
+    {
+        entity.HasKey(item => item.Id);
+        entity.Property(item => item.Title).HasMaxLength(200).IsRequired();
+        entity.Property(item => item.Template).HasMaxLength(80).IsRequired();
+        entity.Property(item => item.Objective).HasMaxLength(2_000).IsRequired();
+        entity.HasIndex(item => new { item.CompanyId, item.UpdatedAt });
+        entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class ResearchBriefingVersionConfiguration : IEntityTypeConfiguration<Raven.Api.Features.Research.Briefings.ResearchBriefingVersion>
+{
+    public void Configure(EntityTypeBuilder<Raven.Api.Features.Research.Briefings.ResearchBriefingVersion> entity)
+    {
+        entity.HasKey(item => item.Id);
+        entity.Property(item => item.Title).HasMaxLength(200).IsRequired();
+        entity.Property(item => item.Template).HasMaxLength(80).IsRequired();
+        entity.Property(item => item.Objective).HasMaxLength(2_000).IsRequired();
+        entity.Property(item => item.SectionsJson).HasMaxLength(200_000).IsRequired();
+        entity.Property(item => item.SourcesJson).HasMaxLength(600_000).IsRequired();
+        entity.HasIndex(item => new { item.BriefingId, item.VersionNumber }).IsUnique();
+        entity.HasOne<Raven.Api.Features.Research.Briefings.ResearchBriefing>().WithMany()
+            .HasForeignKey(item => item.BriefingId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -17,6 +17,7 @@ using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.ExternalImport;
 using Raven.Api.Features.Chat;
 using Raven.Api.Features.ManagedResearch;
+using Raven.Api.Features.Research.Briefings;
 
 namespace Raven.Api.Data;
 
@@ -48,6 +49,9 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<ResearchContextAttachment> ResearchContextAttachments => Set<ResearchContextAttachment>();
     public DbSet<ExternalResearchAnalysisJob> ExternalResearchAnalysisJobs => Set<ExternalResearchAnalysisJob>();
     public DbSet<WorkspaceResearchReviewState> WorkspaceResearchReviewStates => Set<WorkspaceResearchReviewState>();
+    public DbSet<InvestigationReviewState> InvestigationReviewStates => Set<InvestigationReviewState>();
+    public DbSet<ResearchBriefing> ResearchBriefings => Set<ResearchBriefing>();
+    public DbSet<ResearchBriefingVersion> ResearchBriefingVersions => Set<ResearchBriefingVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

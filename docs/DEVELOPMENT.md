@@ -220,6 +220,8 @@ Ask RAVEN Web Search is enabled per conversation through the Chat capability end
 
 Only the explicit profile-confirmation action creates a Company Profile version. Deep Research, normal workers, profile generation, navigation restore, and failed/in-progress run recovery never auto-confirm a candidate. A completed ProfileImprovement investigation without a usable Profile v1 is visible as preserved but locked material, is not clickable from the global ready card, and is excluded from Workspace Review.
 
+The Investigation lifecycle and Research Briefings use the `InvestigationLifecycleAndBriefings` EF migration. API startup applies pending migrations. Briefing create/update calls the configured AI provider to synthesize selected persisted Investigations; it does not call Search or Crawl, and tests use a fake provider.
+
 Workspace Review acknowledgement is persisted in SQLite through `WorkspaceResearchReviewState`. The queue groups terminal Native, Deep, and External results by company, method, and normalized topic; acknowledgement is timestamped so newer results reappear. The bulk and smart-cleanup actions only clear review visibility and never delete research history, investigations, sources, or evidence.
 
 ## Git workflow

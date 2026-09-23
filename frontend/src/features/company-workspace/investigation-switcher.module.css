@@ -1,0 +1,22 @@
+.switcher { position: relative; max-width: 38rem; margin: 1rem 0; }
+.trigger { display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; width: 100%; padding: .85rem 1rem; text-align: left; border: 1px solid var(--border-color, #596577); border-radius: .75rem; background: var(--surface, #fff); color: inherit; cursor: pointer; }
+.triggerTitle { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trigger small { grid-column: 1 / -1; opacity: .75; }
+.panel { position: absolute; z-index: 30; top: calc(100% + .4rem); left: 0; width: min(42rem, calc(100vw - 2rem)); max-height: min(70vh, 40rem); overflow: auto; padding: 1rem; border: 1px solid var(--border-color, #596577); border-radius: .75rem; background: var(--surface, #fff); color: inherit; box-shadow: 0 1rem 2.5rem #0003; }
+.panel > label { display: block; margin-bottom: .35rem; font-weight: 600; }
+.panel input { width: 100%; padding: .55rem; }
+.filters { display: flex; flex-wrap: wrap; gap: .35rem; margin: .75rem 0; }
+.filters button { padding: .35rem .6rem; border: 1px solid currentColor; border-radius: 2rem; background: transparent; color: inherit; cursor: pointer; }
+.filters .active { background: #263c5c; color: #fff; }
+.advanced { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.advanced label { font-size: .8rem; }
+.advanced select { display: block; width: 100%; margin-top: .2rem; padding: .4rem; }
+.results { margin-top: .8rem; }
+.results h3 { margin: .9rem 0 .35rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+.results ul { list-style: none; margin: 0; padding: 0; }
+.results li + li { border-top: 1px solid #8885; }
+.results li button { display: grid; width: 100%; gap: .15rem; padding: .65rem .4rem; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.results li button:hover, .results li button[aria-current] { background: #788b9e24; }
+.results small { opacity: .72; }
+:where(.trigger, .panel button, .panel input, .panel select):focus-visible { outline: 3px solid #447fe1; outline-offset: 2px; }
+@media (max-width: 35rem) { .advanced { grid-template-columns: 1fr; } .panel { position: fixed; top: 10vh; left: 1rem; } }

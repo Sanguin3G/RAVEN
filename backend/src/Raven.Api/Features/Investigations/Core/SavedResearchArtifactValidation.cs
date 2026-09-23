@@ -52,6 +52,9 @@ public static class SavedResearchArtifactValidation
         {
             errors.Add("Research origin is not supported.");
         }
+        if (!Enum.IsDefined(request.Purpose)) errors.Add("Investigation purpose is not supported.");
+        if (request.Topics is { Count: > 16 } || request.Topics?.Any(topic => !InvestigationTopics.All.Contains(topic)) == true)
+            errors.Add("Investigation topics must use the supported vocabulary.");
 
         if (request.Model is not null && request.Model.Trim().Length > MaxModelLength)
         {

@@ -66,6 +66,7 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
             CreatedAt = clock.UtcNow,
             ResearchType = request.ResearchType,
             Origin = request.Origin,
+            Purpose = request.Purpose,
             Model = NormalizeOptionalModel(request.Model),
             Provider = NormalizeOptionalText(request.Provider),
             Objective = NormalizeOptionalText(request.Objective),
@@ -74,6 +75,10 @@ public sealed class SavedResearchArtifactService : ISavedResearchArtifactService
             SourceCount = sourceDocumentIds.Length,
             SourceDocumentIdsJson = JsonSerializer.Serialize(sourceDocumentIds)
         };
+        var topics = request.Topics is { Count: > 0 }
+            ? request.Topics.Where(InvestigationTopics.All.Contains).Distinct().ToArray()
+            : InvestigationTopics.Suggest($"{request.Title} {request.Question} {string.Join(' ', request.Claims?.Select(claim => claim.Field) ?? [])}");
+        artifact.TopicsJson = JsonSerializer.Serialize(topics);
 
         foreach (var sourceDocumentId in sourceDocumentIds)
         {

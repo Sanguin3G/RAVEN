@@ -83,6 +83,10 @@ public sealed class TargetedProfileUpdateService(
         {
             throw new BadHttpRequestException("The selected managed research material is unavailable.");
         }
+        var managedJob = await dbContext.ManagedResearchJobs.AsNoTracking()
+            .SingleOrDefaultAsync(job => job.Id == investigation.JobId && job.CompanyId == companyId, cancellationToken);
+        if (managedJob?.Purpose != ManagedResearchPurpose.ProfileImprovement)
+            throw new BadHttpRequestException("This investigation was created for General Research.");
 
         ManagedResearchResult? result;
         try
@@ -110,6 +114,9 @@ public sealed class TargetedProfileUpdateService(
         }
 
         var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == runResponse.Id && item.CompanyId == companyId, cancellationToken);
+        run.SourceInvestigationKind = InvestigationMaterialKind.Managed;
+        run.SourceInvestigationId = investigation.JobId;
+        run.SourceInvestigationUpdatedAt = investigation.CompletedAt;
         var importedDocuments = BuildImportedDocuments(companyId, run.Id,
             result.Sources.Select(source => new ImportedSource(source.Url, source.Title, source.Publisher,
                 string.Join("\n", result.Claims.Where(claim => claim.SupportingSourceUrls.Contains(source.Url, StringComparer.OrdinalIgnoreCase)).Select(claim => $"{claim.Topic}: {claim.Statement}")))),
@@ -155,6 +162,8 @@ public sealed class TargetedProfileUpdateService(
         {
             throw new BadHttpRequestException("The selected investigation material is unavailable.");
         }
+        if (artifact.Purpose != InvestigationPurpose.ProfileImprovement)
+            throw new BadHttpRequestException("This investigation was created for General Research.");
 
         var runResponse = await research.CreateQueuedRunAsync(companyId, new DiscoverResearchRequest(
             UseAcceptedProfileIdentity: true,
@@ -167,6 +176,9 @@ public sealed class TargetedProfileUpdateService(
         }
 
         var run = await dbContext.ResearchRuns.SingleAsync(item => item.Id == runResponse.Id && item.CompanyId == companyId, cancellationToken);
+        run.SourceInvestigationKind = InvestigationMaterialKind.Saved;
+        run.SourceInvestigationId = artifact.Id;
+        run.SourceInvestigationUpdatedAt = artifact.CompletedAt ?? artifact.CreatedAt;
         var importedDocuments = await BuildImportedDocumentsAsync(companyId, run.Id, artifact, cancellationToken);
         if (importedDocuments.Count == 0)
         {

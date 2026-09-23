@@ -270,7 +270,7 @@ export function ExternalResearchAssistModal({ company, profile, targets: request
     setBusy(true);
     setError(null);
     try {
-      await importExternalResearch(company.id, { question: question.trim() || objective, markdown: response });
+      await importExternalResearch(company.id, { question: question.trim() || objective, markdown: response, purpose: targets.length > 0 ? "ProfileImprovement" : "GeneralResearch" });
       setMessage("Saved to Investigation as unverified research material.");
       dismissResearchActivity(id);
       await onSaved?.();
