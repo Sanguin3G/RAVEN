@@ -66,7 +66,6 @@ public sealed class InvestigationBriefingTests : IDisposable
 
         var created = await briefings.CreateAsync(CompanyId,
             new CreateBriefingRequest("Hiring", "Talent & Hiring", "Hiring signals", [first.Id]), default);
-        Assert.DoesNotContain("additionalProperties", ai.LastRequest!.ResponseSchema.GetRawText(), StringComparison.Ordinal);
         Assert.Equal(1, created.CurrentVersion.VersionNumber);
         Assert.Equal(first.Id, Assert.Single(created.CurrentVersion.Sources).InvestigationId);
         Assert.Equal(created.CurrentVersion.Sources[0].MaterialUpdatedAt, created.CurrentVersion.ResearchThrough);
@@ -138,11 +137,9 @@ public sealed class InvestigationBriefingTests : IDisposable
         public string Id => "fake";
         public int Calls { get; private set; }
         public bool FailNext { get; set; }
-        public AiModelRequest? LastRequest { get; private set; }
         public Task<AiModelResult> GenerateStructuredAsync(AiModelRequest request, CancellationToken cancellationToken = default)
         {
             Calls++;
-            LastRequest = request;
             if (FailNext)
             {
                 FailNext = false;

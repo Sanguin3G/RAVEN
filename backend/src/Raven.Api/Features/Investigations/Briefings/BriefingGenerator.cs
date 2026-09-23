@@ -9,9 +9,9 @@ public sealed class BriefingGenerator(IAiModelProvider ai, IRuntimeModelPreferen
     private const string PromptVersion = "research-briefing-v1";
     private static readonly JsonElement Schema = JsonDocument.Parse("""
         {
-          "type": "object",
+          "type": "object", "additionalProperties": false,
           "properties": {
-            "sections": { "type": "array", "items": { "type": "object",
+            "sections": { "type": "array", "items": { "type": "object", "additionalProperties": false,
               "properties": {
                 "title": { "type": "string" },
                 "items": { "type": "array", "items": { "type": "string" } },
