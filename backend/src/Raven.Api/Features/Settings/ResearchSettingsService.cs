@@ -1,4 +1,5 @@
 using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Ai;
 
 namespace Raven.Api.Features.Settings;
 
@@ -12,6 +13,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
     private static readonly HashSet<string> AllowedModels =
     [
         ResearchSettingsDefaults.ProfileModel,
+        RuntimeModelPreferences.FlashStandard,
         ResearchSettingsDefaults.DeepResearchModel
     ];
 
@@ -69,6 +71,19 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             throw new ResearchSettingsValidationException(errors);
         }
 
+        var searchPriorities = NormalizeProviderIds(
+            request.SearchProviderPriority ?? (request.ProviderPreset == ProviderPreset.Custom
+                ? current.CustomSearchProviderPriority
+                : current.SearchProviderPriority),
+            ResearchSettingsDefaults.SupportedSearchProviders,
+            [ResearchSettingsDefaults.BraveSearchProvider]);
+        var crawlerPriorities = NormalizeProviderIds(
+            request.CrawlerProviderPriority ?? (request.ProviderPreset == ProviderPreset.Custom
+                ? current.CustomCrawlerProviderPriority
+                : current.CrawlerProviderPriority),
+            ResearchSettingsDefaults.SupportedCrawlerProviders,
+            [ResearchSettingsDefaults.Crawl4AiLocalProvider]);
+
         var updated = new ResearchSettingsEntity
         {
             Id = ResearchSettingsEntity.SingletonKey,
@@ -80,14 +95,20 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             ManagedResearchDepth = request.ManagedResearchDepth ?? current.ManagedResearchDepth,
             AiSourceRerankingEnabled = request.AiSourceRerankingEnabled,
             ProviderPreset = request.ProviderPreset,
-            SearchProviderPriority = NormalizeProviderIds(
-                request.SearchProviderPriority ?? current.SearchProviderPriority,
+            SearchProviderPriority = searchPriorities,
+            CrawlerProviderPriority = crawlerPriorities,
+            CustomSearchProviderPriority = NormalizeProviderIds(
+                request.ProviderPreset == ProviderPreset.Custom
+                    ? searchPriorities
+                    : request.CustomSearchProviderPriority ?? current.CustomSearchProviderPriority,
                 ResearchSettingsDefaults.SupportedSearchProviders,
-                [ResearchSettingsDefaults.BraveSearchProvider]),
-            CrawlerProviderPriority = NormalizeProviderIds(
-                request.CrawlerProviderPriority ?? current.CrawlerProviderPriority,
+                [ResearchSettingsDefaults.BraveSearchProvider, ResearchSettingsDefaults.ExaSearchProvider]),
+            CustomCrawlerProviderPriority = NormalizeProviderIds(
+                request.ProviderPreset == ProviderPreset.Custom
+                    ? crawlerPriorities
+                    : request.CustomCrawlerProviderPriority ?? current.CustomCrawlerProviderPriority,
                 ResearchSettingsDefaults.SupportedCrawlerProviders,
-                [ResearchSettingsDefaults.Crawl4AiLocalProvider]),
+                [ResearchSettingsDefaults.Crawl4AiLocalProvider, ResearchSettingsDefaults.ExaCrawlerProvider]),
             UpdatedAt = DateTimeOffset.UtcNow
         };
 
@@ -123,6 +144,8 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             ProviderPreset = response.ProviderPreset,
             SearchProviderPriority = [.. response.SearchProviderPriority],
             CrawlerProviderPriority = [.. response.CrawlerProviderPriority],
+            CustomSearchProviderPriority = [.. response.CustomSearchProviderPriority ?? response.SearchProviderPriority],
+            CustomCrawlerProviderPriority = [.. response.CustomCrawlerProviderPriority ?? response.CrawlerProviderPriority],
             UpdatedAt = response.UpdatedAt
         };
     }
@@ -176,6 +199,18 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             request.CrawlerProviderPriority,
             "Crawler",
             ResearchSettingsDefaults.SupportedCrawlerProviders);
+        AddProviderErrors(
+            errors,
+            request.CustomSearchProviderPriority,
+            "Custom search",
+            ResearchSettingsDefaults.SupportedSearchProviders,
+            optional: true);
+        AddProviderErrors(
+            errors,
+            request.CustomCrawlerProviderPriority,
+            "Custom crawler",
+            ResearchSettingsDefaults.SupportedCrawlerProviders,
+            optional: true);
 
         return errors;
     }
@@ -192,7 +227,9 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             settings.SearchProviderPriority,
             settings.CrawlerProviderPriority,
             settings.ManagedResearchProvider,
-            settings.ManagedResearchDepth));
+            settings.ManagedResearchDepth,
+            settings.CustomSearchProviderPriority,
+            settings.CustomCrawlerProviderPriority));
 
         if (string.IsNullOrWhiteSpace(settings.Id))
         {
@@ -206,8 +243,14 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         ICollection<string> errors,
         IReadOnlyList<string>? providerIds,
         string category,
-        IReadOnlySet<string> supportedProviders)
+        IReadOnlySet<string> supportedProviders,
+        bool optional = false)
     {
+        if (providerIds is null && optional)
+        {
+            return;
+        }
+
         if (providerIds is null || providerIds.Count == 0)
         {
             errors.Add($"At least one {category.ToLowerInvariant()} provider is required.");
@@ -256,6 +299,14 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
             persisted.CrawlerProviderPriority,
             ResearchSettingsDefaults.SupportedCrawlerProviders,
             [ResearchSettingsDefaults.Crawl4AiLocalProvider]);
+        normalized.CustomSearchProviderPriority = NormalizeProviderIds(
+            persisted.CustomSearchProviderPriority,
+            ResearchSettingsDefaults.SupportedSearchProviders,
+            [ResearchSettingsDefaults.BraveSearchProvider, ResearchSettingsDefaults.ExaSearchProvider]);
+        normalized.CustomCrawlerProviderPriority = NormalizeProviderIds(
+            persisted.CustomCrawlerProviderPriority,
+            ResearchSettingsDefaults.SupportedCrawlerProviders,
+            [ResearchSettingsDefaults.Crawl4AiLocalProvider, ResearchSettingsDefaults.ExaCrawlerProvider]);
         if (string.IsNullOrWhiteSpace(normalized.ManagedResearchProvider))
         {
             normalized.ManagedResearchProvider = ResearchSettingsDefaults.ManagedResearchProvider;
@@ -278,6 +329,12 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         left.CrawlerProviderPriority.SequenceEqual(
             right.CrawlerProviderPriority,
             StringComparer.Ordinal) &&
+        left.CustomSearchProviderPriority.SequenceEqual(
+            right.CustomSearchProviderPriority,
+            StringComparer.Ordinal) &&
+        left.CustomCrawlerProviderPriority.SequenceEqual(
+            right.CustomCrawlerProviderPriority,
+            StringComparer.Ordinal) &&
         string.Equals(left.ManagedResearchProvider, right.ManagedResearchProvider, StringComparison.OrdinalIgnoreCase) &&
         left.ManagedResearchDepth == right.ManagedResearchDepth;
 
@@ -292,5 +349,7 @@ public sealed class ResearchSettingsService(IResearchSettingsStore store) : IRes
         entity.CrawlerProviderPriority.AsReadOnly(),
         entity.UpdatedAt,
         entity.ManagedResearchProvider,
-        entity.ManagedResearchDepth);
+        entity.ManagedResearchDepth,
+        entity.CustomSearchProviderPriority.AsReadOnly(),
+        entity.CustomCrawlerProviderPriority.AsReadOnly());
 }

@@ -58,6 +58,8 @@ public static class ResearchSettingsDefaults
         ProviderPreset = ProviderPreset.LocalFirst,
         SearchProviderPriority = [BraveSearchProvider],
         CrawlerProviderPriority = [Crawl4AiLocalProvider],
+        CustomSearchProviderPriority = [BraveSearchProvider, ExaSearchProvider],
+        CustomCrawlerProviderPriority = [Crawl4AiLocalProvider, ExaCrawlerProvider],
         UpdatedAt = updatedAt ?? DateTimeOffset.UtcNow
     };
 }

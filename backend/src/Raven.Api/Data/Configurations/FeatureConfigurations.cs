@@ -328,6 +328,8 @@ public sealed class ResearchSettingsEntityConfiguration : IEntityTypeConfigurati
                 .IsRequired();
             entity.PrimitiveCollection(settings => settings.SearchProviderPriority).HasMaxLength(100);
             entity.PrimitiveCollection(settings => settings.CrawlerProviderPriority).HasMaxLength(100);
+            entity.PrimitiveCollection(settings => settings.CustomSearchProviderPriority).HasMaxLength(100);
+            entity.PrimitiveCollection(settings => settings.CustomCrawlerProviderPriority).HasMaxLength(100);
         
     }
 }

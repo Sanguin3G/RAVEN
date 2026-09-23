@@ -69,6 +69,7 @@ public sealed class InvestigationBriefingTests : IDisposable
         Assert.Equal(1, created.CurrentVersion.VersionNumber);
         Assert.Equal(first.Id, Assert.Single(created.CurrentVersion.Sources).InvestigationId);
         Assert.Equal(created.CurrentVersion.Sources[0].MaterialUpdatedAt, created.CurrentVersion.ResearchThrough);
+        Assert.DoesNotContain("additionalProperties", ai.LastRequest!.ResponseSchema.GetRawText(), StringComparison.Ordinal);
 
         var updated = await briefings.UpdateAsync(CompanyId, created.Id,
             new UpdateBriefingRequest([second.Id]), default);
@@ -80,6 +81,20 @@ public sealed class InvestigationBriefingTests : IDisposable
         Assert.Equal(2, db.ResearchBriefingVersions.Count());
         Assert.Empty(db.CompanyProfileVersions);
         Assert.Equal(2, ai.Calls);
+    }
+
+    [Fact]
+    public async Task Blank_briefing_objective_uses_the_selected_template_default()
+    {
+        var first = await SaveAsync("European hiring", InvestigationPurpose.GeneralResearch);
+
+        var created = await briefings.CreateAsync(CompanyId,
+            new CreateBriefingRequest("Hiring", "Talent & Hiring", "  ", [first.Id]), default);
+
+        Assert.Contains("Talent & Hiring", created.Objective, StringComparison.Ordinal);
+        Assert.Contains("Hiring signals", created.Objective, StringComparison.Ordinal);
+        Assert.Equal(created.Objective, created.CurrentVersion.Objective);
+        Assert.Contains("Talent & Hiring", ai.LastRequest!.Prompt, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -137,9 +152,11 @@ public sealed class InvestigationBriefingTests : IDisposable
         public string Id => "fake";
         public int Calls { get; private set; }
         public bool FailNext { get; set; }
+        public AiModelRequest? LastRequest { get; private set; }
         public Task<AiModelResult> GenerateStructuredAsync(AiModelRequest request, CancellationToken cancellationToken = default)
         {
             Calls++;
+            LastRequest = request;
             if (FailNext)
             {
                 FailNext = false;

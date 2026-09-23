@@ -51,7 +51,6 @@ export function suggestedForTemplate(template: BriefingTemplate, investigations:
     Regulatory: ["Regulatory", "Tax / Registration"], "Supply Chain": ["Supply Chain"], Custom: [],
   };
   const terms = topics[template];
-  return investigations.filter(item => item.status === "Ready" || item.status === "Done").sort((a, b) =>
-    Number(b.topics.some(topic => terms.includes(topic))) - Number(a.topics.some(topic => terms.includes(topic))) ||
-    Date.parse(b.materialUpdatedAt) - Date.parse(a.materialUpdatedAt));
+  return investigations.filter(item => (item.status === "Ready" || item.status === "Done") &&
+    (template === "Custom" || item.topics.some(topic => terms.includes(topic))));
 }

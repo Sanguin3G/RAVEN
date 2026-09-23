@@ -22,6 +22,8 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(ProviderPreset.LocalFirst, settings.ProviderPreset);
         Assert.Equal(["brave"], settings.SearchProviderPriority);
         Assert.Equal(["crawl4ai-local"], settings.CrawlerProviderPriority);
+        Assert.Equal(["brave", "exa"], settings.CustomSearchProviderPriority);
+        Assert.Equal(["crawl4ai-local", "exa"], settings.CustomCrawlerProviderPriority);
         Assert.NotNull(persisted);
         Assert.Equal(ResearchSettingsEntity.SingletonKey, persisted!.Id);
     }
@@ -33,7 +35,7 @@ public sealed class ResearchSettingsServiceTests
         var firstService = new ResearchSettingsService(store);
         var expectedUpdate = new UpdateResearchSettingsRequest(
             GroundingMode.Always,
-            "gemini-3.8-flash",
+            "gemini-3.5-flash",
             "gemini-3.5-flash-lite",
             "gemini-3.5-flash-lite",
             false,
@@ -52,6 +54,57 @@ public sealed class ResearchSettingsServiceTests
         Assert.Equal(ProviderPreset.Custom, reloaded.ProviderPreset);
         Assert.Equal(["exa", "brave"], reloaded.SearchProviderPriority);
         Assert.Equal(["exa", "crawl4ai-local"], reloaded.CrawlerProviderPriority);
+        Assert.Equal(["exa", "brave"], reloaded.CustomSearchProviderPriority);
+        Assert.Equal(["exa", "crawl4ai-local"], reloaded.CustomCrawlerProviderPriority);
+    }
+
+    [Fact]
+    public async Task Switching_presets_preserves_the_last_custom_route()
+    {
+        var store = new InMemoryResearchSettingsStore();
+        var service = new ResearchSettingsService(store);
+        var initial = await service.GetAsync();
+
+        var custom = await service.UpdateAsync(new UpdateResearchSettingsRequest(
+            initial.GroundingMode,
+            initial.ProfileModel,
+            initial.GroundingModel,
+            initial.DeepResearchModel,
+            initial.AiSourceRerankingEnabled,
+            ProviderPreset.Custom,
+            ["exa", "brave"],
+            ["exa", "crawl4ai-local"]));
+
+        var local = await service.UpdateAsync(new UpdateResearchSettingsRequest(
+            custom.GroundingMode,
+            custom.ProfileModel,
+            custom.GroundingModel,
+            custom.DeepResearchModel,
+            custom.AiSourceRerankingEnabled,
+            ProviderPreset.LocalFirst,
+            ["brave"],
+            ["crawl4ai-local"],
+            CustomSearchProviderPriority: custom.CustomSearchProviderPriority,
+            CustomCrawlerProviderPriority: custom.CustomCrawlerProviderPriority));
+
+        Assert.Equal(["brave"], local.SearchProviderPriority);
+        Assert.Equal(["exa", "brave"], local.CustomSearchProviderPriority);
+        Assert.Equal(["exa", "crawl4ai-local"], local.CustomCrawlerProviderPriority);
+
+        var restoredCustom = await service.UpdateAsync(new UpdateResearchSettingsRequest(
+            local.GroundingMode,
+            local.ProfileModel,
+            local.GroundingModel,
+            local.DeepResearchModel,
+            local.AiSourceRerankingEnabled,
+            ProviderPreset.Custom,
+            local.CustomSearchProviderPriority,
+            local.CustomCrawlerProviderPriority,
+            CustomSearchProviderPriority: local.CustomSearchProviderPriority,
+            CustomCrawlerProviderPriority: local.CustomCrawlerProviderPriority));
+
+        Assert.Equal(["exa", "brave"], restoredCustom.SearchProviderPriority);
+        Assert.Equal(["exa", "crawl4ai-local"], restoredCustom.CrawlerProviderPriority);
     }
 
     [Fact]

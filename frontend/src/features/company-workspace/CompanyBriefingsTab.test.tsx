@@ -51,12 +51,12 @@ describe("CompanyBriefingsTab", () => {
     await screen.findByRole("heading", { name: /Turn selected research into reusable company intelligence/ });
     await user.click(screen.getByRole("button", { name: "Create your first Briefing" }));
     const dialog = screen.getByRole("dialog", { name: "Create briefing" });
-    await user.type(within(dialog).getByRole("textbox", { name: "Title" }), "Talent & Hiring");
-    await user.type(within(dialog).getByRole("textbox", { name: /Objective/ }), "Hiring trends");
+    expect(within(dialog).getByRole("textbox", { name: "Title" })).toHaveValue("Talent & Hiring");
+    expect(within(dialog).getByRole("textbox", { name: /Focus \/ additional guidance/ })).not.toBeRequired();
     await user.click(within(dialog).getByRole("checkbox", { name: /Recruitment activity/ }));
     await user.click(within(dialog).getByRole("button", { name: "Create briefing" }));
     await waitFor(() => expect(createBriefing).toHaveBeenCalledWith("company-1", {
-      title: "Talent & Hiring", template: "Talent & Hiring", objective: "Hiring trends", investigationIds: [material.id],
+      title: "Talent & Hiring", template: "Talent & Hiring", objective: "", investigationIds: [material.id],
     }));
   });
 

@@ -375,14 +375,12 @@ public sealed class GeminiSourceSemanticReranker : ISourceSemanticReranker
         using var document = JsonDocument.Parse("""
             {
               "type": "object",
-              "additionalProperties": false,
               "required": ["assessments"],
               "properties": {
                 "assessments": {
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "additionalProperties": false,
                     "required": ["candidateId", "entityRelationship", "relevance", "recommended", "purposes"],
                     "properties": {
                       "candidateId": {"type": "string"},

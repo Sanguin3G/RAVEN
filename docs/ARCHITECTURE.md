@@ -56,7 +56,7 @@ The resolved target is carried into discovery as a bounded `ResolvedIdentitySnap
 
 `ISourceSemanticReranker` provides bounded, user-facing same-entity/related/different-entity relevance reasons. It can alter default source selection but never removes human review or replaces deterministic source classification.
 
-`ResearchSettingsEntity` persists safe model roles, grounding/reranking preferences, and provider priorities. It never stores secrets. Refresh creates another ResearchRun and profile confirmation remains the only path to a new immutable version. `ProfileDiffService` persists deterministic `ProfileChange` records between accepted versions.
+`ResearchSettingsEntity` persists safe model roles, grounding/reranking preferences, active provider priorities, and a separate last-custom route. Switching to a named provider preset changes the active route without overwriting the saved Custom route; secrets are never stored. Refresh creates another ResearchRun and profile confirmation remains the only path to a new immutable version. `ProfileDiffService` persists deterministic `ProfileChange` records between accepted versions.
 
 `CompanyMonitoringSetting` is serviced by one ASP.NET Core `BackgroundService`. It runs only while the API is running, creates a review-ready candidate, and never auto-confirms a Company Profile.
 

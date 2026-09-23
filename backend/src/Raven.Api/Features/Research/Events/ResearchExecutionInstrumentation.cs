@@ -372,6 +372,9 @@ public sealed class InstrumentedAiModelProvider(
     private static string AiOperation(AiModelRequest request)
     {
         var template = request.PromptTemplateVersion ?? string.Empty;
+        if (template.StartsWith("research-briefing-", StringComparison.OrdinalIgnoreCase)) return "briefing_generation";
+        if (template.StartsWith("investigation-analysis-", StringComparison.OrdinalIgnoreCase)) return "investigation_analysis";
+        if (template.StartsWith("external-research-analysis-", StringComparison.OrdinalIgnoreCase)) return "external_research_analysis";
         if (template.Contains("identity", StringComparison.OrdinalIgnoreCase)) return "identity_resolution";
         if (template.Contains("rerank", StringComparison.OrdinalIgnoreCase) || template.Contains("relevance", StringComparison.OrdinalIgnoreCase)) return "source_relevance";
         if (template.Contains("patch", StringComparison.OrdinalIgnoreCase)) return "profile_patch_generation";

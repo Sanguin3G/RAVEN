@@ -182,11 +182,13 @@ it("marks only Research Company as active on the research page", () => {
 it("switches and persists the selected theme", async () => {
   const user = userEvent.setup();
   const view = renderWithRouter(<App />, "/settings");
-  await user.click(screen.getByRole("radio", { name: /Dark/i }));
+  await user.click(screen.getByRole("button", { name: "Appearance" }));
+  await user.click(await screen.findByRole("radio", { name: /Dark/i }));
 
   expect(document.documentElement.dataset.theme).toBe("dark");
   expect(localStorage.getItem("raven-theme-preference")).toBe("dark");
   view.unmount();
   renderWithRouter(<App />, "/settings");
-  expect(screen.getByRole("radio", { name: /Dark/i })).toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Appearance" }));
+  expect(await screen.findByRole("radio", { name: /Dark/i })).toBeChecked();
 });

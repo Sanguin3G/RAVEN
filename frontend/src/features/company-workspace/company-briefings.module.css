@@ -44,10 +44,21 @@
 .dialog { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: .8rem; color: var(--text); max-height: 88vh; overflow: auto; padding: 1.2rem; width: min(44rem, calc(100vw - 2rem)); }
 .dialog::backdrop { background: #09162699; }
 .dialog header, .dialog footer { align-items: center; display: flex; gap: 1rem; justify-content: space-between; }
+.dialog header { align-items: start; border-bottom: 1px solid var(--border); margin: -1.2rem -1.2rem 1rem; padding: 1rem 1.2rem .85rem; }
+.dialog header > div { min-width: 0; }
+.dialog header h2 { font-size: 1.25rem; margin: 0; }
+.dialogEyebrow { color: var(--primary); font-size: .64rem; font-weight: 850; letter-spacing: .12em; margin: 0 0 .2rem; }
+.dialogIntro { color: var(--text-muted); font-size: .76rem; line-height: 1.45; margin: .3rem 0 0; max-width: 62ch; }
 .dialog header button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 1.6rem; }
 .dialog label { display: grid; gap: .3rem; margin: .7rem 0; }
+.editorFocus { background: color-mix(in srgb, var(--primary) 6%, var(--surface-raised)); border: 1px solid var(--border); border-radius: .5rem; display: grid; gap: .3rem; padding: .75rem; }
+.editorFocus label, .dialog label[for="briefing-title"], .dialog label[for="briefing-objective"] { color: var(--text); font-size: .78rem; font-weight: 800; }
+.editorFocus small, .dialog label[for="briefing-objective"] small { color: var(--text-muted); font-size: .7rem; font-weight: 450; line-height: 1.4; }
+.optional { color: var(--text-muted); font-size: .67rem; font-weight: 600; text-transform: uppercase; }
 .dialog input:not([type=checkbox]), .dialog select, .dialog textarea { background: var(--surface); border: 1px solid var(--border); border-radius: .35rem; color: var(--text); padding: .55rem; width: 100%; }
-.dialog fieldset { border: 1px solid var(--border); border-radius: .5rem; margin: 1rem 0; max-height: 18rem; overflow: auto; }
+.dialog fieldset { border: 1px solid var(--border); border-radius: .5rem; margin: 1rem 0; max-height: 22rem; overflow: auto; padding: .55rem .7rem .7rem; }
+.dialog fieldset legend { font-size: .82rem; font-weight: 850; padding: 0 .25rem; }
+.dialog fieldset > p { color: var(--text-muted); font-size: .72rem; margin: .15rem 0 .5rem; }
 .dialog section { border-top: 1px solid var(--border); margin-top: .8rem; padding-top: .5rem; }
 .dialog section h3 { font-size: .85rem; margin: 0 0 .35rem; }
 .dialog section ul { padding-left: 1.2rem; }
@@ -58,7 +69,16 @@
 .versionList small { color: var(--text-muted); font-size: .72rem; }
 .versionList button { flex: 0 0 auto; }
 .selectionList label { align-items: start; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; gap: .6rem; padding: .55rem .35rem; }
+.selectionList label:has(input:checked) { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.selectionList input { accent-color: var(--primary); flex: 0 0 auto; margin-top: .18rem; min-height: 1.1rem; min-width: 1.1rem; }
+.selectionList label > span { min-width: 0; }
 .selectionList small { color: var(--text-muted); display: block; font-size: .7rem; margin-top: .15rem; }
+.selectionList .currentInvestigation { color: var(--primary); font-weight: 750; }
+.selectionSummary { display: grid; gap: .1rem; }
+.selectionSummary strong { font-size: .75rem; }
+.selectionSummary small { color: var(--text-muted); font-size: .68rem; }
+.dialog footer { border-top: 1px solid var(--border); margin: 0 -1.2rem -1.2rem; padding: .8rem 1.2rem; }
+.dialog footer > div { display: flex; flex-wrap: wrap; gap: .4rem; }
 .notice { background: var(--surface-raised); }
 .emptyHero { align-items: center; background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 10%, var(--surface-raised)), var(--surface-raised) 72%); border: 1px solid var(--border); border-radius: .8rem; display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr) minmax(9rem, 13rem); padding: clamp(1.1rem, 3vw, 2rem); }
 .emptyHero h3 { font-size: clamp(1.15rem, 2.4vw, 1.6rem); margin: .25rem 0 .5rem; max-width: 34rem; }
@@ -74,4 +94,4 @@
 .templateGrid p { color: var(--text-muted); font-size: .75rem; line-height: 1.45; margin: 0; min-height: 2.2em; }
 .templateGrid button { justify-self: start; }
 :where(.page button, .dialog button, .dialog input, .dialog select, .dialog textarea):focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
-@media (max-width: 48rem) { .sections { grid-template-columns: 1fr; } .section:first-child { grid-column: auto; } .emptyHero { grid-template-columns: 1fr; } .availableResearch { border-left: 0; border-top: 1px solid var(--border); padding: .9rem 0 0; } .templateGrid { grid-template-columns: 1fr; } .newResearchNotice, .historicalBanner { align-items: start; flex-direction: column; } }
+@media (max-width: 48rem) { .sections { grid-template-columns: 1fr; } .section:first-child { grid-column: auto; } .emptyHero { grid-template-columns: 1fr; } .availableResearch { border-left: 0; border-top: 1px solid var(--border); padding: .9rem 0 0; } .templateGrid { grid-template-columns: 1fr; } .newResearchNotice, .historicalBanner { align-items: start; flex-direction: column; } .dialog footer { align-items: stretch; flex-direction: column; } .dialog footer > div { justify-content: end; } }

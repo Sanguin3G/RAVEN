@@ -1,6 +1,15 @@
 .workspace-review-panel { border-left: 4px solid var(--ai); }
 .workspace-review-panel__header { align-items: start; display: flex; gap: 1rem; justify-content: space-between; }
 .workspace-review-panel__header-actions, .workspace-review-bulk-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.workspace-review-research-actions { align-items: center; display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: .3rem; }
+.workspace-review-research-actions .button { font-size: .7rem; min-height: 2.35rem; padding: .35rem .55rem; }
+.workspace-review-more-actions { position: relative; }
+.workspace-review-more-actions > summary { list-style: none; }
+.workspace-review-more-actions > summary::-webkit-details-marker { display: none; }
+.workspace-review-more-actions[open] > div { background: var(--surface-raised); border: 1px solid var(--border); border-radius: .4rem; box-shadow: 0 5px 14px var(--shadow); min-width: 13rem; padding: .25rem; position: absolute; right: 0; top: calc(100% + .25rem); z-index: 3; }
+.workspace-review-more-actions > div > button { background: transparent; border: 0; border-radius: .25rem; color: var(--text); cursor: pointer; display: block; font: inherit; font-size: .74rem; min-height: 2.4rem; padding: .5rem .6rem; text-align: left; width: 100%; }
+.workspace-review-more-actions > div > button:hover:not(:disabled) { background: var(--surface-muted); }
+.workspace-review-more-actions > div > button:disabled { color: var(--text-muted); cursor: not-allowed; }
 .workspace-review-panel__header p { font-size: 0.82rem; margin-bottom: 0; max-width: 70ch; }
 .workspace-review-count { align-items: baseline; border-block: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: space-between; margin: 1rem 0 0; padding: 0.8rem 0; }
 .workspace-review-count span { color: var(--text-muted); font-size: 0.78rem; }
@@ -58,4 +67,6 @@
 @media (max-width: 560px) {
   .workspace-review-panel__header { flex-direction: column; }
   .workspace-review-overview { grid-template-columns: 1fr 1fr; }
+  .workspace-review-research-item { align-items: flex-start; flex-direction: column; }
+  .workspace-review-research-actions { width: 100%; }
 }

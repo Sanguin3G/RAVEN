@@ -51,6 +51,7 @@ public sealed class SourceSemanticRerankerTests
         Assert.Contains("identity", assessment.Purposes);
         Assert.NotNull(provider.LastRequest);
         Assert.Equal(GeminiSourceSemanticReranker.SourceSemanticPromptTemplateVersion, provider.LastRequest!.PromptTemplateVersion);
+        Assert.DoesNotContain("additionalProperties", provider.LastRequest.ResponseSchema.GetRawText(), StringComparison.Ordinal);
     }
 
     [Fact]

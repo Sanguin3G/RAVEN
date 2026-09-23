@@ -30,7 +30,9 @@ public sealed record ResearchSettingsResponse(
     IReadOnlyList<string> CrawlerProviderPriority,
     DateTimeOffset UpdatedAt,
     string ManagedResearchProvider = ResearchSettingsDefaults.ManagedResearchProvider,
-    ManagedResearchDepth ManagedResearchDepth = ManagedResearchDepth.Adaptive);
+    ManagedResearchDepth ManagedResearchDepth = ManagedResearchDepth.Adaptive,
+    IReadOnlyList<string>? CustomSearchProviderPriority = null,
+    IReadOnlyList<string>? CustomCrawlerProviderPriority = null);
 
 public sealed record UpdateResearchSettingsRequest(
     GroundingMode GroundingMode,
@@ -42,7 +44,9 @@ public sealed record UpdateResearchSettingsRequest(
     IReadOnlyList<string>? SearchProviderPriority = null,
     IReadOnlyList<string>? CrawlerProviderPriority = null,
     string? ManagedResearchProvider = null,
-    ManagedResearchDepth? ManagedResearchDepth = null);
+    ManagedResearchDepth? ManagedResearchDepth = null,
+    IReadOnlyList<string>? CustomSearchProviderPriority = null,
+    IReadOnlyList<string>? CustomCrawlerProviderPriority = null);
 
 public interface IResearchSettingsService
 {

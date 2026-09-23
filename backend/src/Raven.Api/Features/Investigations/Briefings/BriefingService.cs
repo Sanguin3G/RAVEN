@@ -37,17 +37,18 @@ public sealed class BriefingService(RavenDbContext db, InvestigationService inve
 
     public async Task<BriefingResponse> CreateAsync(Guid companyId, CreateBriefingRequest request, CancellationToken ct)
     {
-        ValidateDefinition(request.Title, request.Template, request.Objective);
+        var objective = NormalizeObjective(request.Template, request.Objective);
+        ValidateDefinition(request.Title, request.Template, objective);
         if (!await db.Companies.AsNoTracking().AnyAsync(item => item.Id == companyId, ct))
             throw new KeyNotFoundException("Company not found.");
         var available = await investigations.ListAsync(companyId, ct);
         var sources = SelectSources(available, request.InvestigationIds);
-        var sections = await generator.GenerateAsync(request.Template, request.Objective.Trim(), sources, ct);
+        var sections = await generator.GenerateAsync(request.Template, objective, sources, ct);
         var now = DateTimeOffset.UtcNow;
         var brief = new ResearchBriefing
         {
             CompanyId = companyId, Title = request.Title.Trim(), Template = request.Template,
-            Objective = request.Objective.Trim(), CreatedAt = now, UpdatedAt = now
+            Objective = objective, CreatedAt = now, UpdatedAt = now
         };
         var version = NewVersion(brief, 1, now, sources, sections);
         db.ResearchBriefings.Add(brief);
@@ -63,7 +64,7 @@ public sealed class BriefingService(RavenDbContext db, InvestigationService inve
         if (brief.ArchivedAt is not null) throw new InvalidOperationException("Archived briefings cannot be updated.");
         var title = request.Title ?? brief.Title;
         var template = request.Template ?? brief.Template;
-        var objective = request.Objective ?? brief.Objective;
+        var objective = request.Objective is null ? brief.Objective : NormalizeObjective(template, request.Objective);
         ValidateDefinition(title, template, objective);
         var versions = await db.ResearchBriefingVersions.AsNoTracking().Where(item => item.BriefingId == briefingId).ToListAsync(ct);
         var current = versions.MaxBy(version => version.VersionNumber)!;
@@ -164,6 +165,16 @@ public sealed class BriefingService(RavenDbContext db, InvestigationService inve
         if (string.IsNullOrWhiteSpace(title) || title.Length > 200) throw new ArgumentException("Briefing title must be 1–200 characters.");
         if (!BriefingTemplates.Sections.ContainsKey(template)) throw new ArgumentException("Choose a supported Briefing template.");
         if (string.IsNullOrWhiteSpace(objective) || objective.Length > 2_000) throw new ArgumentException("Briefing objective must be 1–2,000 characters.");
+    }
+
+    private static string NormalizeObjective(string template, string? objective)
+    {
+        if (!BriefingTemplates.Sections.ContainsKey(template))
+        {
+            return objective?.Trim() ?? string.Empty;
+        }
+
+        return string.IsNullOrWhiteSpace(objective) ? BriefingTemplates.DefaultObjective(template) : objective.Trim();
     }
 
     private static ResearchBriefingVersion NewVersion(ResearchBriefing brief, int number, DateTimeOffset now,

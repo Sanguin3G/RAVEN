@@ -90,4 +90,15 @@ public static class BriefingTemplates
         ["Supply Chain"] = ["Supply Chain"],
         ["Custom"] = []
     };
+
+    public static string DefaultObjective(string template)
+    {
+        if (!Sections.TryGetValue(template, out var sections))
+        {
+            throw new ArgumentException("Choose a supported Briefing template.", nameof(template));
+        }
+
+        return $"Synthesize the selected research into a {template} Briefing covering {string.Join(", ", sections)}. " +
+               "Preserve uncertainty and cite only the selected Investigations.";
+    }
 }

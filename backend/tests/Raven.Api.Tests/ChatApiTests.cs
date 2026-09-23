@@ -10,6 +10,7 @@ using Raven.Api.Features.Chat;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Ai;
 
@@ -21,6 +22,44 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     {
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
+
+    [Fact]
+    public async Task Provider_health_uses_recent_gemini_telemetry_and_omits_raw_error_messages()
+    {
+        var model = $"test-model-{Guid.NewGuid():N}";
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.ResearchEvents.Add(new ResearchEvent
+            {
+                Category = ResearchEventCategory.AI,
+                Operation = "company_chat",
+                Status = ResearchEventStatus.Failed,
+                Provider = "gemini",
+                Model = model,
+                Sequence = DateTimeOffset.UtcNow.UtcTicks,
+                Timestamp = DateTimeOffset.UtcNow.AddSeconds(-20),
+                HttpStatus = 429,
+                ErrorCode = "resource_exhausted",
+                ErrorMessage = "raw provider details must not reach the status page"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var httpResponse = await factory.CreateClient().GetAsync("/api/system/provider-health");
+        var body = await httpResponse.Content.ReadAsStringAsync();
+        Assert.True(httpResponse.IsSuccessStatusCode, body);
+        var response = JsonSerializer.Deserialize<ProviderHealthResponse>(body, JsonOptions);
+        Assert.NotNull(response);
+        var health = Assert.Single(response.Models, item => item.Provider == "gemini" && item.Model == model);
+        Assert.Equal("Degraded", health.State);
+        Assert.Equal(429, health.LastFailureHttpStatus);
+        Assert.Equal("Rate limited by the provider.", health.LastFailureSummary);
+        Assert.Equal(1, health.RequestsLastMinute);
+        var activity = Assert.Single(response.RecentActivity, item => item.Provider == "gemini" && item.Model == model);
+        Assert.Equal("RateLimited", activity.FailureKind);
+        Assert.DoesNotContain("raw provider details must not reach the status page", JsonSerializer.Serialize(response));
+    }
 
     [Fact]
     public async Task Create_and_get_conversation_pin_the_accepted_profile()

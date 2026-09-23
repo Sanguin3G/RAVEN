@@ -40,6 +40,10 @@ public static class AiServiceCollectionExtensions
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds));
         });
+        services.AddHttpClient<IGeminiModelCatalog, GeminiModelCatalog>((serviceProvider, client) =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(4);
+        });
         services.AddScoped<IAiModelProvider>(serviceProvider => new InstrumentedAiModelProvider(
             serviceProvider.GetRequiredService<GeminiProvider>(),
             serviceProvider.GetRequiredService<IResearchEventWriter>(),
