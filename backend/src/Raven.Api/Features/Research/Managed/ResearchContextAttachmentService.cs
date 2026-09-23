@@ -62,7 +62,8 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
 public sealed class ResearchContextAttachmentService(
     IResearchContextAttachmentStore attachments,
     IManagedResearchInvestigationStore investigations,
-    IManagedResearchClock clock) : IResearchContextAttachmentService
+    IManagedResearchClock clock,
+    RavenDbContext? db = null) : IResearchContextAttachmentService
 {
     public async Task<IReadOnlyList<ResearchContextAttachmentResponse>> ListAsync(
         Guid companyId,
@@ -70,6 +71,7 @@ public sealed class ResearchContextAttachmentService(
         CancellationToken cancellationToken = default)
     {
         ValidateScope(companyId, conversationId);
+        await ValidateConversationAsync(companyId, conversationId, cancellationToken);
         var rows = await attachments.ListAsync(companyId, conversationId, cancellationToken);
         var responses = new List<ResearchContextAttachmentResponse>(rows.Count);
         foreach (var row in rows)
@@ -92,6 +94,7 @@ public sealed class ResearchContextAttachmentService(
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateScope(companyId, request.ConversationId);
+        await ValidateConversationAsync(companyId, request.ConversationId, cancellationToken);
         if (investigationId == Guid.Empty)
         {
             throw new ArgumentException("An investigation ID is required.", nameof(investigationId));
@@ -108,6 +111,12 @@ public sealed class ResearchContextAttachmentService(
         {
             return ToResponse(existing, investigation);
         }
+
+        var running = db is null ? 0 : await db.ManagedResearchJobs.CountAsync(item =>
+            item.CompanyId == companyId && item.ConversationId == request.ConversationId && item.AnswerInChat &&
+            (item.Status == ManagedResearchJobStatus.Queued || item.Status == ManagedResearchJobStatus.Researching), cancellationToken);
+        if ((await attachments.ListAsync(companyId, request.ConversationId, cancellationToken)).Count + running >= 5)
+            throw new ArgumentException("A chat can attach at most five Investigations.", nameof(request));
 
         var attachment = new ResearchContextAttachment
         {
@@ -127,6 +136,7 @@ public sealed class ResearchContextAttachmentService(
         CancellationToken cancellationToken = default)
     {
         ValidateScope(companyId, conversationId);
+        await ValidateConversationAsync(companyId, conversationId, cancellationToken);
         if (investigationId == Guid.Empty)
         {
             throw new ArgumentException("An investigation ID is required.", nameof(investigationId));
@@ -148,6 +158,13 @@ public sealed class ResearchContextAttachmentService(
             investigation.Summary,
             investigation.CompletedAt,
             attachment.AttachedAt);
+
+    private async Task ValidateConversationAsync(Guid companyId, Guid conversationId, CancellationToken cancellationToken)
+    {
+        if (db is not null && !await db.ChatConversations.AnyAsync(
+                item => item.Id == conversationId && item.CompanyId == companyId, cancellationToken))
+            throw new KeyNotFoundException("The conversation does not belong to this company.");
+    }
 
     private static void ValidateScope(Guid companyId, Guid conversationId)
     {

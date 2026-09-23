@@ -3,9 +3,10 @@ export type ChatMessageRole = "User" | "Assistant";
 export type ChatMessageStatus = "Pending" | "Completed" | "Failed";
 
 export interface ChatCitation {
-  origin: "Profile" | "Web";
+  origin: "Profile" | "Web" | "Investigation";
   sourceDocumentId?: string | null;
   webEvidenceSnapshotId?: string | null;
+  investigationId?: string | null;
   fieldPath?: string | null;
   title?: string | null;
   url: string;

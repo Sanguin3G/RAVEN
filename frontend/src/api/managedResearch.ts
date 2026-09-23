@@ -14,6 +14,7 @@ export interface ManagedResearchJob {
   companyId: string;
   conversationId?: string | null;
   chatMessageId?: string | null;
+  answerInChat?: boolean;
   objective: string;
   purpose?: ManagedResearchPurpose;
   provider?: string | null;
@@ -42,6 +43,7 @@ export interface ResearchContextAttachment {
 
 export interface StartManagedResearchOptions {
   conversationId?: string;
+  answerInChat?: boolean;
   chatMessageId?: string;
   effort?: ManagedResearchEffort;
   purpose?: ManagedResearchPurpose;
@@ -55,6 +57,7 @@ function companyPath(companyId: string) {
 export function startManagedResearch(companyId: string, objective: string, options?: StartManagedResearchOptions) {
   const body: Record<string, unknown> = { objective: objective.trim() };
   if (options?.conversationId) body.conversationId = options.conversationId;
+  if (options?.answerInChat) body.answerInChat = true;
   if (options?.chatMessageId) body.chatMessageId = options.chatMessageId;
   if (options?.effort) body.effort = options.effort;
   if (options?.purpose) body.purpose = options.purpose;

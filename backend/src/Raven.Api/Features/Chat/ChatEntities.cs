@@ -1,6 +1,7 @@
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.ManagedResearch;
 
 namespace Raven.Api.Features.Chat;
 
@@ -26,6 +27,7 @@ public sealed class ChatMessage
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid ConversationId { get; init; }
+    public Guid? ManagedResearchJobId { get; init; }
     public ChatConversation Conversation { get; init; } = null!;
     public ChatMessageRole Role { get; init; }
     public required string Content { get; set; }
@@ -76,6 +78,8 @@ public sealed class ChatCitation
     public Guid? SourceDocumentId { get; init; }
     public SourceDocument? SourceDocument { get; init; }
     public Guid? WebEvidenceSnapshotId { get; init; }
+    public Guid? InvestigationId { get; init; }
+    public ManagedResearchInvestigation? Investigation { get; init; }
     public ChatWebEvidenceSnapshot? WebEvidenceSnapshot { get; init; }
     public string? FieldPath { get; init; }
     public ChatCitationOrigin Origin { get; init; } = ChatCitationOrigin.Profile;

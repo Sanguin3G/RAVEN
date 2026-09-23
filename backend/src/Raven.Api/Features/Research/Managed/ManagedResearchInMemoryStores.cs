@@ -89,6 +89,7 @@ public sealed class InMemoryManagedResearchJobStore : IManagedResearchJobStore
         CompanyId = job.CompanyId,
         ConversationId = job.ConversationId,
         ChatMessageId = job.ChatMessageId,
+        AnswerInChat = job.AnswerInChat,
         Objective = job.Objective,
         ProviderQuery = job.ProviderQuery,
         Effort = job.Effort,

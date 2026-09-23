@@ -38,6 +38,7 @@ public sealed class ManagedResearchJobConfiguration : IEntityTypeConfiguration<M
             entity.Property(item => item.Error).HasMaxLength(4_000);
             entity.HasIndex(item => new { item.CompanyId, item.CreatedAt });
             entity.HasIndex(item => new { item.Status, item.CreatedAt });
+            entity.Property(item => item.AnswerInChat).HasDefaultValue(false);
             entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
         
     }
@@ -505,6 +506,7 @@ public sealed class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMess
             entity.Property(message => message.AiModel).HasMaxLength(200);
             entity.Property(message => message.Activity).HasMaxLength(100);
             entity.HasIndex(message => new { message.ConversationId, message.CreatedAt });
+            entity.HasIndex(message => message.ManagedResearchJobId).IsUnique();
             entity.HasOne(message => message.Conversation)
                 .WithMany(conversation => conversation.Messages)
                 .HasForeignKey(message => message.ConversationId)
@@ -544,9 +546,10 @@ public sealed class ChatCitationConfiguration : IEntityTypeConfiguration<ChatCit
             entity.Property(citation => citation.Excerpt).HasMaxLength(1_000);
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.SourceDocumentId }).IsUnique();
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.WebEvidenceSnapshotId }).IsUnique();
+            entity.HasIndex(citation => new { citation.ChatMessageId, citation.InvestigationId }).IsUnique();
             entity.ToTable(table => table.HasCheckConstraint(
                 "CK_ChatCitations_ExactlyOneEvidence",
-                "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL)"));
+                "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL AND \"InvestigationId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NOT NULL)"));
             entity.HasOne(citation => citation.ChatMessage)
                 .WithMany(message => message.Citations)
                 .HasForeignKey(citation => citation.ChatMessageId)
@@ -560,6 +563,10 @@ public sealed class ChatCitationConfiguration : IEntityTypeConfiguration<ChatCit
                 .WithMany()
                 .HasForeignKey(citation => citation.WebEvidenceSnapshotId)
                 .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(citation => citation.Investigation)
+                .WithMany()
+                .HasForeignKey(citation => citation.InvestigationId)
                 .OnDelete(DeleteBehavior.Restrict);
         
     }

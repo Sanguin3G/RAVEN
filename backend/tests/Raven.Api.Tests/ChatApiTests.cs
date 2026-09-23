@@ -13,6 +13,7 @@ using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Ai;
 using Raven.Api.Features.Settings;
+using Raven.Api.Features.ManagedResearch;
 
 namespace Raven.Api.Tests;
 
@@ -357,6 +358,148 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
     }
 
+    [Fact]
+    public async Task Attached_investigation_grounds_chat_and_citation_is_restored()
+    {
+        var agent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Conversational, "Ready", [], null));
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => agent);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var investigation = new ManagedResearchInvestigation
+        {
+            CompanyId = company.Id, JobId = Guid.NewGuid(), Origin = "ManagedAi", Objective = "Which markets are served?",
+            Summary = "Research found an enterprise market.",
+            ResultJson = JsonSerializer.Serialize(new ManagedResearchResult("fake", "Which markets are served?",
+                "Research found an enterprise market.",
+                [new ManagedResearchClaim("Markets", "Enterprise customers are served.", ["https://example.com/markets"])],
+                [new ManagedResearchSource("Markets", "https://example.com/markets")])),
+            CompletedAt = DateTimeOffset.UtcNow
+        };
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.ManagedResearchInvestigations.Add(investigation);
+            await db.SaveChangesAsync();
+        }
+
+        var attach = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/managed-research/{investigation.Id}/context-attachments",
+            new AttachResearchContextRequest(conversation.Id));
+        Assert.Equal(HttpStatusCode.Created, attach.StatusCode);
+        agent.Result = new ChatAgentResult(ChatAnswerStatus.Answered,
+            "The Investigation reports enterprise customers.", [], null, [], [investigation.Id]);
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("What did the Investigation find?"));
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        Assert.Contains(agent.LastRequest!.Investigations!, item => item.Id == investigation.Id &&
+            item.Material.Contains("Enterprise customers are served.", StringComparison.Ordinal));
+        var restored = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        var assistant = Assert.Single(restored!.Messages, item => item.Role == ChatMessageRole.Assistant);
+        var citation = Assert.Single(assistant.Citations);
+        Assert.Equal(ChatCitationOrigin.Investigation, citation.Origin);
+        Assert.Equal(investigation.Id, citation.InvestigationId);
+
+        var other = await CreateCompanyAsync(client);
+        await SeedProfileAsync(other.Id, 1, "Other profile");
+        var otherConversation = await CreateConversationAsync(client, other.Id);
+        var wrongCompany = await client.PostAsJsonAsync(
+            $"/api/companies/{other.Id}/managed-research/{investigation.Id}/context-attachments",
+            new AttachResearchContextRequest(otherConversation.Id));
+        Assert.Equal(HttpStatusCode.NotFound, wrongCompany.StatusCode);
+        var wrongConversation = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/managed-research/{investigation.Id}/context-attachments",
+            new AttachResearchContextRequest(otherConversation.Id));
+        Assert.Equal(HttpStatusCode.NotFound, wrongConversation.StatusCode);
+        var wrongList = await client.GetAsync(
+            $"/api/companies/{company.Id}/research-context-attachments?conversationId={otherConversation.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, wrongList.StatusCode);
+        var wrongRemoval = await client.DeleteAsync(
+            $"/api/companies/{company.Id}/managed-research/{investigation.Id}/context-attachments?conversationId={otherConversation.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, wrongRemoval.StatusCode);
+    }
+
+    [Fact]
+    public async Task Completed_chat_research_attaches_and_answers_once()
+    {
+        var agent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Conversational, "Ready", [], null));
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => agent);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var user = new ChatMessage { ConversationId = conversation.Id, Role = ChatMessageRole.User,
+            Content = "What markets does this company serve?", Status = ChatMessageStatus.Completed };
+        var job = new ManagedResearchJob { CompanyId = company.Id, ConversationId = conversation.Id,
+            ChatMessageId = user.Id, AnswerInChat = true, Objective = user.Content,
+            ProviderQuery = user.Content };
+        var investigation = new ManagedResearchInvestigation { CompanyId = company.Id,
+            JobId = job.Id, ConversationId = conversation.Id, ChatMessageId = user.Id, Origin = "ManagedAi",
+            Objective = user.Content, Summary = "Enterprise customers are served.",
+            ResultJson = JsonSerializer.Serialize(new ManagedResearchResult("fake", user.Content,
+                "Enterprise customers are served.")), CompletedAt = DateTimeOffset.UtcNow };
+        job.Complete(investigation.ResultJson, investigation.Id, investigation.CompletedAt);
+        agent.Result = new ChatAgentResult(ChatAnswerStatus.Answered,
+            "The Investigation reports enterprise customers.", [], null, [], [investigation.Id]);
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.AddRange(user, job, investigation);
+            await db.SaveChangesAsync();
+        }
+        using (var scope = app.Services.CreateScope())
+        {
+            var bridge = scope.ServiceProvider.GetRequiredService<ManagedResearchChatBridge>();
+            await bridge.CompleteAsync(job, CancellationToken.None);
+            await bridge.CompleteAsync(job, CancellationToken.None);
+        }
+        var restored = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        Assert.Equal(2, restored!.Messages.Count);
+        var assistant = Assert.Single(restored.Messages, item => item.Role == ChatMessageRole.Assistant);
+        Assert.Equal(ChatMessageStatus.Completed, assistant.Status);
+        Assert.Equal(investigation.Id, Assert.Single(assistant.Citations).InvestigationId);
+        Assert.Contains(agent.LastRequest!.Investigations!, item => item.Id == investigation.Id);
+    }
+
+    [Fact]
+    public async Task Chat_deep_research_requires_profile_and_persists_approved_question_at_start()
+    {
+        var client = factory.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        var rejected = await client.PostAsJsonAsync($"/api/companies/{company.Id}/managed-research",
+            new StartManagedResearchRequest("What does this company sell?", Guid.NewGuid(),
+                AnswerInChat: true));
+        Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
+
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var started = await client.PostAsJsonAsync($"/api/companies/{company.Id}/managed-research",
+            new StartManagedResearchRequest("What does this company sell?", conversation.Id,
+                AnswerInChat: true));
+        Assert.Equal(HttpStatusCode.Accepted, started.StatusCode);
+        var job = await started.Content.ReadFromJsonAsync<ManagedResearchJobResponse>(JsonOptions);
+        Assert.NotNull(job);
+        Assert.True(job.AnswerInChat);
+        Assert.NotNull(job.ChatMessageId);
+        var history = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        var user = Assert.Single(history!.Messages, item => item.Role == ChatMessageRole.User);
+        Assert.Equal(job.ChatMessageId, user.Id);
+        Assert.Equal(job.Objective, user.Content);
+    }
+
     private static async Task<CompanyResponse> CreateCompanyAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync("/api/companies", new CreateCompanyRequest($"Chat Company {Guid.NewGuid():N}", "https://example.com", "Vietnam"));
@@ -426,12 +569,16 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     private sealed class FakeAgentFactory(ChatAgentResult result) : ICompanyChatAgentFactory
     {
         public ChatAgentResult Result { get; set; } = result;
+        public ChatAgentRequest? LastRequest { get; private set; }
         public ICompanyChatAgent Create() => new FakeAgent(this);
 
         private sealed class FakeAgent(FakeAgentFactory owner) : ICompanyChatAgent
         {
-            public Task<ChatAgentCompletion> RunAsync(ChatAgentRequest request, CancellationToken cancellationToken = default) =>
-                Task.FromResult(new ChatAgentCompletion(owner.Result, "fake", "fake-model", []));
+            public Task<ChatAgentCompletion> RunAsync(ChatAgentRequest request, CancellationToken cancellationToken = default)
+            {
+                owner.LastRequest = request;
+                return Task.FromResult(new ChatAgentCompletion(owner.Result, "fake", "fake-model", []));
+            }
         }
     }
 

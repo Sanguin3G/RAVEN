@@ -9,7 +9,7 @@ namespace Raven.Api.Features.Chat;
 public enum ChatAnswerStatus { Answered, Conversational, Guidance, ClarificationRequired, InsufficientEvidence, UnsupportedScope }
 public enum ChatMessageRole { User, Assistant }
 public enum ChatMessageStatus { Pending, Completed, Failed }
-public enum ChatCitationOrigin { Profile, Web }
+public enum ChatCitationOrigin { Profile, Web, Investigation }
 public enum ChatProgressStage { Analyzing, CheckingProfile, WebSearching, Crawling, Composing, Completed, Failed }
 
 public sealed record CreateChatMessageRequest(string Question);
@@ -29,7 +29,8 @@ public sealed record ChatCitationResponse(
     string? FieldPath,
     string? Title,
     string Url,
-    DateTimeOffset RetrievedAt);
+    DateTimeOffset RetrievedAt,
+    Guid? InvestigationId = null);
 
 public sealed record ChatWebEvidenceSnapshotResponse(
     Guid Id,
@@ -90,7 +91,8 @@ public sealed record ChatAgentResult(
     string Answer,
     IReadOnlyList<Guid> CitedSourceDocumentIds,
     string? FollowUpQuestion,
-    IReadOnlyList<string>? CitedWebEvidenceCandidateIds = null);
+    IReadOnlyList<string>? CitedWebEvidenceCandidateIds = null,
+    IReadOnlyList<Guid>? CitedInvestigationIds = null);
 
 public sealed record ChatAgentCompletion(
     ChatAgentResult Result,
@@ -108,7 +110,11 @@ public sealed record ChatAgentRequest(
     string Question,
     bool WebSearchEnabled = false,
     Guid AssistantMessageId = default,
-    IChatProgressReporter? ProgressReporter = null);
+    IChatProgressReporter? ProgressReporter = null,
+    IReadOnlyList<ChatInvestigationContext>? Investigations = null,
+    Guid? RequiredInvestigationId = null);
+
+public sealed record ChatInvestigationContext(Guid Id, string Objective, string Summary, string Material, DateTimeOffset CompletedAt);
 
 public interface IChatProgressReporter
 {
@@ -132,4 +138,5 @@ public interface ICompanyChatService
     Task<ChatConversationResponse> UpdateCapabilitiesAsync(Guid companyId, Guid conversationId, UpdateChatCapabilitiesRequest request, CancellationToken cancellationToken);
     Task<SendChatMessageResponse> SendMessageAsync(Guid companyId, Guid conversationId, CreateChatMessageRequest request, CancellationToken cancellationToken);
     Task<SendChatMessageResponse> SendMessageStreamAsync(Guid companyId, Guid conversationId, CreateChatMessageRequest request, IChatProgressReporter progressReporter, CancellationToken cancellationToken);
+    Task AnswerManagedResearchAsync(Guid companyId, Guid conversationId, Guid userMessageId, Guid jobId, CancellationToken cancellationToken);
 }

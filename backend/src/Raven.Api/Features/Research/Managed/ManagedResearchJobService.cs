@@ -25,7 +25,8 @@ public sealed class ManagedResearchJobService(
     IManagedResearchInvestigationStore investigations,
     IManagedResearchClock clock,
     IManagedResearchJobQueue queue,
-    IResearchSettingsService? settings = null) : IManagedResearchJobService
+    IResearchSettingsService? settings = null,
+    ManagedResearchChatBridge? chatBridge = null) : IManagedResearchJobService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -66,11 +67,18 @@ public sealed class ManagedResearchJobService(
             ? ManagedResearchDepth.Adaptive
             : (await settings.GetAsync(cancellationToken)).ManagedResearchDepth;
 
+        if (request.AnswerInChat && (request.ConversationId is null || request.Purpose != ManagedResearchPurpose.General || chatBridge is null))
+            throw new ArgumentException("Chat Deep Research requires an accepted-profile conversation.", nameof(request));
+        var chatMessageId = request.AnswerInChat
+            ? await chatBridge!.PrepareAsync(companyId, request.ConversationId!.Value, objective, cancellationToken)
+            : request.ChatMessageId;
+
         var job = new ManagedResearchJob
         {
             CompanyId = companyId,
             ConversationId = request.ConversationId,
-            ChatMessageId = request.ChatMessageId,
+            ChatMessageId = chatMessageId,
+            AnswerInChat = request.AnswerInChat,
             Objective = objective,
             ProviderQuery = ManagedResearchQueryBuilder.Build(context, objective),
             Effort = ToEffortValue(request.Effort == ManagedResearchEffort.Auto ? ManagedResearchEffortResolver.FromDepth(configuredDepth) : request.Effort),
@@ -300,7 +308,8 @@ public sealed class ManagedResearchJobService(
             job.ProviderCostDollars,
             job.InvestigationId,
             job.Error,
-            job.Purpose);
+            job.Purpose,
+            job.AnswerInChat);
 
     private static ManagedResearchResult? DeserializeResult(string? resultJson)
     {

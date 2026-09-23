@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using Raven.Api.Data;
+using Raven.Api.Features.Chat;
 
 namespace Raven.Api.Features.ManagedResearch;
 
@@ -25,6 +28,14 @@ public sealed class ManagedResearchWorker(
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var service = scope.ServiceProvider.GetRequiredService<IManagedResearchJobService>();
                 response = await service.ProcessAsync(jobId, stoppingToken);
+                if (response?.Status == ManagedResearchJobStatus.Completed && response.AnswerInChat)
+                {
+                    var job = await scope.ServiceProvider.GetRequiredService<IManagedResearchJobStore>()
+                        .GetAsync(jobId, stoppingToken);
+                    if (job is not null)
+                        await scope.ServiceProvider.GetRequiredService<ManagedResearchChatBridge>()
+                            .CompleteAsync(job, stoppingToken);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -62,6 +73,14 @@ public sealed class ManagedResearchWorker(
             {
                 await queue.EnqueueAsync(job.Id, cancellationToken);
             }
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            var pendingChatJobIds = await db.ManagedResearchJobs.AsNoTracking()
+                .Where(job => job.Status == ManagedResearchJobStatus.Completed && job.AnswerInChat &&
+                    !db.ChatMessages.Any(message => message.ManagedResearchJobId == job.Id &&
+                        (message.Status == ChatMessageStatus.Completed || message.Status == ChatMessageStatus.Failed)))
+                .Select(job => job.Id).ToArrayAsync(cancellationToken);
+            foreach (var jobId in pendingChatJobIds)
+                await queue.EnqueueAsync(jobId, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

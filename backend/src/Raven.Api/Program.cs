@@ -89,6 +89,7 @@ builder.Services.AddScoped<IManagedResearchJobStore, EfManagedResearchJobStore>(
 builder.Services.AddScoped<IManagedResearchInvestigationStore, EfManagedResearchInvestigationStore>();
 builder.Services.AddScoped<IResearchContextAttachmentStore, EfResearchContextAttachmentStore>();
 builder.Services.AddScoped<IResearchContextAttachmentService, ResearchContextAttachmentService>();
+builder.Services.AddScoped<ManagedResearchChatBridge>();
 builder.Services.AddScoped<IManagedResearchCompanyContextReader, EfManagedResearchCompanyContextReader>();
 builder.Services.AddScoped<IManagedResearchBriefPreviewService, ManagedResearchBriefPreviewService>();
 builder.Services.AddSingleton<IManagedResearchClock, SystemManagedResearchClock>();

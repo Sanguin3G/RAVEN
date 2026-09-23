@@ -44,15 +44,17 @@ const statusLabels: Record<ChatAnswerStatus, string> = {
   UnsupportedScope: "Outside current company scope",
 };
 
-type AnswerEvidenceMode = "Profile" | "Web" | "Mixed";
+type AnswerEvidenceMode = "Profile" | "Web" | "Investigation" | "Mixed";
 
 function getAnswerEvidenceMode(message: ChatMessage): AnswerEvidenceMode | null {
   if (message.role !== "Assistant" || !message.answerStatus) return null;
   const hasProfile = message.citations.some((citation) => citation.origin === "Profile");
   const hasWeb = message.citations.some((citation) => citation.origin === "Web");
-  if (hasProfile && hasWeb) return "Mixed";
+  const hasInvestigation = message.citations.some((citation) => citation.origin === "Investigation");
+  if (Number(hasProfile) + Number(hasWeb) + Number(hasInvestigation) > 1) return "Mixed";
   if (hasProfile) return "Profile";
   if (hasWeb) return "Web";
+  if (hasInvestigation) return "Investigation";
   return null;
 }
 
@@ -68,13 +70,17 @@ const starterPrompts = [
 ];
 
 type ComposerCapability = "webSearch" | "deepResearch";
-type HandoffMessage = ChatMessage & {
-  managedResearchJobId?: string;
-};
-
 function researchInvestigationHref(companyId: string, job: ManagedResearchJob) {
   const id = job.investigationId ?? job.id;
-  return `/companies/${encodeURIComponent(companyId)}?tab=investigations&research=${encodeURIComponent(id)}`;
+  const params = new URLSearchParams({ tab: "investigations", research: id });
+  if (job.answerInChat && job.conversationId) params.set("conversation", job.conversationId);
+  return `/companies/${encodeURIComponent(companyId)}?${params.toString()}`;
+}
+
+function investigationsHref(companyId: string, conversationId: string | null) {
+  const params = new URLSearchParams({ tab: "investigations" });
+  if (conversationId) params.set("conversation", conversationId);
+  return `/companies/${encodeURIComponent(companyId)}?${params.toString()}`;
 }
 
 function syncManagedResearchActivity(companyName: string, job: ManagedResearchJob) {
@@ -108,7 +114,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedConversationId = searchParams.get("conversation");
   const [conversationId, setConversationId] = useState<string | null>(requestedConversationId);
-  const [messages, setMessages] = useState<HandoffMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
@@ -126,11 +132,14 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [managedResearchJobs, setManagedResearchJobs] = useState<ManagedResearchJob[]>([]);
   const [researchContextAttachments, setResearchContextAttachments] = useState<ResearchContextAttachment[]>([]);
   const [attachingResearchId, setAttachingResearchId] = useState<string | null>(null);
+  const [investigationPickerOpen, setInvestigationPickerOpen] = useState(false);
+  const [investigationSearch, setInvestigationSearch] = useState("");
   const capabilitiesId = useId();
   const capabilitiesRef = useRef<HTMLDivElement>(null);
   const capabilitiesTriggerRef = useRef<HTMLButtonElement>(null);
   const investigationsLinkRef = useRef<HTMLAnchorElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  const activeCompanyIdRef = useRef(companyId);
   const researchContextLoadVersionRef = useRef(0);
   const researchBriefVersionRef = useRef(0);
   const researched = formatDate(lastResearchedAt);
@@ -171,10 +180,18 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
 
   useEffect(() => {
     let active = true;
+    const companyChanged = activeCompanyIdRef.current !== companyId;
+    activeCompanyIdRef.current = companyId;
     if (!requestedConversationId) {
-      setConversationId(null);
-      setMessages([]);
-      setWebSearchEnabled(false);
+      // Investigation and dossier navigation changes other query parameters.
+      // Keep the mounted company's active chat unless the user explicitly
+      // starts a new one; otherwise opening a running Investigation erases the
+      // visible history even though the durable conversation still exists.
+      if (companyChanged || !conversationId) {
+        setConversationId(null);
+        setMessages([]);
+        setWebSearchEnabled(false);
+      }
       setConversationLoading(false);
       return () => { active = false; };
     }
@@ -220,12 +237,29 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   };
 
   useEffect(() => {
-    if (initialCapability !== "deepResearch") return;
+    if (initialCapability !== "deepResearch" || !profileVersionId) return;
     setActiveCapability("deepResearch");
     setCapabilitiesOpen(false);
     if (initialQuestion) setQuestion(initialQuestion);
     window.setTimeout(() => questionInputRef.current?.focus(), 0);
-  }, [initialCapability, initialQuestion]);
+  }, [initialCapability, initialQuestion, profileVersionId]);
+
+  useEffect(() => {
+    if (!conversationId || pending || !managedResearchJobs.some((job) => job.answerInChat && job.conversationId === conversationId)) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const conversation = await getChatConversation(companyId, conversationId);
+        if (!active || !conversation?.messages) return;
+        setMessages(conversation.messages);
+        const attachments = await getResearchContextAttachments(companyId, conversationId);
+        if (active) setResearchContextAttachments(attachments);
+      } catch { /* A later poll can recover the durable chat history. */ }
+    };
+    void refresh();
+    const interval = window.setInterval(() => { void refresh(); }, 10_000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [companyId, conversationId, pending, managedResearchJobs]);
 
   useEffect(() => {
     if (!capabilitiesOpen) return;
@@ -285,10 +319,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     void getResearchContextAttachments(companyId, conversationId)
       .then((attachments) => {
         if (active && loadVersion === researchContextLoadVersionRef.current) {
-          setResearchContextAttachments((current) => [
-            ...attachments,
-            ...current.filter((item) => !attachments.some((loaded) => loaded.id === item.id)),
-          ]);
+          setResearchContextAttachments(attachments);
         }
       })
       .catch(() => {
@@ -323,7 +354,11 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   };
 
   const startDeepResearchBrief = async () => {
-    if (!deepResearchBrief || deepResearchStarting || pending) return;
+    if (!profileVersionId || !deepResearchBrief || deepResearchStarting || pending) return;
+    if (researchContextAttachments.length + managedResearchJobs.filter((job) => job.answerInChat && job.conversationId === conversationId && (job.status === "Queued" || job.status === "Researching")).length >= 5) {
+      setError("Remove an attached Investigation before starting another Deep Research in this chat.");
+      return;
+    }
     const approvedQuestion = deepResearchBrief.question.trim();
     if (!approvedQuestion || approvedQuestion.length > 4_000) {
       setError("Enter one research question of at most 4,000 characters before starting Deep Research.");
@@ -339,6 +374,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
       const job = await startManagedResearch(companyId, approvedQuestion, {
         conversationId: activeConversationId,
         contextRevision: deepResearchBrief.contextRevision,
+        answerInChat: true,
       });
       const createdAt = new Date().toISOString();
       addManagedResearchJob(job);
@@ -353,18 +389,8 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           toolExecutions: [],
           createdAt,
         },
-        {
-          id: `managed-research-started-${job.id}`,
-          role: "Assistant",
-          content: "Deep Research started\n\nRunning in the background. Results will appear in Investigations.",
-          status: "Completed",
-          citations: [],
-          webEvidenceSnapshots: [],
-          toolExecutions: [],
-          createdAt,
-          managedResearchJobId: job.id,
-        },
       ]);
+      setConversationInUrl(activeConversationId);
       setQuestion("");
       setDeepResearchBrief(null);
       setDeepResearchOriginalQuestion(null);
@@ -396,17 +422,19 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   };
 
   const attachInvestigation = async (job: ManagedResearchJob) => {
-    if (!job.investigationId || attachingResearchId) return;
+    if (!profileVersionId || !job.investigationId || attachingResearchId || researchContextAttachments.length >= 5) return;
 
     setAttachingResearchId(job.id);
     setError(null);
     try {
       const activeConversationId = await ensureConversation();
       const attachment = await attachResearchContext(companyId, job.investigationId, activeConversationId);
+      researchContextLoadVersionRef.current += 1;
       setResearchContextAttachments((current) => [
         attachment,
         ...current.filter((item) => item.id !== attachment.id && item.investigationId !== attachment.investigationId),
       ]);
+      setInvestigationPickerOpen(false);
     } catch (attachmentError) {
       setError(attachmentError instanceof Error ? attachmentError.message : "Could not attach this investigation.");
     } finally {
@@ -417,7 +445,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const submitQuestion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = question.trim();
-    if (!trimmed || pending || deepResearchBriefLoading || deepResearchStarting || deepResearchBrief || (activeCapability !== "deepResearch" && !profileVersionId)) return;
+    if (!trimmed || !profileVersionId || pending || deepResearchBriefLoading || deepResearchStarting || deepResearchBrief) return;
 
     if (activeCapability === "deepResearch") {
       setError(null);
@@ -502,14 +530,14 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <Plus size={14} weight="bold" aria-hidden="true" />
           <span>New chat</span>
         </button>
-        <span className={styles.handoffStatus}>{pending ? "Thinking" : deepResearchBriefLoading ? "Preparing research question" : deepResearchStarting ? "Launching research" : conversationLoading ? "Loading chat" : profileVersionId ? webSearchEnabled ? "Web permitted" : "Profile only" : activeCapability === "deepResearch" ? "Deep Research ready" : "Profile required"}</span>
+        <span className={styles.handoffStatus}>{pending ? "Thinking" : deepResearchBriefLoading ? "Preparing research question" : deepResearchStarting ? "Launching research" : conversationLoading ? "Loading chat" : profileVersionId ? webSearchEnabled ? "Web permitted" : "Profile only" : "Profile required"}</span>
       </header>
 
       <div className={styles.chatViewport} aria-live="polite" aria-label="Ask RAVEN conversation">
         {messages.length === 0 && !deepResearchBrief && !deepResearchBriefLoading ? <div className={styles.chatEmptyState}>
           <span className={styles.chatEmptyMark} aria-hidden="true">✦</span>
-          <strong>{profileVersionId ? "Ask about this company" : activeCapability === "deepResearch" ? "Start a Deep Research investigation" : "Accept a profile first"}</strong>
-          <p>{profileVersionId ? "Answers are grounded in the accepted profile and its evidence." : activeCapability === "deepResearch" ? "Deep Research can investigate the company while the accepted profile is still incomplete." : "Ask RAVEN becomes available after a company profile is accepted."}</p>
+          <strong>{profileVersionId ? "Ask about this company" : "Accept a profile first"}</strong>
+          <p>{profileVersionId ? "Answers are grounded in the accepted profile and its evidence." : "Ask RAVEN and Deep Research in chat require an accepted company profile."}</p>
           {profileVersionId ? <div className={styles.starterList} aria-label="Suggested questions">
             {starterPrompts.map((prompt) => <button className={styles.starterPrompt} key={prompt} type="button" onClick={() => { setQuestion(prompt); questionInputRef.current?.focus(); }}>{prompt}</button>)}
           </div> : null}
@@ -519,22 +547,15 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
             {message.content ? <p>{message.content}</p> : null}
             {message.answerStatus ? <div className={styles.chatMessageMeta}><span className={styles.chatMessageStatus}>{statusLabels[message.answerStatus]}</span>{getAnswerEvidenceMode(message) ? <span className={`${styles.answerEvidenceBadge} ${styles[`answerEvidenceBadge${getAnswerEvidenceMode(message)}`]}`}>{getAnswerEvidenceMode(message)}</span> : null}</div> : null}
             {message.followUpQuestion ? <p className={styles.chatFollowUp}>{message.followUpQuestion}</p> : null}
-            {message.managedResearchJobId ? <a className={styles.researchMessageLink} href={researchInvestigationHref(companyId, managedResearchJobs.find((job) => job.id === message.managedResearchJobId) ?? {
-              id: message.managedResearchJobId,
-              companyId,
-              objective: message.content,
-              status: "Queued",
-              createdAt: message.createdAt,
-            })}>View investigation</a> : null}
             {message.citations.length > 0 ? <>
               <button className={styles.sourceToggle} type="button" aria-expanded={expandedSourceMessageId === message.id} onClick={() => setExpandedSourceMessageId((current) => current === message.id ? null : message.id)}>
                 <span>Nguồn</span><CaretDown className={styles.sourceChevron} size={13} aria-hidden="true" />
               </button>
               {expandedSourceMessageId === message.id ? <section className={styles.sourceList} aria-label="Sources used for this answer">
-                {message.citations.map((citation) => <a key={citation.webEvidenceSnapshotId ?? citation.sourceDocumentId ?? citation.url} className={styles.sourceItem} href={citation.url} target="_blank" rel="noreferrer">
-                  <span>{citation.origin === "Web" ? "Web source" : "Profile source"}</span>
+                {message.citations.map((citation) => <a key={citation.investigationId ?? citation.webEvidenceSnapshotId ?? citation.sourceDocumentId ?? citation.url} className={styles.sourceItem} href={citation.url} target={citation.origin === "Investigation" ? undefined : "_blank"} rel={citation.origin === "Investigation" ? undefined : "noreferrer"}>
+                  <span>{citation.origin === "Investigation" ? "Investigation" : citation.origin === "Web" ? "Web source" : "Profile source"}</span>
                   <strong>{citation.title ?? citation.fieldPath ?? sourceDomain(citation.url)}</strong>
-                  <small>{sourceDomain(citation.url)}</small>
+                  {citation.origin !== "Investigation" ? <small>{sourceDomain(citation.url)}</small> : null}
                 </a>)}
               </section> : null}
             </> : null}
@@ -565,19 +586,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         </section> : null}
         {pending ? <div className={styles.chatSystemMessage} role="status">{[...messages].reverse().find((message) => message.role === "Assistant" && message.status === "Pending")?.activity ?? "RAVEN is preparing an answer…"}</div> : null}
         {deepResearchStarting ? <div className={styles.chatSystemMessage} role="status">Starting Deep Research in the background...</div> : null}
+        {managedResearchJobs.some((job) => job.answerInChat && job.conversationId === conversationId && (job.status === "Queued" || job.status === "Researching")) ? <div className={styles.chatSystemMessage} role="status">Deep Research is running. RAVEN will answer from the Investigation when it is ready.</div> : null}
         {error ? <div className={styles.chatSystemMessage} role="alert">{error}</div> : null}
       </div>
-
-      {managedResearchJobs.some((job) => job.status === "Completed" && job.investigationId) ? <div className={styles.completedResearchActions} aria-label="Completed research">
-        <span className={styles.completedResearchLabel}>Ready research</span>
-        {managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId).map((job) => <div className={styles.completedResearchAction} key={job.id}>
-          <span title={job.objective}>Deep Research · {job.objective}</span>
-          <a href={researchInvestigationHref(companyId, job)}>Open</a>
-          <button type="button" onClick={() => void attachInvestigation(job)} disabled={attachingResearchId !== null}>
-            {attachingResearchId === job.id ? "Attaching…" : "Attach to Ask RAVEN"}
-          </button>
-        </div>)}
-      </div> : null}
 
       <form className={styles.assistantComposer} onSubmit={submitQuestion}>
         <label className="sr-only" htmlFor="ask-raven-question">{activeCapability === "deepResearch" ? `Research about ${companyName}` : `Ask about ${companyName}`}</label>
@@ -585,7 +596,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           id="ask-raven-question"
           ref={questionInputRef}
           value={question}
-          disabled={(!profileVersionId && activeCapability !== "deepResearch") || pending || deepResearchBriefLoading || deepResearchStarting || conversationLoading || deepResearchBrief !== null}
+          disabled={!profileVersionId || pending || deepResearchBriefLoading || deepResearchStarting || conversationLoading || deepResearchBrief !== null}
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -599,11 +610,29 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           rows={2}
         />
         {researchContextAttachments.length > 0 ? <div className={styles.researchContextAttachments} aria-label="Attached research context" role="group">
-          <span className={styles.researchContextLabel}>Attached context</span>
+          <span className={styles.researchContextLabel}>Research context</span>
           {researchContextAttachments.map((attachment) => <span className={styles.researchContextChip} key={attachment.id}>
             <span title={attachment.objective}>✦ {attachment.objective}</span>
             <button type="button" onClick={() => void removeAttachment(attachment)} aria-label={`Remove ${attachment.objective} context`}>×</button>
           </span>)}
+        </div> : null}
+        {profileVersionId ? <div className={styles.investigationPicker}>
+          <button type="button" className={styles.investigationPickerTrigger} aria-expanded={investigationPickerOpen} onClick={() => setInvestigationPickerOpen((open) => !open)}>
+            {investigationPickerOpen ? "Close research" : `Add research${researchContextAttachments.length ? ` (${researchContextAttachments.length}/5)` : ""}`}
+          </button>
+          {investigationPickerOpen ? <div className={styles.investigationPickerPanel} aria-label="Choose completed Deep Research">
+            <input aria-label="Find Deep Research" placeholder="Find completed research" value={investigationSearch} onChange={(event) => setInvestigationSearch(event.target.value)} />
+            <div className={styles.investigationPickerList}>
+              {managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId && job.objective.toLowerCase().includes(investigationSearch.toLowerCase())).length === 0 ? <p>No completed Deep Research found.</p> :
+                managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId && job.objective.toLowerCase().includes(investigationSearch.toLowerCase())).map((job) => <div className={styles.investigationPickerRow} key={job.id}>
+                  <span title={job.objective}>{job.objective}</span>
+                  <button type="button" onClick={() => void attachInvestigation(job)} disabled={attachingResearchId !== null || researchContextAttachments.length >= 5 || researchContextAttachments.some((item) => item.investigationId === job.investigationId)}>
+                    {researchContextAttachments.some((item) => item.investigationId === job.investigationId) ? "Added" : attachingResearchId === job.id ? "Adding…" : "Add"}
+                  </button>
+                </div>)}
+            </div>
+            {researchContextAttachments.length >= 5 ? <small>Remove one Investigation to add another.</small> : null}
+          </div> : null}
         </div> : null}
         <div className={styles.assistantComposerFooter}>
           <div className={styles.capabilityControls} ref={capabilitiesRef}>
@@ -625,7 +654,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
               </div>
               <ul className={styles.capabilityList}>
                 <li>
-                  <a className={styles.capabilityAction} ref={investigationsLinkRef} href={`/companies/${encodeURIComponent(companyId)}?tab=investigations`} onClick={() => setCapabilitiesOpen(false)}>
+                  <a className={styles.capabilityAction} ref={investigationsLinkRef} href={investigationsHref(companyId, conversationId)} onClick={() => setCapabilitiesOpen(false)}>
                     <span>Open Investigations</span>
                     <small>View saved research results</small>
                   </a>
@@ -650,6 +679,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
                     aria-pressed={activeCapability === "deepResearch"}
                     className={`${styles.capabilityAction} ${activeCapability === "deepResearch" ? styles.capabilitySelected : ""}`}
                     type="button"
+                    disabled={!profileVersionId}
                     onClick={() => {
                       setActiveCapability("deepResearch");
                       setDeepResearchBrief(null);
@@ -660,15 +690,15 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
                     }}
                   >
                     <span>Deep Research</span>
-                    <small>Investigate in the background and save the result</small>
+                    <small>{profileVersionId ? "Investigate, then answer in this chat" : "Accept a profile to use in chat"}</small>
                   </button>
                 </li>
               </ul>
             </div> : null}
           </div>
           {activeCapability === "deepResearch" ? <button className={styles.capabilityChip} type="button" onClick={() => { researchBriefVersionRef.current += 1; setDeepResearchBriefLoading(false); setActiveCapability(null); setDeepResearchBrief(null); setDeepResearchOriginalQuestion(null); setDeepResearchBriefEditing(false); }} aria-label="Remove Deep Research capability">✦ Deep Research ×</button> : null}
-          <span className={styles.assistantProfileBoundary} title={profileVersionId ? "Normal answers use the accepted Company Profile and its evidence" : "Deep Research can start from company identity and current research context"}><span aria-hidden="true">◉</span> {profileVersionId ? `v${profileVersion} · ${webSearchEnabled ? "web permitted" : "profile-only"}` : activeCapability === "deepResearch" ? "Company context · no accepted profile yet" : "Profile required for Chat"}</span>
-          <button className={styles.assistantSubmit} type="submit" disabled={!question.trim() || pending || deepResearchBriefLoading || deepResearchStarting || deepResearchBrief !== null || conversationLoading || (activeCapability !== "deepResearch" && !profileVersionId)} aria-label={activeCapability === "deepResearch" ? "Review research question" : "Send question"}>
+          <span className={styles.assistantProfileBoundary} title={profileVersionId ? "Answers can use the accepted profile and attached research" : "An accepted profile is required for chat"}><span aria-hidden="true">◉</span> {profileVersionId ? `v${profileVersion} · ${webSearchEnabled ? "web permitted" : "profile-only"}` : "Profile required for Chat"}</span>
+          <button className={styles.assistantSubmit} type="submit" disabled={!question.trim() || !profileVersionId || pending || deepResearchBriefLoading || deepResearchStarting || deepResearchBrief !== null || conversationLoading} aria-label={activeCapability === "deepResearch" ? "Review research question" : "Send question"}>
             <ArrowUp size={17} weight="bold" aria-hidden="true" />
           </button>
         </div>

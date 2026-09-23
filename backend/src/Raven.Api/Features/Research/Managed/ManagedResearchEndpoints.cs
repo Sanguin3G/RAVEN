@@ -126,6 +126,10 @@ public static class ManagedResearchEndpoints
         {
             return TypedResults.Conflict();
         }
+        catch (InvalidOperationException) when (request.AnswerInChat)
+        {
+            return TypedResults.Conflict();
+        }
     }
 
     private static async Task<Results<Ok<ManagedResearchJobResponse>, NotFound>> GetAsync(
@@ -144,7 +148,7 @@ public static class ManagedResearchEndpoints
         CancellationToken cancellationToken) =>
         TypedResults.Ok((await service.ListForCompanyAsync(companyId, cancellationToken)).ToArray());
 
-    private static async Task<Results<Ok<ResearchContextAttachmentResponse[]>, BadRequest>> ListAttachmentsAsync(
+    private static async Task<Results<Ok<ResearchContextAttachmentResponse[]>, BadRequest, NotFound>> ListAttachmentsAsync(
         Guid companyId,
         Guid conversationId,
         IResearchContextAttachmentService service,
@@ -158,6 +162,7 @@ public static class ManagedResearchEndpoints
         {
             return TypedResults.BadRequest();
         }
+        catch (KeyNotFoundException) { return TypedResults.NotFound(); }
     }
 
     private static async Task<Results<Created<ResearchContextAttachmentResponse>, BadRequest, NotFound>> AttachContextAsync(
@@ -199,6 +204,10 @@ public static class ManagedResearchEndpoints
         catch (ArgumentException)
         {
             return TypedResults.BadRequest();
+        }
+        catch (KeyNotFoundException)
+        {
+            return TypedResults.NotFound();
         }
     }
 

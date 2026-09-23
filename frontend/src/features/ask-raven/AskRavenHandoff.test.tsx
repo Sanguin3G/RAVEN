@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatConversation, getChatConversation, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import { ApiError } from "../../api/client";
@@ -47,6 +47,20 @@ function renderHandoff(path = "/companies/company-1") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <AskRavenHandoff {...props} />
+    </MemoryRouter>,
+  );
+}
+
+function InvestigationNavigation() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate("/companies/company-1?tab=investigations&research=job-1")}>Open running investigation</button>;
+}
+
+function renderHandoffWithInvestigationNavigation(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <AskRavenHandoff {...props} />
+      <InvestigationNavigation />
     </MemoryRouter>,
   );
 }
@@ -149,11 +163,37 @@ describe("AskRavenHandoff", () => {
     expect(screen.getByText("Profile only")).toBeInTheDocument();
   });
 
+  it("keeps the current chat history when opening a running investigation", async () => {
+    vi.mocked(getChatConversation).mockResolvedValue({
+      id: "conversation-restore",
+      webSearchEnabled: false,
+      messages: [{
+        id: "assistant-1",
+        role: "Assistant",
+        content: "Keep this answer visible.",
+        status: "Completed",
+        citations: [],
+        webEvidenceSnapshots: [],
+        toolExecutions: [],
+        createdAt: "2026-09-23T09:00:00Z",
+      }],
+    } as never);
+    renderHandoffWithInvestigationNavigation("/companies/company-1?conversation=conversation-restore");
+
+    await waitFor(() => expect(screen.getByText("Keep this answer visible.")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Open running investigation" }));
+
+    expect(screen.getByText("Keep this answer visible.")).toBeInTheDocument();
+    expect(getChatConversation).toHaveBeenCalledTimes(1);
+  });
+
   it("requires an accepted profile before enabling the composer", () => {
     render(<MemoryRouter><AskRavenHandoff {...props} profileVersion={null} profileVersionId={null} /></MemoryRouter>);
 
     expect(screen.getByText("Profile required")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Accept a profile to ask questions…")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    expect(screen.getByRole("button", { name: /Deep Research/ })).toBeDisabled();
   });
 
   it("creates a conversation and renders the structured answer", async () => {
@@ -218,12 +258,16 @@ describe("AskRavenHandoff", () => {
 
   it("requires confirmation of one editable research question before starting managed research", async () => {
     vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
+    vi.mocked(getChatConversation).mockResolvedValue({ id: "conversation-1", webSearchEnabled: false, messages: [{ id: "user-1", role: "User", content: "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T09:00:00Z" }] } as never);
     vi.mocked(startManagedResearch).mockResolvedValue({
       id: "job-1",
       companyId: "company-1",
       objective: "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?",
       provider: "exa-agent",
       status: "Queued",
+      answerInChat: true,
+      conversationId: "conversation-1",
+      chatMessageId: "user-1",
       createdAt: "2026-09-18T09:00:00Z",
     });
     renderHandoff();
@@ -248,14 +292,15 @@ describe("AskRavenHandoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Done editing" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Deep Research" }));
 
-    await waitFor(() => expect(screen.getByText(/Deep Research started/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Deep Research is running/)).toBeInTheDocument());
     expect(startManagedResearch).toHaveBeenCalledWith("company-1", "Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?", {
       conversationId: "conversation-1",
       contextRevision: "preview-revision",
+      answerInChat: true,
     });
     expect(createChatConversation).toHaveBeenCalledWith("company-1");
     expect(sendChatMessageStream).not.toHaveBeenCalled();
-    expect(screen.getByRole("link", { name: "View investigation" })).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=job-1");
+    expect(screen.getByText("Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
   });
 
@@ -342,7 +387,9 @@ describe("AskRavenHandoff", () => {
     }]);
     renderHandoff();
 
-    await waitFor(() => expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/companies/company-1?tab=investigations&research=investigation-1"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add research" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Add research" }));
+    expect(screen.getByText("Recent expansion")).toBeInTheDocument();
     expect(screen.queryByTestId("managed-research-completion")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
   });
@@ -372,8 +419,9 @@ describe("AskRavenHandoff", () => {
     });
     renderHandoff();
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Attach to Ask RAVEN" })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Attach to Ask RAVEN" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add research" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Add research" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() => expect(screen.getByLabelText("Attached research context")).toBeInTheDocument());
     expect(attachResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1");

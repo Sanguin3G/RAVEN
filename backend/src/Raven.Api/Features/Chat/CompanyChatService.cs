@@ -6,6 +6,7 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Research;
+using Raven.Api.Features.ManagedResearch;
 
 namespace Raven.Api.Features.Chat;
 
@@ -55,6 +56,7 @@ public sealed class CompanyChatService(
         var conversation = await dbContext.ChatConversations
             .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.SourceDocument)
             .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.WebEvidenceSnapshot)
+            .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.Investigation)
             .Include(item => item.Messages).ThenInclude(item => item.WebEvidenceSnapshots)
             .Include(item => item.Messages).ThenInclude(item => item.ToolExecutions)
             .AsNoTracking()
@@ -108,6 +110,117 @@ public sealed class CompanyChatService(
         return SendMessageCoreAsync(companyId, conversationId, request, progressReporter, cancellationToken);
     }
 
+    public async Task AnswerManagedResearchAsync(Guid companyId, Guid conversationId, Guid userMessageId, Guid jobId, CancellationToken cancellationToken)
+    {
+        var conversation = await dbContext.ChatConversations.SingleOrDefaultAsync(
+            item => item.Id == conversationId && item.CompanyId == companyId, cancellationToken);
+        var user = await dbContext.ChatMessages.AsNoTracking().SingleOrDefaultAsync(
+            item => item.Id == userMessageId && item.ConversationId == conversationId && item.Role == ChatMessageRole.User,
+            cancellationToken);
+        if (conversation is null || user is null) throw new InvalidOperationException("The originating chat turn is unavailable.");
+        var existingAssistant = await dbContext.ChatMessages.SingleOrDefaultAsync(
+            item => item.ManagedResearchJobId == jobId, cancellationToken);
+        if (existingAssistant?.Status is ChatMessageStatus.Completed or ChatMessageStatus.Failed) return;
+
+        var profile = await LoadProfileAsync(conversation.ProfileVersionId, companyId, cancellationToken)
+            ?? throw new InvalidOperationException("The pinned accepted profile is unavailable.");
+        var company = await dbContext.Companies.AsNoTracking().SingleAsync(item => item.Id == companyId, cancellationToken);
+        var contexts = await LoadInvestigationContextsAsync(companyId, conversationId, cancellationToken);
+        var jobInvestigationId = await dbContext.ManagedResearchJobs.AsNoTracking()
+            .Where(item => item.Id == jobId && item.CompanyId == companyId && item.ConversationId == conversationId && item.AnswerInChat)
+            .Select(item => item.InvestigationId).SingleAsync(cancellationToken);
+        if (jobInvestigationId is null || contexts.All(item => item.Id != jobInvestigationId.Value))
+            throw new InvalidOperationException("The completed Investigation is not attached to this chat.");
+        var history = await dbContext.ChatMessages.AsNoTracking()
+            .Where(item => item.ConversationId == conversationId && item.Status == ChatMessageStatus.Completed && item.Id != userMessageId)
+            .ToListAsync(cancellationToken);
+        var assistant = existingAssistant ?? new ChatMessage
+        {
+            ConversationId = conversationId,
+            ManagedResearchJobId = jobId,
+            Role = ChatMessageRole.Assistant,
+            Content = string.Empty,
+            Status = ChatMessageStatus.Pending,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        if (existingAssistant is null)
+        {
+            dbContext.ChatMessages.Add(assistant);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        try
+        {
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(TimeSpan.FromSeconds(90));
+            var completion = await agentFactory.Create().RunAsync(new ChatAgentRequest(
+                companyId, conversationId, company, profile, history.OrderByDescending(item => item.CreatedAt)
+                    .Take(10).OrderBy(item => item.CreatedAt).ToArray(),
+                user.Content, conversation.WebSearchEnabled, assistant.Id, null, contexts, jobInvestigationId), deadline.Token);
+            if (completion.Result.Status == ChatAnswerStatus.Answered &&
+                !(completion.Result.CitedInvestigationIds?.Contains(jobInvestigationId.Value) ?? false))
+                throw new InvalidOperationException("The automatic answer did not cite its Investigation.");
+            var validated = await ValidateResultAsync(completion.Result, profile, companyId,
+                completion.WebEvidenceDrafts ?? [], contexts, cancellationToken);
+            assistant.Content = validated.Answer;
+            assistant.Status = ChatMessageStatus.Completed;
+            assistant.AnswerStatus = validated.Status;
+            assistant.FollowUpQuestion = validated.FollowUpQuestion;
+            assistant.AiProvider = ChatText.Bound(completion.Provider, 100);
+            assistant.AiModel = ChatText.Bound(completion.Model, 200);
+            foreach (var citation in validated.Citations)
+                dbContext.ChatCitations.Add(new ChatCitation { ChatMessageId = assistant.Id,
+                    SourceDocumentId = citation.SourceDocumentId, InvestigationId = citation.InvestigationId,
+                    FieldPath = citation.FieldPath, Origin = citation.Origin });
+            var snapshots = PersistWebEvidenceSnapshots(assistant.Id, completion.WebEvidenceDrafts ?? []);
+            foreach (var candidateId in validated.WebCitationCandidateIds)
+                dbContext.ChatCitations.Add(new ChatCitation { ChatMessageId = assistant.Id,
+                    WebEvidenceSnapshotId = snapshots[candidateId].Id, Origin = ChatCitationOrigin.Web });
+            PersistToolExecutions(assistant.Id, completion.ToolExecutions);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            assistant.Content = "Ask RAVEN could not answer from the completed Investigation. You can ask again.";
+            assistant.Status = ChatMessageStatus.Failed;
+            logger.LogWarning(exception, "Could not answer from managed research job {JobId}", jobId);
+        }
+        conversation.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+    }
+
+    private async Task<IReadOnlyList<ChatInvestigationContext>> LoadInvestigationContextsAsync(Guid companyId, Guid conversationId, CancellationToken ct)
+    {
+        var attachments = await dbContext.ResearchContextAttachments.AsNoTracking()
+            .Where(item => item.CompanyId == companyId && item.ConversationId == conversationId)
+            .ToListAsync(ct);
+        var ids = attachments.OrderByDescending(item => item.AttachedAt).Take(5)
+            .Select(item => item.InvestigationId).ToArray();
+        if (ids.Length == 0) return [];
+        var investigations = await dbContext.ManagedResearchInvestigations.AsNoTracking()
+            .Where(item => item.CompanyId == companyId && ids.Contains(item.Id)).ToListAsync(ct);
+        return investigations.Select(ToInvestigationContext).ToArray();
+    }
+
+    private static ChatInvestigationContext ToInvestigationContext(ManagedResearchInvestigation item)
+    {
+        var objective = ChatText.Bound(item.Objective, 400);
+        var summary = ChatText.Bound(item.Summary, 700);
+        try
+        {
+            var result = JsonSerializer.Deserialize<ManagedResearchResult>(item.ResultJson, JsonOptions);
+            if (result is not null)
+            {
+                var claims = string.Join('\n', result.Claims.Take(8).Select(claim =>
+                    $"{claim.Topic}: {claim.Statement} [source leads: {string.Join(", ", claim.SupportingSourceUrls.Take(3))}]"));
+                var sources = string.Join('\n', result.Sources.Take(8).Select(source => $"{source.Title}: {source.Url}"));
+                var uncertainties = string.Join('\n', result.Uncertainties.Take(5));
+                return new(item.Id, objective, summary, ChatText.Bound(
+                    $"CLAIMS:\n{claims}\nSOURCE LEADS:\n{sources}\nUNCERTAINTIES:\n{uncertainties}", 3_000), item.CompletedAt);
+            }
+        }
+        catch (JsonException) { /* Summary remains readable when old provider JSON is malformed. */ }
+        return new(item.Id, objective, summary, string.Empty, item.CompletedAt);
+    }
+
     private async Task<SendChatMessageResponse> SendMessageCoreAsync(Guid companyId, Guid conversationId, CreateChatMessageRequest request, IChatProgressReporter? progressReporter, CancellationToken cancellationToken)
     {
         var question = ChatText.NormalizeQuestion(request?.Question);
@@ -145,6 +258,7 @@ public sealed class CompanyChatService(
             .Take(10)
             .OrderBy(item => item.CreatedAt)
             .ToArray();
+        var investigationContexts = await LoadInvestigationContextsAsync(companyId, conversationId, cancellationToken);
 
         var userMessage = new ChatMessage
         {
@@ -169,11 +283,11 @@ public sealed class CompanyChatService(
         {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromSeconds(90));
-            var completion = ChatConversationPolicy.TryRespond(question) ?? await agentFactory.Create().RunAsync(
-                new ChatAgentRequest(companyId, conversationId, company, profile, recentMessages, question, conversation.WebSearchEnabled, assistant.Id, progressReporter),
+            var completion = (investigationContexts.Count == 0 ? ChatConversationPolicy.TryRespond(question) : null) ?? await agentFactory.Create().RunAsync(
+                new ChatAgentRequest(companyId, conversationId, company, profile, recentMessages, question, conversation.WebSearchEnabled, assistant.Id, progressReporter, investigationContexts),
                 deadline.Token);
             await ReportProgressAsync(progressReporter, ChatProgressStage.Composing, "Saving the grounded answer", cancellationToken);
-            var validated = await ValidateResultAsync(completion.Result, profile, companyId, completion.WebEvidenceDrafts ?? [], cancellationToken);
+            var validated = await ValidateResultAsync(completion.Result, profile, companyId, completion.WebEvidenceDrafts ?? [], investigationContexts, cancellationToken);
 
             assistant.Activity = null;
             assistant.Content = validated.Answer;
@@ -188,6 +302,7 @@ public sealed class CompanyChatService(
                 {
                     ChatMessageId = assistant.Id,
                     SourceDocumentId = citation.SourceDocumentId,
+                    InvestigationId = citation.InvestigationId,
                     FieldPath = citation.FieldPath,
                     Origin = citation.Origin,
                     Excerpt = citation.Excerpt
@@ -271,7 +386,7 @@ public sealed class CompanyChatService(
         }
     }
 
-    private async Task<ValidatedChatResult> ValidateResultAsync(ChatAgentResult result, CompanyProfileVersion profile, Guid companyId, IReadOnlyList<ChatWebEvidenceDraft> webEvidence, CancellationToken cancellationToken)
+    private async Task<ValidatedChatResult> ValidateResultAsync(ChatAgentResult result, CompanyProfileVersion profile, Guid companyId, IReadOnlyList<ChatWebEvidenceDraft> webEvidence, IReadOnlyList<ChatInvestigationContext> investigations, CancellationToken cancellationToken)
     {
         var answer = ChatText.Bound(result.Answer, 20_000);
         if (answer.Length == 0)
@@ -279,7 +394,7 @@ public sealed class CompanyChatService(
             throw Problem(StatusCodes.Status502BadGateway, "ai_invalid_response", "Invalid AI response", "The chat provider returned an empty answer.");
         }
 
-        if (result.Status == ChatAnswerStatus.Answered && result.CitedSourceDocumentIds.Count == 0 && (result.CitedWebEvidenceCandidateIds?.Count ?? 0) == 0)
+        if (result.Status == ChatAnswerStatus.Answered && result.CitedSourceDocumentIds.Count == 0 && (result.CitedWebEvidenceCandidateIds?.Count ?? 0) == 0 && (result.CitedInvestigationIds?.Count ?? 0) == 0)
         {
             throw Problem(StatusCodes.Status502BadGateway, "ai_invalid_response", "Invalid AI response", "The chat provider returned an answer without evidence.");
         }
@@ -310,6 +425,16 @@ public sealed class CompanyChatService(
             };
             citations.Add(citation);
             responses.Add(ToCitationResponse(citation, source));
+        }
+        foreach (var investigationId in (result.CitedInvestigationIds ?? []).Distinct())
+        {
+            var context = investigations.FirstOrDefault(item => item.Id == investigationId);
+            if (context is null)
+                throw Problem(StatusCodes.Status502BadGateway, "ai_invalid_response", "Invalid AI response", "The chat provider cited an unattached Investigation.");
+            citations.Add(new ChatCitation { InvestigationId = investigationId, Origin = ChatCitationOrigin.Investigation });
+            responses.Add(new ChatCitationResponse(ChatCitationOrigin.Investigation, null, null, null,
+                context.Objective, $"/companies/{companyId:D}?tab=investigations&research={investigationId:D}",
+                context.CompletedAt, investigationId));
         }
         var webCitationIds = result.CitedWebEvidenceCandidateIds ?? [];
         if (webCitationIds.Any(id => webEvidence.All(draft => !string.Equals(draft.CandidateId, id, StringComparison.Ordinal)))) throw Problem(StatusCodes.Status502BadGateway, "ai_invalid_response", "Invalid AI response", "The chat provider returned an unsupported Web citation.");
@@ -389,6 +514,10 @@ public sealed class CompanyChatService(
                 item.WebEvidenceSnapshot.Title ?? item.WebEvidenceSnapshot.Url,
                 item.WebEvidenceSnapshot.Url,
                 item.WebEvidenceSnapshot.RetrievedAt),
+            ChatCitationOrigin.Investigation when item.Investigation is not null => new(
+                item.Origin, null, null, null, item.Investigation.Objective,
+                $"/companies/{item.Investigation.CompanyId:D}?tab=investigations&research={item.InvestigationId:D}",
+                item.Investigation.CompletedAt, item.InvestigationId),
             _ => throw new InvalidOperationException("Chat citation evidence reference is invalid.")
         };
 

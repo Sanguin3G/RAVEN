@@ -61,6 +61,7 @@ public sealed class ManagedResearchJob
     public Guid CompanyId { get; init; }
     public Guid? ConversationId { get; init; }
     public Guid? ChatMessageId { get; init; }
+    public bool AnswerInChat { get; init; }
     public required string Objective { get; init; }
     public required string ProviderQuery { get; init; }
     public string Effort { get; init; } = "auto";
@@ -169,7 +170,8 @@ public sealed record StartManagedResearchRequest(
     Guid? ChatMessageId = null,
     ManagedResearchEffort Effort = ManagedResearchEffort.Auto,
     ManagedResearchPurpose Purpose = ManagedResearchPurpose.General,
-    string? ContextRevision = null);
+    string? ContextRevision = null,
+    bool AnswerInChat = false);
 
 /// <summary>Safe, pollable managed research job response.</summary>
 public sealed record ManagedResearchJobResponse(
@@ -190,7 +192,8 @@ public sealed record ManagedResearchJobResponse(
     decimal? ProviderCostDollars,
     Guid? InvestigationId,
     string? Error,
-    ManagedResearchPurpose Purpose = ManagedResearchPurpose.General);
+    ManagedResearchPurpose Purpose = ManagedResearchPurpose.General,
+    bool AnswerInChat = false);
 
 /// <summary>
 /// Read-only company/profile context used to build a focused provider query.

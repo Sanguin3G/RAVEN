@@ -360,6 +360,11 @@
   color: var(--ai);
 }
 
+.answerEvidenceBadgeInvestigation {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  color: var(--primary);
+}
+
 .answerEvidenceBadgeMixed {
   border-color: color-mix(in srgb, var(--ai) 40%, var(--primary));
   color: var(--text);
@@ -448,20 +453,6 @@
   color: var(--primary);
   font-size: 0.7rem;
   overflow-wrap: anywhere;
-}
-
-.researchMessageLink {
-  color: var(--primary);
-  font-size: 0.7rem;
-  font-weight: 800;
-  justify-self: start;
-  margin-top: 0.2rem;
-  text-decoration: none;
-}
-
-.researchMessageLink:hover,
-.researchMessageLink:focus-visible {
-  text-decoration: underline;
 }
 
 .sourceItem:hover strong,
@@ -740,64 +731,6 @@ a.capabilityAction {
   border-color: var(--primary);
 }
 
-.completedResearchActions {
-  border-block: 1px solid var(--border);
-  display: grid;
-  gap: 0.4rem;
-  padding: 0.6rem 0;
-}
-
-.completedResearchLabel {
-  color: var(--text-muted);
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.completedResearchAction {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  min-inline-size: 0;
-}
-
-.completedResearchAction > span {
-  flex: 1 1 auto;
-  font-size: 0.7rem;
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.completedResearchAction a,
-.completedResearchAction button {
-  background: transparent;
-  border: 0;
-  color: var(--primary);
-  cursor: pointer;
-  flex: 0 0 auto;
-  font: inherit;
-  font-size: 0.66rem;
-  font-weight: 800;
-  padding: 0.2rem 0.25rem;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.completedResearchAction a:hover,
-.completedResearchAction a:focus-visible,
-.completedResearchAction button:hover:not(:disabled),
-.completedResearchAction button:focus-visible:not(:disabled) {
-  text-decoration: underline;
-}
-
-.completedResearchAction button:disabled {
-  color: var(--text-muted);
-  cursor: wait;
-}
-
 .assistantProfileBoundary {
   align-items: center;
   background: color-mix(in srgb, var(--primary) 8%, var(--surface-raised));
@@ -864,6 +797,40 @@ a.capabilityAction {
     flex: 1 1 auto;
   }
 }
+
+.investigationPicker { position: relative; align-self: flex-start; max-inline-size: 100%; }
+.investigationPickerTrigger {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 0.3rem 0.65rem;
+}
+.investigationPickerTrigger:hover,
+.investigationPickerTrigger:focus-visible { border-color: var(--primary); color: var(--text); }
+.investigationPickerPanel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  box-shadow: 0 0.7rem 1.8rem color-mix(in srgb, var(--text) 14%, transparent);
+  inline-size: min(20rem, calc(100vw - 2rem));
+  inset-block-end: calc(100% + 0.4rem);
+  inset-inline-start: 0;
+  padding: 0.55rem;
+  position: absolute;
+  z-index: 10;
+}
+.investigationPickerPanel input { box-sizing: border-box; inline-size: 100%; padding: 0.4rem 0.5rem; font: inherit; }
+.investigationPickerList { max-block-size: 12rem; overflow-y: auto; }
+.investigationPickerList p,
+.investigationPickerPanel small { color: var(--text-muted); font-size: 0.7rem; margin: 0.5rem 0.25rem; }
+.investigationPickerRow { align-items: center; border-block-end: 1px solid var(--border); display: flex; gap: 0.5rem; padding: 0.45rem 0.2rem; }
+.investigationPickerRow span { flex: 1; font-size: 0.72rem; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.investigationPickerRow button { background: transparent; border: 0; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.7rem; font-weight: 700; }
+.investigationPickerRow button:disabled { color: var(--text-muted); cursor: default; }
 
 @media (max-width: 360px) {
   .assistantProfileBoundary {
