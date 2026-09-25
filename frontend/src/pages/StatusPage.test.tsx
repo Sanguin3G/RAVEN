@@ -18,7 +18,7 @@ it("shows recent Gemini rate limiting separately from configured credentials", a
     });
     if (url.endsWith("/api/settings/research")) return jsonResponse({
       groundingMode: "Auto", profileModel: "gemini-3.5-flash-lite", groundingModel: "gemini-3.5-flash-lite",
-      deepResearchModel: "gemini-3.8-flash", aiSourceRerankingEnabled: true, providerPreset: "Resilient",
+      chatModel: "gemini-3.5-flash-lite", deepResearchModel: "gemini-3.8-flash", aiSourceRerankingEnabled: true, providerPreset: "Resilient",
       searchProviderPriority: ["brave", "exa"], crawlerProviderPriority: ["crawl4ai-local", "exa"],
       managedResearchProvider: "exa-agent", managedResearchDepth: "Adaptive", updatedAt: failureAt,
     });
@@ -38,6 +38,6 @@ it("shows recent Gemini rate limiting separately from configured credentials", a
   expect(await screen.findByText(/GEMINI NEEDS ATTENTION/i)).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Rate limited" })).toBeInTheDocument();
   expect(screen.getByText(/RAVEN sent 15 requests using this model/)).toBeInTheDocument();
-  expect(screen.getByText(/Ask RAVEN \(currently shares the Company Profile model\)/)).toBeInTheDocument();
+  expect(screen.getByText(/Company matching and source ranking · Company Profile · Ask RAVEN/)).toBeInTheDocument();
   expect(screen.getAllByText("Configured · not used recently").length).toBeGreaterThan(0);
 });

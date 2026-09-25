@@ -39,6 +39,7 @@ public sealed class ResearchContextAttachmentTests
             new AttachResearchContextRequest(ConversationId));
 
         Assert.Equal(first.Id, second.Id);
+        Assert.Equal("Investigation", first.Kind);
         Assert.Equal("Research the Japan expansion", first.Objective);
         Assert.Equal(Now, first.AttachedAt);
         Assert.Single(await service.ListAsync(CompanyId, ConversationId));
@@ -97,15 +98,28 @@ public sealed class ResearchContextAttachmentTests
         public Task<ResearchContextAttachment?> GetAsync(Guid companyId, Guid conversationId, Guid investigationId, CancellationToken cancellationToken = default) =>
             Task.FromResult(rows.SingleOrDefault(item => item.CompanyId == companyId && item.ConversationId == conversationId && item.InvestigationId == investigationId));
 
+        public Task<ResearchContextAttachment?> GetBriefingAsync(Guid companyId, Guid conversationId, Guid briefingId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(rows.SingleOrDefault(item => item.CompanyId == companyId && item.ConversationId == conversationId && item.BriefingId == briefingId));
+
         public Task AddAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default)
         {
             rows.Add(attachment);
             return Task.CompletedTask;
         }
 
+        public Task UpdateAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public Task<bool> RemoveAsync(Guid companyId, Guid conversationId, Guid investigationId, CancellationToken cancellationToken = default)
         {
             var row = rows.SingleOrDefault(item => item.CompanyId == companyId && item.ConversationId == conversationId && item.InvestigationId == investigationId);
+            if (row is null) return Task.FromResult(false);
+            rows.Remove(row);
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> RemoveBriefingAsync(Guid companyId, Guid conversationId, Guid briefingId, CancellationToken cancellationToken = default)
+        {
+            var row = rows.SingleOrDefault(item => item.CompanyId == companyId && item.ConversationId == conversationId && item.BriefingId == briefingId);
             if (row is null) return Task.FromResult(false);
             rows.Remove(row);
             return Task.FromResult(true);

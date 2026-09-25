@@ -56,6 +56,9 @@ export function CompanyDetailPage() {
   const improveManagedInvestigationId = searchParams.get("managedInvestigation");
   const initialChatCapability = searchParams.get("chat") === "deep" ? "deepResearch" as const : undefined;
   const initialChatQuestion = searchParams.get("question");
+  const initialBriefingId = searchParams.get("briefing");
+  const briefingVersionValue = Number(searchParams.get("briefingVersion"));
+  const initialBriefingVersionNumber = Number.isInteger(briefingVersionValue) && briefingVersionValue > 0 ? briefingVersionValue : null;
   const requestedTab = parseDossierTab(searchParams.get("tab"));
 
   useEffect(() => {
@@ -194,6 +197,8 @@ export function CompanyDetailPage() {
     nextParams.delete("managedInvestigation");
     nextParams.delete("chat");
     nextParams.delete("question");
+    nextParams.delete("briefing");
+    nextParams.delete("briefingVersion");
     const query = nextParams.toString();
     navigate(`/companies/${encodeURIComponent(id)}${query ? `?${query}` : ""}`, { replace: true });
   }
@@ -225,6 +230,8 @@ export function CompanyDetailPage() {
       initialManagedResearchInvestigationId={improveManagedInvestigationId}
       initialChatCapability={initialChatCapability}
       initialChatQuestion={initialChatQuestion}
+      initialBriefingId={initialBriefingId}
+      initialBriefingVersionNumber={initialBriefingVersionNumber}
       activeTab={requestedTab ?? "overview"}
       onTabChange={handleDossierTabChange}
       onOpenProfileImprovement={(targets, sourceMaterialId, sourceMaterialKind) => {

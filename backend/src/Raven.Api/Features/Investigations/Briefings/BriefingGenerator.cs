@@ -1,10 +1,11 @@
 using System.Text.Json;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.Settings;
 
 namespace Raven.Api.Features.Research.Briefings;
 
 /// <summary>Synthesizes only selected, persisted Investigation snapshots.</summary>
-public sealed class BriefingGenerator(IAiModelProvider ai, IRuntimeModelPreferences models)
+public sealed class BriefingGenerator(IAiModelProvider ai, IResearchSettingsService settings)
 {
     private const string PromptVersion = "research-briefing-v1";
     private static readonly JsonElement Schema = JsonDocument.Parse("""
@@ -25,6 +26,7 @@ public sealed class BriefingGenerator(IAiModelProvider ai, IRuntimeModelPreferen
     public async Task<IReadOnlyList<BriefingSection>> GenerateAsync(
         string template, string objective, IReadOnlyList<BriefingSourceSnapshot> sources, CancellationToken ct)
     {
+        var configured = await settings.GetAsync(ct);
         var titles = BriefingTemplates.Sections[template];
         var input = sources.Select(source => new
         {
@@ -40,7 +42,7 @@ public sealed class BriefingGenerator(IAiModelProvider ai, IRuntimeModelPreferen
         });
         var prompt = $"Template: {template}\nObjective: {objective}\nRequired sections: {string.Join(" | ", titles)}\nSelected Investigation material:\n{JsonSerializer.Serialize(input, JsonOptions)}";
         var result = await ai.GenerateStructuredAsync(new AiModelRequest(
-            models.Current.DeepModel,
+            configured.DeepResearchModel,
             "Create a concise thematic Briefing only from the supplied Investigation material. Do not search, invent facts, resolve contradictions without support, or describe this as accepted Company Profile truth. Preserve uncertainty. Use exactly the requested sections. For each section cite only Investigation IDs supplied in the input. Empty sections are allowed when material is insufficient.",
             prompt, PromptVersion, AiEvidencePayload.Empty, Schema), ct);
         if (!result.Succeeded || result.StructuredJson is not { } json)

@@ -354,8 +354,15 @@ export function SettingsPage() {
 
   const selectedModel = (value: string) => modelOptions.find((model) => model.value === value);
   const noCompatibleModelsAvailable = modelAvailabilityVerified && modelOptions.length > 0 && modelOptions.every((model) => model.availability === "Unavailable");
+  const configuredGeminiModels = new Set([
+    savedSettings.groundingModel,
+    savedSettings.profileModel,
+    savedSettings.chatModel,
+    savedSettings.deepResearchModel,
+  ]);
   const recentGeminiIssue = (providerHealth?.models ?? [])
-    .filter((item) => item.provider.toLowerCase().includes("gemini") && item.state === "Degraded")
+    .filter((item) => item.provider.toLowerCase().includes("gemini") && item.state === "Degraded"
+      && (item.model == null || configuredGeminiModels.has(item.model)))
     .sort((left, right) => Date.parse(right.lastFailureAt ?? "") - Date.parse(left.lastFailureAt ?? ""))[0];
 
   return (

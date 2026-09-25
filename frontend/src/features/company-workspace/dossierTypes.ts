@@ -169,6 +169,8 @@ export interface CompanyDossierProps {
   initialManagedResearchInvestigationId?: string | null;
   initialChatCapability?: "deepResearch";
   initialChatQuestion?: string | null;
+  initialBriefingId?: string | null;
+  initialBriefingVersionNumber?: number | null;
   openEnrichment?: boolean;
   onProfileConfirmed?: (profile: CompanyProfileVersion) => void;
 }

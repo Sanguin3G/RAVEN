@@ -2,6 +2,7 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Research;
 using Raven.Api.Features.ManagedResearch;
+using Raven.Api.Features.Research.Briefings;
 
 namespace Raven.Api.Features.Chat;
 
@@ -14,8 +15,10 @@ public sealed class ChatConversation
     public CompanyProfileVersion ProfileVersion { get; init; } = null!;
     public string? Title { get; set; }
     /// <summary>
-    /// User-controlled permission for web-enabled turns. Enabling this
-    /// capability never requires the agent to call Search or Crawl.
+    /// User-controlled permission for web-enabled turns. When enabled, normal
+    /// factual company questions perform bounded Search/Crawl attempts before
+    /// synthesis. Product conversation and required-Investigation completion
+    /// remain exempt from redundant Web research.
     /// </summary>
     public bool WebSearchEnabled { get; set; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
@@ -80,6 +83,8 @@ public sealed class ChatCitation
     public Guid? WebEvidenceSnapshotId { get; init; }
     public Guid? InvestigationId { get; init; }
     public ManagedResearchInvestigation? Investigation { get; init; }
+    public Guid? BriefingVersionId { get; init; }
+    public ResearchBriefingVersion? BriefingVersion { get; init; }
     public ChatWebEvidenceSnapshot? WebEvidenceSnapshot { get; init; }
     public string? FieldPath { get; init; }
     public ChatCitationOrigin Origin { get; init; } = ChatCitationOrigin.Profile;

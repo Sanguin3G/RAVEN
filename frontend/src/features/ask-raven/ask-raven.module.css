@@ -41,7 +41,7 @@
 }
 
 .handoffStatus {
-  align-self: start;
+  align-self: center;
   border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
   border-radius: 999px;
   color: var(--warning);
@@ -333,44 +333,7 @@
   background: var(--surface-raised);
 }
 
-.chatMessageMeta {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.34rem;
-}
-
-.answerEvidenceBadge {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-muted);
-  font-size: 0.6rem;
-  font-weight: 800;
-  line-height: 1;
-  padding: 0.18rem 0.38rem;
-}
-
-.answerEvidenceBadgeProfile {
-  border-color: color-mix(in srgb, var(--primary) 52%, var(--border));
-  color: var(--primary);
-}
-
-.answerEvidenceBadgeWeb {
-  border-color: color-mix(in srgb, var(--ai) 58%, var(--border));
-  color: var(--ai);
-}
-
-.answerEvidenceBadgeInvestigation {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-  color: var(--primary);
-}
-
-.answerEvidenceBadgeMixed {
-  border-color: color-mix(in srgb, var(--ai) 40%, var(--primary));
-  color: var(--text);
-}
-.chatMessageRole,
-.chatMessageStatus {
+.chatMessageRole {
   color: var(--text-muted);
   font-size: 0.64rem;
   font-weight: 900;
@@ -652,6 +615,12 @@ a.capabilityAction {
   font-weight: 800;
 }
 
+.evidenceActionLabel {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.32rem;
+}
+
 .capabilityAction small {
   color: var(--text-muted);
   font-size: 0.65rem;
@@ -798,39 +767,24 @@ a.capabilityAction {
   }
 }
 
-.investigationPicker { position: relative; align-self: flex-start; max-inline-size: 100%; }
-.investigationPickerTrigger {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.7rem;
-  padding: 0.3rem 0.65rem;
+.evidencePickerPanel {
+  display: grid;
+  gap: 0.45rem;
 }
-.investigationPickerTrigger:hover,
-.investigationPickerTrigger:focus-visible { border-color: var(--primary); color: var(--text); }
-.investigationPickerPanel {
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 0.65rem;
-  box-shadow: 0 0.7rem 1.8rem color-mix(in srgb, var(--text) 14%, transparent);
-  inline-size: min(20rem, calc(100vw - 2rem));
-  inset-block-end: calc(100% + 0.4rem);
-  inset-inline-start: 0;
-  padding: 0.55rem;
-  position: absolute;
-  z-index: 10;
-}
-.investigationPickerPanel input { box-sizing: border-box; inline-size: 100%; padding: 0.4rem 0.5rem; font: inherit; }
-.investigationPickerList { max-block-size: 12rem; overflow-y: auto; }
-.investigationPickerList p,
-.investigationPickerPanel small { color: var(--text-muted); font-size: 0.7rem; margin: 0.5rem 0.25rem; }
-.investigationPickerRow { align-items: center; border-block-end: 1px solid var(--border); display: flex; gap: 0.5rem; padding: 0.45rem 0.2rem; }
-.investigationPickerRow span { flex: 1; font-size: 0.72rem; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.investigationPickerRow button { background: transparent; border: 0; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.7rem; font-weight: 700; }
-.investigationPickerRow button:disabled { color: var(--text-muted); cursor: default; }
+.evidencePickerHeader { display: grid; gap: 0.12rem; }
+.evidencePickerHeader strong { color: var(--text); font-size: 0.76rem; }
+.evidencePickerHeader span { color: var(--text-muted); font-size: 0.67rem; line-height: 1.35; }
+.evidenceBackButton { align-items: center; background: transparent; border: 0; color: var(--text-muted); cursor: pointer; display: inline-flex; font: inherit; font-size: 0.67rem; gap: 0.08rem; justify-self: start; padding: 0; }
+.evidenceBackButton:hover, .evidenceBackButton:focus-visible { color: var(--primary); }
+.evidencePickerPanel input { box-sizing: border-box; inline-size: 100%; padding: 0.4rem 0.5rem; font: inherit; }
+.evidencePickerPanel > strong { color: var(--text); font-size: 0.7rem; }
+.evidencePickerList { max-block-size: 9rem; overflow-y: auto; }
+.evidencePickerList p,
+.evidencePickerPanel small { color: var(--text-muted); font-size: 0.7rem; margin: 0.5rem 0.25rem; }
+.evidencePickerRow { align-items: center; border-block-end: 1px solid var(--border); display: flex; gap: 0.5rem; padding: 0.45rem 0.2rem; }
+.evidencePickerRow span { flex: 1; font-size: 0.72rem; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evidencePickerRow button { background: transparent; border: 0; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.7rem; font-weight: 700; }
+.evidencePickerRow button:disabled { color: var(--text-muted); cursor: default; }
 
 @media (max-width: 360px) {
   .assistantProfileBoundary {

@@ -43,7 +43,7 @@ public static class ManagedResearchEndpoints
         app.MapGet("/api/companies/{companyId:guid}/research-context-attachments", ListAttachmentsAsync)
             .WithTags("Research Context")
             .WithName("ListResearchContextAttachments")
-            .WithSummary("List investigations explicitly attached to a Chat conversation")
+            .WithSummary("List Investigations and pinned Briefing versions attached to a Chat conversation")
             .Produces<ResearchContextAttachmentResponse[]>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
 
@@ -59,6 +59,22 @@ public static class ManagedResearchEndpoints
             .WithTags("Research Context")
             .WithName("RemoveResearchContext")
             .WithSummary("Remove an investigation from a Chat conversation")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/api/companies/{companyId:guid}/briefings/{briefingId:guid}/versions/{versionNumber:int}/context-attachments", AttachBriefingContextAsync)
+            .WithTags("Research Context")
+            .WithName("AttachBriefingContext")
+            .WithSummary("Attach one immutable Briefing version to a Chat conversation")
+            .Produces<ResearchContextAttachmentResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapDelete("/api/companies/{companyId:guid}/briefings/{briefingId:guid}/context-attachments", RemoveBriefingContextAsync)
+            .WithTags("Research Context")
+            .WithName("RemoveBriefingContext")
+            .WithSummary("Remove a pinned Briefing from a Chat conversation")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
@@ -209,6 +225,41 @@ public static class ManagedResearchEndpoints
         {
             return TypedResults.NotFound();
         }
+    }
+
+    private static async Task<Results<Created<ResearchContextAttachmentResponse>, BadRequest, NotFound>> AttachBriefingContextAsync(
+        Guid companyId,
+        Guid briefingId,
+        int versionNumber,
+        AttachResearchContextRequest request,
+        IResearchContextAttachmentService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await service.AttachBriefingAsync(companyId, briefingId, versionNumber, request, cancellationToken);
+            return TypedResults.Created(
+                $"/api/companies/{companyId:D}/briefings/{briefingId:D}/versions/{versionNumber}/context-attachments?conversationId={request.ConversationId:D}",
+                response);
+        }
+        catch (KeyNotFoundException) { return TypedResults.NotFound(); }
+        catch (ArgumentException) { return TypedResults.BadRequest(); }
+    }
+
+    private static async Task<Results<NoContent, BadRequest, NotFound>> RemoveBriefingContextAsync(
+        Guid companyId,
+        Guid briefingId,
+        Guid conversationId,
+        IResearchContextAttachmentService service,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var removed = await service.RemoveBriefingAsync(companyId, conversationId, briefingId, cancellationToken);
+            return removed ? TypedResults.NoContent() : TypedResults.NotFound();
+        }
+        catch (ArgumentException) { return TypedResults.BadRequest(); }
+        catch (KeyNotFoundException) { return TypedResults.NotFound(); }
     }
 
     private static async Task<Results<Ok<ManagedResearchJobResponse>, NotFound>> CancelAsync(

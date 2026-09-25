@@ -9,7 +9,7 @@ namespace Raven.Api.Features.Chat;
 public enum ChatAnswerStatus { Answered, Conversational, Guidance, ClarificationRequired, InsufficientEvidence, UnsupportedScope }
 public enum ChatMessageRole { User, Assistant }
 public enum ChatMessageStatus { Pending, Completed, Failed }
-public enum ChatCitationOrigin { Profile, Web, Investigation }
+public enum ChatCitationOrigin { Profile, Web, Investigation, Briefing }
 public enum ChatProgressStage { Analyzing, CheckingProfile, WebSearching, Crawling, Composing, Completed, Failed }
 
 public sealed record CreateChatMessageRequest(string Question);
@@ -30,7 +30,10 @@ public sealed record ChatCitationResponse(
     string? Title,
     string Url,
     DateTimeOffset RetrievedAt,
-    Guid? InvestigationId = null);
+    Guid? InvestigationId = null,
+    Guid? BriefingId = null,
+    Guid? BriefingVersionId = null,
+    int? BriefingVersionNumber = null);
 
 public sealed record ChatWebEvidenceSnapshotResponse(
     Guid Id,
@@ -92,7 +95,8 @@ public sealed record ChatAgentResult(
     IReadOnlyList<Guid> CitedSourceDocumentIds,
     string? FollowUpQuestion,
     IReadOnlyList<string>? CitedWebEvidenceCandidateIds = null,
-    IReadOnlyList<Guid>? CitedInvestigationIds = null);
+    IReadOnlyList<Guid>? CitedInvestigationIds = null,
+    IReadOnlyList<Guid>? CitedBriefingVersionIds = null);
 
 public sealed record ChatAgentCompletion(
     ChatAgentResult Result,
@@ -112,9 +116,12 @@ public sealed record ChatAgentRequest(
     Guid AssistantMessageId = default,
     IChatProgressReporter? ProgressReporter = null,
     IReadOnlyList<ChatInvestigationContext>? Investigations = null,
-    Guid? RequiredInvestigationId = null);
+    Guid? RequiredInvestigationId = null,
+    IReadOnlyList<ChatBriefingContext>? Briefings = null);
 
 public sealed record ChatInvestigationContext(Guid Id, string Objective, string Summary, string Material, DateTimeOffset CompletedAt);
+public sealed record ChatBriefingContext(Guid BriefingId, Guid VersionId, int VersionNumber, string Title,
+    string Template, string Objective, string Material, DateTimeOffset GeneratedAt, DateTimeOffset ResearchThrough);
 
 public interface IChatProgressReporter
 {

@@ -354,7 +354,8 @@ public interface IManagedResearchInvestigationStore
 }
 
 /// <summary>
-/// A user-selected investigation context attached to a Chat conversation.
+/// A user-selected research context attached to a Chat conversation. Exactly
+/// one of InvestigationId or the BriefingId/BriefingVersionId pair is set.
 /// This is a reference only: it does not change the accepted Company Profile.
 /// </summary>
 public sealed class ResearchContextAttachment
@@ -362,24 +363,33 @@ public sealed class ResearchContextAttachment
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid CompanyId { get; init; }
     public Guid ConversationId { get; init; }
-    public Guid InvestigationId { get; init; }
-    public DateTimeOffset AttachedAt { get; init; } = DateTimeOffset.UtcNow;
+    public Guid? InvestigationId { get; init; }
+    public Guid? BriefingId { get; init; }
+    public Guid? BriefingVersionId { get; set; }
+    public DateTimeOffset AttachedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>Requests explicit attachment of one completed investigation to Chat.</summary>
 public sealed record AttachResearchContextRequest(Guid ConversationId);
 
-/// <summary>Describes one explicitly attached investigation context.</summary>
+/// <summary>Describes one explicitly attached Investigation or pinned Briefing version.</summary>
 public sealed record ResearchContextAttachmentResponse(
     Guid Id,
     Guid CompanyId,
     Guid ConversationId,
-    Guid InvestigationId,
-    string Origin,
-    string Objective,
-    string Summary,
-    DateTimeOffset CompletedAt,
-    DateTimeOffset AttachedAt);
+    string Kind,
+    DateTimeOffset AttachedAt,
+    Guid? InvestigationId = null,
+    string? Origin = null,
+    string? Objective = null,
+    string? Summary = null,
+    DateTimeOffset? CompletedAt = null,
+    Guid? BriefingId = null,
+    Guid? BriefingVersionId = null,
+    int? BriefingVersionNumber = null,
+    string? Title = null,
+    string? Template = null,
+    DateTimeOffset? ResearchThrough = null);
 
 /// <summary>Durable persistence for explicit Chat research-context attachments.</summary>
 public interface IResearchContextAttachmentStore
@@ -390,12 +400,26 @@ public interface IResearchContextAttachmentStore
         Guid investigationId,
         CancellationToken cancellationToken = default);
 
+    Task<ResearchContextAttachment?> GetBriefingAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid briefingId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default);
+
+    Task UpdateAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default);
 
     Task<bool> RemoveAsync(
         Guid companyId,
         Guid conversationId,
         Guid investigationId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> RemoveBriefingAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid briefingId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ResearchContextAttachment>> ListAsync(
@@ -418,10 +442,23 @@ public interface IResearchContextAttachmentService
         AttachResearchContextRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<ResearchContextAttachmentResponse> AttachBriefingAsync(
+        Guid companyId,
+        Guid briefingId,
+        int versionNumber,
+        AttachResearchContextRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<bool> RemoveAsync(
         Guid companyId,
         Guid conversationId,
         Guid investigationId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> RemoveBriefingAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid briefingId,
         CancellationToken cancellationToken = default);
 }
 

@@ -56,13 +56,14 @@ public sealed class ChatWebToolTests
         var unknown = await tool.ReadAsync("r999", CancellationToken.None);
         await tool.SearchAsync(company, "Example one", CancellationToken.None);
         await tool.SearchAsync(company, "Example two", CancellationToken.None);
-        var exhausted = await tool.SearchAsync(company, "Example three", CancellationToken.None);
+        await tool.SearchAsync(company, "Example three", CancellationToken.None);
+        var exhausted = await tool.SearchAsync(company, "Example four", CancellationToken.None);
 
         Assert.False(unknown.Succeeded);
         Assert.Equal("candidate_not_found", unknown.ErrorCode);
         Assert.False(exhausted.Succeeded);
         Assert.Equal("search_budget_exhausted", exhausted.ErrorCode);
-        Assert.Equal(2, search.CallCount);
+        Assert.Equal(3, search.CallCount);
     }
 
     [Fact]

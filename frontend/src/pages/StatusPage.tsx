@@ -116,7 +116,8 @@ export function StatusPage() {
   const geminiProblem = attention.find(item => providerFamily(item.provider) === "gemini");
   const geminiRoles = settings && geminiProblem ? [
     ...(settings.groundingModel === geminiProblem.model ? ["Company matching and source ranking"] : []),
-    ...(settings.profileModel === geminiProblem.model ? ["Company Profile", "Ask RAVEN (currently shares the Company Profile model)"] : []),
+    ...(settings.profileModel === geminiProblem.model ? ["Company Profile"] : []),
+    ...(settings.chatModel === geminiProblem.model ? ["Ask RAVEN"] : []),
     ...(settings.deepResearchModel === geminiProblem.model ? ["Briefings and analysis"] : []),
   ] : [];
 
@@ -130,7 +131,7 @@ export function StatusPage() {
   const modelRows = settings ? [
     { task: "Company matching & source ranking", model: settings.groundingModel },
     { task: "Company Profile", model: settings.profileModel },
-    { task: "Ask RAVEN", model: settings.profileModel, note: "Shares Company Profile model" },
+    { task: "Ask RAVEN", model: settings.chatModel },
     { task: "Briefings & analysis", model: settings.deepResearchModel },
   ] : [];
 
@@ -167,7 +168,7 @@ export function StatusPage() {
     <Panel title="AI task models" eyebrow="CONFIGURED MODEL · RECENT HEALTH">
       {modelRows.length ? <div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">RAVEN task</th><th scope="col">Model</th><th scope="col">Recent health</th></tr></thead><tbody>{modelRows.map(row => {
         const model = modelTelemetry("gemini", health, row.model);
-        return <tr key={row.task}><th scope="row">{row.task}{row.note ? <small>{row.note}</small> : null}</th><td>{row.model}</td><td><span className={`status-inline status-inline--${model?.state === "Degraded" ? "warning" : model?.state === "RecentlyHealthy" ? "good" : "muted"}`}>{modelState(model)}</span>{model?.state === "Degraded" && model.lastFailureAt ? <small>Last failure {timeAgo(model.lastFailureAt)}</small> : model?.lastSuccessAt ? <small>Last success {timeAgo(model.lastSuccessAt)}</small> : null}</td></tr>;
+        return <tr key={row.task}><th scope="row">{row.task}</th><td>{row.model}</td><td><span className={`status-inline status-inline--${model?.state === "Degraded" ? "warning" : model?.state === "RecentlyHealthy" ? "good" : "muted"}`}>{modelState(model)}</span>{model?.state === "Degraded" && model.lastFailureAt ? <small>Last failure {timeAgo(model.lastFailureAt)}</small> : model?.lastSuccessAt ? <small>Last success {timeAgo(model.lastSuccessAt)}</small> : null}</td></tr>;
       })}</tbody></table></div> : <p className="status-page__note">AI task assignments are unavailable.</p>}
       <p className="status-page__note">Gemini limits are project- and model-specific. These counts reflect RAVEN telemetry, not all use of your Google project.</p>
     </Panel>

@@ -77,6 +77,28 @@ it("loads persistent settings and saves the explicit model roles", async () => {
   expect(screen.getByText("All settings saved.")).toBeInTheDocument();
 });
 
+it("does not warn about a failed Gemini model that is no longer configured", async () => {
+  const flashLiteSettings = { ...settings, deepResearchModel: "gemini-3.5-flash-lite" };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async input => {
+    const url = String(input);
+    if (url.endsWith("/api/settings/research")) return jsonResponse(flashLiteSettings);
+    if (url.endsWith("/api/system/provider-status")) return jsonResponse(providerStatus);
+    if (url.endsWith("/api/system/provider-health")) return jsonResponse({
+      generatedAt: new Date().toISOString(),
+      models: [{ provider: "gemini", model: "gemini-3.8-flash", state: "Degraded",
+        lastFailureAt: new Date().toISOString(), lastFailureHttpStatus: 503,
+        lastFailureCode: "unavailable", lastFailureSummary: "The provider request failed.", requestsLastMinute: 1 }],
+      recentActivity: [],
+    });
+    return jsonResponse({}, 404);
+  });
+
+  renderWithRouter(<SettingsPage />, "/settings");
+
+  expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText(/Gemini recently had a request failure/)).not.toBeInTheDocument());
+});
+
 it("resets the draft and persisted settings through the reset endpoint", async () => {
   const user = userEvent.setup();
   const resetSettings = { ...settings, groundingMode: "Off", aiSourceRerankingEnabled: false };

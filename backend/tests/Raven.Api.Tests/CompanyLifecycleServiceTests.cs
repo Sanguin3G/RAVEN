@@ -3,7 +3,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
 using Raven.Api.Features.Companies;
+using Raven.Api.Features.Chat;
 using Raven.Api.Features.DeepResearch;
+using Raven.Api.Features.ManagedResearch;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Profiles.Persistence;
@@ -12,6 +14,7 @@ using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Research.SavedArtifacts;
+using Raven.Api.Features.Research.Briefings;
 using Raven.Api.Features.Research.Sources;
 
 namespace Raven.Api.Tests;
@@ -71,6 +74,51 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
             GeneratedAt = DateTimeOffset.UtcNow,
             ConfirmedAt = DateTimeOffset.UtcNow,
             ProfileJson = "{}"
+        };
+        var briefing = new ResearchBriefing
+        {
+            CompanyId = company.Id,
+            Title = "Delete Briefing",
+            Template = "Custom",
+            Objective = "Verify cascading cleanup"
+        };
+        var briefingVersion = new ResearchBriefingVersion
+        {
+            BriefingId = briefing.Id,
+            VersionNumber = 1,
+            GeneratedAt = DateTimeOffset.UtcNow,
+            ResearchThrough = DateTimeOffset.UtcNow,
+            Title = briefing.Title,
+            Template = briefing.Template,
+            Objective = briefing.Objective,
+            SectionsJson = "[]",
+            SourcesJson = "[]"
+        };
+        var conversation = new ChatConversation
+        {
+            CompanyId = company.Id,
+            ProfileVersionId = profile.Id
+        };
+        var chatMessage = new ChatMessage
+        {
+            ConversationId = conversation.Id,
+            Role = ChatMessageRole.Assistant,
+            Content = "Briefing-backed answer",
+            Status = ChatMessageStatus.Completed,
+            AnswerStatus = ChatAnswerStatus.Answered
+        };
+        var briefingCitation = new ChatCitation
+        {
+            ChatMessageId = chatMessage.Id,
+            BriefingVersionId = briefingVersion.Id,
+            Origin = ChatCitationOrigin.Briefing
+        };
+        var briefingAttachment = new ResearchContextAttachment
+        {
+            CompanyId = company.Id,
+            ConversationId = conversation.Id,
+            BriefingId = briefing.Id,
+            BriefingVersionId = briefingVersion.Id
         };
         dbContext.ProfileEvidences.Add(new ProfileEvidence
         {
@@ -154,6 +202,7 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         dbContext.SourceDocuments.Add(source);
         dbContext.CompanyProfileCandidates.Add(candidate);
         dbContext.CompanyProfileVersions.Add(profile);
+        dbContext.AddRange(briefing, briefingVersion, conversation, chatMessage, briefingCitation, briefingAttachment);
         dbContext.DeepResearchRuns.Add(deepRun);
         await dbContext.SaveChangesAsync();
 
@@ -176,6 +225,12 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         Assert.Empty(await dbContext.DeepResearchActivities.ToListAsync());
         Assert.Empty(await dbContext.SavedResearchArtifacts.ToListAsync());
         Assert.Empty(await dbContext.CompanyMonitoringSettings.ToListAsync());
+        Assert.Empty(await dbContext.ResearchContextAttachments.ToListAsync());
+        Assert.Empty(await dbContext.ChatConversations.ToListAsync());
+        Assert.Empty(await dbContext.ChatMessages.ToListAsync());
+        Assert.Empty(await dbContext.ChatCitations.ToListAsync());
+        Assert.Empty(await dbContext.ResearchBriefings.ToListAsync());
+        Assert.Empty(await dbContext.ResearchBriefingVersions.ToListAsync());
     }
 
     [Fact]

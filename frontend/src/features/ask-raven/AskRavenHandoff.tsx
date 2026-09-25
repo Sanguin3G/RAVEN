@@ -1,19 +1,22 @@
 import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUp, CaretDown, Plus } from "@phosphor-icons/react";
+import { ArrowUp, CaretDown, CaretLeft, Paperclip, Plus } from "@phosphor-icons/react";
 import { createChatConversation, getChatConversation, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import {
+  attachBriefingContext,
   attachResearchContext,
   getManagedResearchJobs,
   getResearchContextAttachments,
   previewManagedResearchBrief,
+  removeBriefingContext,
   removeResearchContext,
   startManagedResearch,
   type ManagedResearchBriefPreview,
   type ManagedResearchJob,
   type ResearchContextAttachment,
 } from "../../api/managedResearch";
-import type { ChatAnswerStatus, ChatMessage } from "../../types/chat";
+import { getBriefings, type BriefingListItem } from "../../api/briefings";
+import type { ChatMessage } from "../../types/chat";
 import { hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
 import styles from "./ask-raven.module.css";
 
@@ -34,29 +37,6 @@ function formatDate(value?: string | null): string | null {
   return Number.isNaN(timestamp) ? null : new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(timestamp);
 }
 
-const statusLabels: Record<ChatAnswerStatus, string> = {
-  Answered: "Answered",
-  Conversational: "Conversation",
-  Guidance: "Guidance",
-  ClarificationRequired: "Clarification needed",
-  InsufficientEvidence: "Insufficient profile evidence",
-  UnsupportedScope: "Outside current company scope",
-};
-
-type AnswerEvidenceMode = "Profile" | "Web" | "Investigation" | "Mixed";
-
-function getAnswerEvidenceMode(message: ChatMessage): AnswerEvidenceMode | null {
-  if (message.role !== "Assistant" || !message.answerStatus) return null;
-  const hasProfile = message.citations.some((citation) => citation.origin === "Profile");
-  const hasWeb = message.citations.some((citation) => citation.origin === "Web");
-  const hasInvestigation = message.citations.some((citation) => citation.origin === "Investigation");
-  if (Number(hasProfile) + Number(hasWeb) + Number(hasInvestigation) > 1) return "Mixed";
-  if (hasProfile) return "Profile";
-  if (hasWeb) return "Web";
-  if (hasInvestigation) return "Investigation";
-  return null;
-}
-
 function sourceDomain(url: string) {
   try { return new URL(url).hostname; } catch { return url; }
 }
@@ -73,12 +53,6 @@ function researchInvestigationHref(companyId: string, job: ManagedResearchJob) {
   const id = job.investigationId ?? job.id;
   const params = new URLSearchParams({ tab: "investigations", research: id });
   if (job.answerInChat && job.conversationId) params.set("conversation", job.conversationId);
-  return `/companies/${encodeURIComponent(companyId)}?${params.toString()}`;
-}
-
-function investigationsHref(companyId: string, conversationId: string | null) {
-  const params = new URLSearchParams({ tab: "investigations" });
-  if (conversationId) params.set("conversation", conversationId);
   return `/companies/${encodeURIComponent(companyId)}?${params.toString()}`;
 }
 
@@ -129,6 +103,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [expandedSourceMessageId, setExpandedSourceMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [managedResearchJobs, setManagedResearchJobs] = useState<ManagedResearchJob[]>([]);
+  const [briefings, setBriefings] = useState<BriefingListItem[]>([]);
   const [researchContextAttachments, setResearchContextAttachments] = useState<ResearchContextAttachment[]>([]);
   const [attachingResearchId, setAttachingResearchId] = useState<string | null>(null);
   const [investigationPickerOpen, setInvestigationPickerOpen] = useState(false);
@@ -136,7 +111,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const capabilitiesId = useId();
   const capabilitiesRef = useRef<HTMLDivElement>(null);
   const capabilitiesTriggerRef = useRef<HTMLButtonElement>(null);
-  const investigationsLinkRef = useRef<HTMLAnchorElement>(null);
+  const addEvidenceActionRef = useRef<HTMLButtonElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const activeCompanyIdRef = useRef(companyId);
   const researchContextLoadVersionRef = useRef(0);
@@ -275,7 +250,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
     document.addEventListener("keydown", closeOnEscape);
-    investigationsLinkRef.current?.focus();
+    addEvidenceActionRef.current?.focus();
     return () => {
       document.removeEventListener("pointerdown", closeOnOutsidePointer);
       document.removeEventListener("keydown", closeOnEscape);
@@ -304,6 +279,14 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
       active = false;
       window.clearInterval(intervalId);
     };
+  }, [companyId]);
+
+  useEffect(() => {
+    let active = true;
+    void getBriefings(companyId)
+      .then((items) => { if (active) setBriefings(Array.isArray(items) ? items : []); })
+      .catch(() => { if (active) setBriefings([]); });
+    return () => { active = false; };
   }, [companyId]);
 
   useEffect(() => {
@@ -412,11 +395,40 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const removeAttachment = async (attachment: ResearchContextAttachment) => {
     if (!conversationId) return;
     try {
-      await removeResearchContext(companyId, attachment.investigationId, conversationId);
+      if (attachment.kind === "Briefing" && attachment.briefingId) {
+        await removeBriefingContext(companyId, attachment.briefingId, conversationId);
+      } else if (attachment.investigationId) {
+        await removeResearchContext(companyId, attachment.investigationId, conversationId);
+      } else return;
       researchContextLoadVersionRef.current += 1;
       setResearchContextAttachments((current) => current.filter((item) => item.id !== attachment.id));
     } catch (removalError) {
-      setError(removalError instanceof Error ? removalError.message : "Could not remove the attached investigation.");
+      setError(removalError instanceof Error ? removalError.message : "Could not remove the attached research context.");
+    }
+  };
+
+  const attachBriefing = async (briefing: BriefingListItem) => {
+    if (!profileVersionId || attachingResearchId) return;
+    const existing = researchContextAttachments.find((item) => item.kind === "Briefing" && item.briefingId === briefing.id);
+    if (!existing && researchContextAttachments.length >= 5) return;
+
+    const operationId = `briefing:${briefing.id}`;
+    setAttachingResearchId(operationId);
+    setError(null);
+    try {
+      const activeConversationId = await ensureConversation();
+      const attachment = await attachBriefingContext(companyId, briefing.id, briefing.versionNumber, activeConversationId);
+      researchContextLoadVersionRef.current += 1;
+      setResearchContextAttachments((current) => [
+        attachment,
+        ...current.filter((item) => item.id !== attachment.id && item.briefingId !== attachment.briefingId),
+      ]);
+      setInvestigationPickerOpen(false);
+      setCapabilitiesOpen(false);
+    } catch (attachmentError) {
+      setError(attachmentError instanceof Error ? attachmentError.message : "Could not attach this Briefing.");
+    } finally {
+      setAttachingResearchId(null);
     }
   };
 
@@ -434,6 +446,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         ...current.filter((item) => item.id !== attachment.id && item.investigationId !== attachment.investigationId),
       ]);
       setInvestigationPickerOpen(false);
+      setCapabilitiesOpen(false);
     } catch (attachmentError) {
       setError(attachmentError instanceof Error ? attachmentError.message : "Could not attach this investigation.");
     } finally {
@@ -544,17 +557,16 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
           <article key={message.id} className={`${styles.chatMessage} ${message.role === "User" ? styles.chatMessageUser : styles.chatMessageAssistant}`}>
             <span className={styles.chatMessageRole}>{message.role === "User" ? "You" : "RAVEN"}</span>
             {message.content ? <p>{message.content}</p> : null}
-            {message.answerStatus ? <div className={styles.chatMessageMeta}><span className={styles.chatMessageStatus}>{statusLabels[message.answerStatus]}</span>{getAnswerEvidenceMode(message) ? <span className={`${styles.answerEvidenceBadge} ${styles[`answerEvidenceBadge${getAnswerEvidenceMode(message)}`]}`}>{getAnswerEvidenceMode(message)}</span> : null}</div> : null}
             {message.followUpQuestion ? <p className={styles.chatFollowUp}>{message.followUpQuestion}</p> : null}
             {message.citations.length > 0 ? <>
               <button className={styles.sourceToggle} type="button" aria-expanded={expandedSourceMessageId === message.id} onClick={() => setExpandedSourceMessageId((current) => current === message.id ? null : message.id)}>
                 <span>Nguồn</span><CaretDown className={styles.sourceChevron} size={13} aria-hidden="true" />
               </button>
               {expandedSourceMessageId === message.id ? <section className={styles.sourceList} aria-label="Sources used for this answer">
-                {message.citations.map((citation) => <a key={citation.investigationId ?? citation.webEvidenceSnapshotId ?? citation.sourceDocumentId ?? citation.url} className={styles.sourceItem} href={citation.url} target={citation.origin === "Investigation" ? undefined : "_blank"} rel={citation.origin === "Investigation" ? undefined : "noreferrer"}>
-                  <span>{citation.origin === "Investigation" ? "Investigation" : citation.origin === "Web" ? "Web source" : "Profile source"}</span>
+                {message.citations.map((citation) => <a key={citation.briefingVersionId ?? citation.investigationId ?? citation.webEvidenceSnapshotId ?? citation.sourceDocumentId ?? citation.url} className={styles.sourceItem} href={citation.url} target={citation.origin === "Investigation" || citation.origin === "Briefing" ? undefined : "_blank"} rel={citation.origin === "Investigation" || citation.origin === "Briefing" ? undefined : "noreferrer"}>
+                  <span>{citation.origin === "Investigation" ? "Investigation" : citation.origin === "Briefing" ? "Briefing" : citation.origin === "Web" ? "Web source" : "Profile source"}</span>
                   <strong>{citation.title ?? citation.fieldPath ?? sourceDomain(citation.url)}</strong>
-                  {citation.origin !== "Investigation" ? <small>{sourceDomain(citation.url)}</small> : null}
+                  {citation.origin === "Web" || citation.origin === "Profile" ? <small>{sourceDomain(citation.url)}</small> : null}
                 </a>)}
               </section> : null}
             </> : null}
@@ -610,27 +622,9 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         {researchContextAttachments.length > 0 ? <div className={styles.researchContextAttachments} aria-label="Attached research context" role="group">
           <span className={styles.researchContextLabel}>Research context</span>
           {researchContextAttachments.map((attachment) => <span className={styles.researchContextChip} key={attachment.id}>
-            <span title={attachment.objective}>✦ {attachment.objective}</span>
-            <button type="button" onClick={() => void removeAttachment(attachment)} aria-label={`Remove ${attachment.objective} context`}>×</button>
+            <span title={attachment.kind === "Briefing" ? attachment.title ?? undefined : attachment.objective ?? undefined}>✦ {attachment.kind === "Briefing" ? `Briefing · ${attachment.title} · v${attachment.briefingVersionNumber}` : `Investigation · ${attachment.objective}`}</span>
+            <button type="button" onClick={() => void removeAttachment(attachment)} aria-label={`Remove ${attachment.title ?? attachment.objective ?? "research"} context`}>×</button>
           </span>)}
-        </div> : null}
-        {profileVersionId ? <div className={styles.investigationPicker}>
-          <button type="button" className={styles.investigationPickerTrigger} aria-expanded={investigationPickerOpen} onClick={() => setInvestigationPickerOpen((open) => !open)}>
-            {investigationPickerOpen ? "Close research" : `Add research${researchContextAttachments.length ? ` (${researchContextAttachments.length}/5)` : ""}`}
-          </button>
-          {investigationPickerOpen ? <div className={styles.investigationPickerPanel} aria-label="Choose completed Deep Research">
-            <input aria-label="Find Deep Research" placeholder="Find completed research" value={investigationSearch} onChange={(event) => setInvestigationSearch(event.target.value)} />
-            <div className={styles.investigationPickerList}>
-              {managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId && job.objective.toLowerCase().includes(investigationSearch.toLowerCase())).length === 0 ? <p>No completed Deep Research found.</p> :
-                managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId && job.objective.toLowerCase().includes(investigationSearch.toLowerCase())).map((job) => <div className={styles.investigationPickerRow} key={job.id}>
-                  <span title={job.objective}>{job.objective}</span>
-                  <button type="button" onClick={() => void attachInvestigation(job)} disabled={attachingResearchId !== null || researchContextAttachments.length >= 5 || researchContextAttachments.some((item) => item.investigationId === job.investigationId)}>
-                    {researchContextAttachments.some((item) => item.investigationId === job.investigationId) ? "Added" : attachingResearchId === job.id ? "Adding…" : "Add"}
-                  </button>
-                </div>)}
-            </div>
-            {researchContextAttachments.length >= 5 ? <small>Remove one Investigation to add another.</small> : null}
-          </div> : null}
         </div> : null}
         <div className={styles.assistantComposerFooter}>
           <div className={styles.capabilityControls} ref={capabilitiesRef}>
@@ -641,57 +635,107 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
               className={styles.capabilityTrigger}
               ref={capabilitiesTriggerRef}
               type="button"
-              onClick={() => setCapabilitiesOpen((open) => !open)}
+              onClick={() => {
+                if (capabilitiesOpen) setInvestigationPickerOpen(false);
+                setCapabilitiesOpen((open) => !open);
+              }}
             >
               <Plus size={17} weight="bold" aria-hidden="true" />
             </button>
             {capabilitiesOpen ? <div aria-label="Additional capabilities" className={styles.capabilityPanel} id={capabilitiesId} role="group">
-              <div className={styles.capabilityPanelHeader}>
-                <strong>Additional capabilities</strong>
-                <span>Choose a next step.</span>
-              </div>
-              <ul className={styles.capabilityList}>
-                <li>
-                  <a className={styles.capabilityAction} ref={investigationsLinkRef} href={investigationsHref(companyId, conversationId)} onClick={() => setCapabilitiesOpen(false)}>
-                    <span>Open Investigations</span>
-                    <small>View saved research results</small>
-                  </a>
-                </li>
-                <li>
-                  <label className={styles.capabilityToggle}>
-                    <span>
-                      <strong>Search the web</strong>
-                      <small>{capabilitySaving ? "Saving preference…" : webSearchEnabled ? "On for this conversation" : "Off for this conversation"}</small>
-                    </span>
-                    <input
-                      aria-label="Web search"
-                      checked={webSearchEnabled}
-                      disabled={!profileVersionId || pending || conversationLoading || capabilitySaving}
-                      onChange={(event) => { void setWebSearchCapability(event.target.checked); }}
-                      type="checkbox"
-                    />
-                  </label>
-                </li>
-                <li>
-                  <button
-                    aria-pressed={activeCapability === "deepResearch"}
-                    className={`${styles.capabilityAction} ${activeCapability === "deepResearch" ? styles.capabilitySelected : ""}`}
-                    type="button"
-                    disabled={!profileVersionId}
-                    onClick={() => {
-                      setActiveCapability("deepResearch");
-                      setDeepResearchBrief(null);
-                      setDeepResearchOriginalQuestion(null);
-                      setDeepResearchBriefEditing(false);
-                      setCapabilitiesOpen(false);
-                      window.setTimeout(() => questionInputRef.current?.focus(), 0);
-                    }}
-                  >
-                    <span>Deep Research</span>
-                    <small>{profileVersionId ? "Investigate, then answer in this chat" : "Accept a profile to use in chat"}</small>
+              {investigationPickerOpen ? <>
+                <div className={styles.evidencePickerHeader}>
+                  <button aria-label="Back to additional capabilities" className={styles.evidenceBackButton} type="button" onClick={() => setInvestigationPickerOpen(false)}>
+                    <CaretLeft size={14} aria-hidden="true" /> Back
                   </button>
-                </li>
-              </ul>
+                  <strong>Attach evidence</strong>
+                  <span>Use saved Investigations and Briefings in this chat.</span>
+                </div>
+                <section className={styles.evidencePickerPanel} aria-label="Choose evidence">
+                  <input aria-label="Find research context" placeholder="Find Investigations or Briefings" value={investigationSearch} onChange={(event) => setInvestigationSearch(event.target.value)} />
+                  <strong>Investigations</strong>
+                  <div className={styles.evidencePickerList}>
+                    {managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId && job.objective.toLowerCase().includes(investigationSearch.toLowerCase())).length === 0 ? <p>No completed Deep Research found.</p> :
+                      managedResearchJobs.filter((job) => job.status === "Completed" && job.investigationId && job.objective.toLowerCase().includes(investigationSearch.toLowerCase())).map((job) => <div className={styles.evidencePickerRow} key={job.id}>
+                        <span title={job.objective}>{job.objective}</span>
+                        <button type="button" onClick={() => void attachInvestigation(job)} disabled={attachingResearchId !== null || researchContextAttachments.length >= 5 || researchContextAttachments.some((item) => item.investigationId === job.investigationId)}>
+                          {researchContextAttachments.some((item) => item.investigationId === job.investigationId) ? "Added" : attachingResearchId === job.id ? "Adding…" : "Add"}
+                        </button>
+                      </div>)}
+                  </div>
+                  <strong>Briefings</strong>
+                  <div className={styles.evidencePickerList}>
+                    {briefings.filter((briefing) => `${briefing.title} ${briefing.template}`.toLowerCase().includes(investigationSearch.toLowerCase())).length === 0 ? <p>No Briefings found.</p> :
+                      briefings.filter((briefing) => `${briefing.title} ${briefing.template}`.toLowerCase().includes(investigationSearch.toLowerCase())).map((briefing) => {
+                        const attached = researchContextAttachments.find((item) => item.kind === "Briefing" && item.briefingId === briefing.id);
+                        const current = attached?.briefingVersionNumber === briefing.versionNumber;
+                        return <div className={styles.evidencePickerRow} key={briefing.id}>
+                          <span title={briefing.title}>{briefing.title} · v{briefing.versionNumber}</span>
+                          <button type="button" onClick={() => void attachBriefing(briefing)} disabled={attachingResearchId !== null || (!attached && researchContextAttachments.length >= 5) || current}>
+                            {current ? "Added" : attachingResearchId === `briefing:${briefing.id}` ? "Adding…" : attached ? `Update to v${briefing.versionNumber}` : "Add"}
+                          </button>
+                        </div>;
+                      })}
+                  </div>
+                  {researchContextAttachments.length >= 5 ? <small>Remove one context item to add another.</small> : null}
+                </section>
+              </> : <>
+                <div className={styles.capabilityPanelHeader}>
+                  <strong>Additional capabilities</strong>
+                  <span>Choose a next step.</span>
+                </div>
+                <ul className={styles.capabilityList}>
+                  {profileVersionId ? <li>
+                    <button
+                      aria-label="Attach evidence"
+                      className={styles.capabilityAction}
+                      ref={addEvidenceActionRef}
+                      type="button"
+                      onClick={() => {
+                        setInvestigationSearch("");
+                        setInvestigationPickerOpen(true);
+                      }}
+                    >
+                      <span className={styles.evidenceActionLabel}><Paperclip size={14} aria-hidden="true" /> Attach evidence{researchContextAttachments.length ? ` (${researchContextAttachments.length}/5)` : ""}</span>
+                      <small>Use saved Investigations and Briefings in this chat</small>
+                    </button>
+                  </li> : null}
+                  <li>
+                    <label className={styles.capabilityToggle}>
+                      <span>
+                        <strong>Search the web</strong>
+                        <small>{capabilitySaving ? "Saving preference…" : webSearchEnabled ? "On for this conversation" : "Off for this conversation"}</small>
+                      </span>
+                      <input
+                        aria-label="Web search"
+                        checked={webSearchEnabled}
+                        disabled={!profileVersionId || pending || conversationLoading || capabilitySaving}
+                        onChange={(event) => { void setWebSearchCapability(event.target.checked); }}
+                        type="checkbox"
+                      />
+                    </label>
+                  </li>
+                  <li>
+                    <button
+                      aria-pressed={activeCapability === "deepResearch"}
+                      className={`${styles.capabilityAction} ${activeCapability === "deepResearch" ? styles.capabilitySelected : ""}`}
+                      type="button"
+                      disabled={!profileVersionId}
+                      onClick={() => {
+                        setActiveCapability("deepResearch");
+                        setDeepResearchBrief(null);
+                        setDeepResearchOriginalQuestion(null);
+                        setDeepResearchBriefEditing(false);
+                        setCapabilitiesOpen(false);
+                        window.setTimeout(() => questionInputRef.current?.focus(), 0);
+                      }}
+                    >
+                      <span>Deep Research</span>
+                      <small>{profileVersionId ? "Investigate, then answer in this chat" : "Accept a profile to use in chat"}</small>
+                    </button>
+                  </li>
+                </ul>
+              </>}
             </div> : null}
           </div>
           {activeCapability === "deepResearch" ? <button className={styles.capabilityChip} type="button" onClick={() => { researchBriefVersionRef.current += 1; setDeepResearchBriefLoading(false); setActiveCapability(null); setDeepResearchBrief(null); setDeepResearchOriginalQuestion(null); setDeepResearchBriefEditing(false); }} aria-label="Remove Deep Research capability">✦ Deep Research ×</button> : null}

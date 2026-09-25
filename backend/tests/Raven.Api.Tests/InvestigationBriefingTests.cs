@@ -7,6 +7,8 @@ using Raven.Api.Features.Companies;
 using Raven.Api.Features.Profiles.Persistence;
 using Raven.Api.Features.Research.Briefings;
 using Raven.Api.Features.Research.SavedArtifacts;
+using Raven.Api.Features.Research.Intelligence;
+using Raven.Api.Features.Settings;
 
 namespace Raven.Api.Tests;
 
@@ -30,7 +32,7 @@ public sealed class InvestigationBriefingTests : IDisposable
         db.SaveChanges();
         saved = new SavedResearchArtifactService(new EfSavedResearchArtifactStore(db), new EfSourceDocumentOwnershipReader(db), new FixedClock());
         investigations = new InvestigationService(db, saved, new CompanyProfilePersistenceService(db));
-        briefings = new BriefingService(db, investigations, new BriefingGenerator(ai, new FixedModels()));
+        briefings = new BriefingService(db, investigations, new BriefingGenerator(ai, new FixedSettings()));
     }
 
     [Fact]
@@ -69,6 +71,7 @@ public sealed class InvestigationBriefingTests : IDisposable
         Assert.Equal(1, created.CurrentVersion.VersionNumber);
         Assert.Equal(first.Id, Assert.Single(created.CurrentVersion.Sources).InvestigationId);
         Assert.Equal(created.CurrentVersion.Sources[0].MaterialUpdatedAt, created.CurrentVersion.ResearchThrough);
+        Assert.Equal("gemini-3.5-flash-lite", ai.LastRequest!.Model);
         Assert.DoesNotContain("additionalProperties", ai.LastRequest!.ResponseSchema.GetRawText(), StringComparison.Ordinal);
 
         var updated = await briefings.UpdateAsync(CompanyId, created.Id,
@@ -142,10 +145,23 @@ public sealed class InvestigationBriefingTests : IDisposable
     public void Dispose() { db.Dispose(); connection.Dispose(); }
 
     private sealed class FixedClock : ISavedResearchArtifactClock { public DateTimeOffset UtcNow => DateTimeOffset.Parse("2026-09-18T00:00:00Z"); }
-    private sealed class FixedModels : IRuntimeModelPreferences
+    private sealed class FixedSettings : IResearchSettingsService
     {
-        public RuntimeModelPreferenceResponse Current => new("gemini-3.5-flash-lite", "gemini-3.8-flash");
-        public bool TryUpdate(UpdateRuntimeModelPreferencesRequest request, out RuntimeModelPreferenceResponse preferences) { preferences = Current; return false; }
+        private static readonly ResearchSettingsResponse Response = new(
+            GroundingMode.Auto,
+            "gemini-3.5-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3.5-flash-lite",
+            true,
+            ProviderPreset.LocalFirst,
+            ["brave"],
+            ["crawl4ai-local"],
+            DateTimeOffset.UtcNow,
+            ChatModel: "gemini-3.8-flash");
+
+        public Task<ResearchSettingsResponse> GetAsync(CancellationToken cancellationToken = default) => Task.FromResult(Response);
+        public Task<ResearchSettingsResponse> UpdateAsync(UpdateResearchSettingsRequest request, CancellationToken cancellationToken = default) => Task.FromResult(Response);
+        public Task<ResearchSettingsResponse> ResetAsync(CancellationToken cancellationToken = default) => Task.FromResult(Response);
     }
     private sealed class FakeAi : IAiModelProvider
     {

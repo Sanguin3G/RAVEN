@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Raven.Api.Data;
+using Raven.Api.Features.Research.Briefings;
 
 namespace Raven.Api.Features.ManagedResearch;
 
@@ -17,9 +18,26 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
                     item.InvestigationId == investigationId,
             cancellationToken);
 
+    public Task<ResearchContextAttachment?> GetBriefingAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid briefingId,
+        CancellationToken cancellationToken = default) =>
+        db.ResearchContextAttachments.AsNoTracking().SingleOrDefaultAsync(
+            item => item.CompanyId == companyId &&
+                    item.ConversationId == conversationId &&
+                    item.BriefingId == briefingId,
+            cancellationToken);
+
     public async Task AddAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default)
     {
         db.ResearchContextAttachments.Add(attachment);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(ResearchContextAttachment attachment, CancellationToken cancellationToken = default)
+    {
+        db.ResearchContextAttachments.Update(attachment);
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -44,6 +62,24 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
         return true;
     }
 
+    public async Task<bool> RemoveBriefingAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid briefingId,
+        CancellationToken cancellationToken = default)
+    {
+        var attachment = await db.ResearchContextAttachments.SingleOrDefaultAsync(
+            item => item.CompanyId == companyId &&
+                    item.ConversationId == conversationId &&
+                    item.BriefingId == briefingId,
+            cancellationToken);
+        if (attachment is null) return false;
+
+        db.ResearchContextAttachments.Remove(attachment);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<IReadOnlyList<ResearchContextAttachment>> ListAsync(
         Guid companyId,
         Guid conversationId,
@@ -56,7 +92,8 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
 }
 
 /// <summary>
-/// Coordinates attachment state with completed investigation records. It has
+/// Coordinates attachment state with completed Investigations and immutable
+/// Briefing versions. It has
 /// no profile writer and does not alter the Chat agent contract.
 /// </summary>
 public sealed class ResearchContextAttachmentService(
@@ -76,10 +113,20 @@ public sealed class ResearchContextAttachmentService(
         var responses = new List<ResearchContextAttachmentResponse>(rows.Count);
         foreach (var row in rows)
         {
-            var investigation = await investigations.GetAsync(companyId, row.InvestigationId, cancellationToken);
-            if (investigation is not null)
+            if (row.InvestigationId is { } investigationId)
             {
-                responses.Add(ToResponse(row, investigation));
+                var investigation = await investigations.GetAsync(companyId, investigationId, cancellationToken);
+                if (investigation is not null) responses.Add(ToResponse(row, investigation));
+                continue;
+            }
+
+            if (db is not null && row.BriefingId is { } briefingId && row.BriefingVersionId is { } versionId)
+            {
+                var briefing = await db.ResearchBriefings.AsNoTracking()
+                    .SingleOrDefaultAsync(item => item.CompanyId == companyId && item.Id == briefingId, cancellationToken);
+                var version = await db.ResearchBriefingVersions.AsNoTracking()
+                    .SingleOrDefaultAsync(item => item.BriefingId == briefingId && item.Id == versionId, cancellationToken);
+                if (briefing is not null && version is not null) responses.Add(ToResponse(row, briefing, version));
             }
         }
 
@@ -112,11 +159,7 @@ public sealed class ResearchContextAttachmentService(
             return ToResponse(existing, investigation);
         }
 
-        var running = db is null ? 0 : await db.ManagedResearchJobs.CountAsync(item =>
-            item.CompanyId == companyId && item.ConversationId == request.ConversationId && item.AnswerInChat &&
-            (item.Status == ManagedResearchJobStatus.Queued || item.Status == ManagedResearchJobStatus.Researching), cancellationToken);
-        if ((await attachments.ListAsync(companyId, request.ConversationId, cancellationToken)).Count + running >= 5)
-            throw new ArgumentException("A chat can attach at most five Investigations.", nameof(request));
+        await EnsureCapacityAsync(companyId, request.ConversationId, request, cancellationToken);
 
         var attachment = new ResearchContextAttachment
         {
@@ -127,6 +170,52 @@ public sealed class ResearchContextAttachmentService(
         };
         await attachments.AddAsync(attachment, cancellationToken);
         return ToResponse(attachment, investigation);
+    }
+
+    public async Task<ResearchContextAttachmentResponse> AttachBriefingAsync(
+        Guid companyId,
+        Guid briefingId,
+        int versionNumber,
+        AttachResearchContextRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ValidateScope(companyId, request.ConversationId);
+        await ValidateConversationAsync(companyId, request.ConversationId, cancellationToken);
+        if (briefingId == Guid.Empty || versionNumber < 1)
+            throw new ArgumentException("A valid Briefing and version are required.", nameof(briefingId));
+        if (db is null) throw new InvalidOperationException("Briefing context requires the application database.");
+
+        var briefing = await db.ResearchBriefings.AsNoTracking().SingleOrDefaultAsync(
+            item => item.CompanyId == companyId && item.Id == briefingId && item.ArchivedAt == null,
+            cancellationToken) ?? throw new KeyNotFoundException("The active Briefing does not belong to this company.");
+        var version = await db.ResearchBriefingVersions.AsNoTracking().SingleOrDefaultAsync(
+            item => item.BriefingId == briefingId && item.VersionNumber == versionNumber,
+            cancellationToken) ?? throw new KeyNotFoundException("The Briefing version does not exist.");
+
+        var existing = await attachments.GetBriefingAsync(companyId, request.ConversationId, briefingId, cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.BriefingVersionId != version.Id)
+            {
+                existing.BriefingVersionId = version.Id;
+                existing.AttachedAt = clock.UtcNow;
+                await attachments.UpdateAsync(existing, cancellationToken);
+            }
+            return ToResponse(existing, briefing, version);
+        }
+
+        await EnsureCapacityAsync(companyId, request.ConversationId, request, cancellationToken);
+        var attachment = new ResearchContextAttachment
+        {
+            CompanyId = companyId,
+            ConversationId = request.ConversationId,
+            BriefingId = briefingId,
+            BriefingVersionId = version.Id,
+            AttachedAt = clock.UtcNow
+        };
+        await attachments.AddAsync(attachment, cancellationToken);
+        return ToResponse(attachment, briefing, version);
     }
 
     public async Task<bool> RemoveAsync(
@@ -145,6 +234,19 @@ public sealed class ResearchContextAttachmentService(
         return await attachments.RemoveAsync(companyId, conversationId, investigationId, cancellationToken);
     }
 
+    public async Task<bool> RemoveBriefingAsync(
+        Guid companyId,
+        Guid conversationId,
+        Guid briefingId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateScope(companyId, conversationId);
+        await ValidateConversationAsync(companyId, conversationId, cancellationToken);
+        if (briefingId == Guid.Empty)
+            throw new ArgumentException("A Briefing ID is required.", nameof(briefingId));
+        return await attachments.RemoveBriefingAsync(companyId, conversationId, briefingId, cancellationToken);
+    }
+
     private static ResearchContextAttachmentResponse ToResponse(
         ResearchContextAttachment attachment,
         ManagedResearchInvestigation investigation) =>
@@ -152,12 +254,40 @@ public sealed class ResearchContextAttachmentService(
             attachment.Id,
             attachment.CompanyId,
             attachment.ConversationId,
-            attachment.InvestigationId,
-            investigation.Origin,
-            investigation.Objective,
-            investigation.Summary,
-            investigation.CompletedAt,
-            attachment.AttachedAt);
+            "Investigation",
+            attachment.AttachedAt,
+            InvestigationId: investigation.Id,
+            Origin: investigation.Origin,
+            Objective: investigation.Objective,
+            Summary: investigation.Summary,
+            CompletedAt: investigation.CompletedAt);
+
+    private static ResearchContextAttachmentResponse ToResponse(
+        ResearchContextAttachment attachment,
+        ResearchBriefing briefing,
+        ResearchBriefingVersion version) =>
+        new(
+            attachment.Id,
+            attachment.CompanyId,
+            attachment.ConversationId,
+            "Briefing",
+            attachment.AttachedAt,
+            BriefingId: briefing.Id,
+            BriefingVersionId: version.Id,
+            BriefingVersionNumber: version.VersionNumber,
+            Title: version.Title,
+            Template: version.Template,
+            ResearchThrough: version.ResearchThrough);
+
+    private async Task EnsureCapacityAsync(Guid companyId, Guid conversationId, AttachResearchContextRequest request,
+        CancellationToken cancellationToken)
+    {
+        var running = db is null ? 0 : await db.ManagedResearchJobs.CountAsync(item =>
+            item.CompanyId == companyId && item.ConversationId == conversationId && item.AnswerInChat &&
+            (item.Status == ManagedResearchJobStatus.Queued || item.Status == ManagedResearchJobStatus.Researching), cancellationToken);
+        if ((await attachments.ListAsync(companyId, conversationId, cancellationToken)).Count + running >= 5)
+            throw new ArgumentException("A chat can attach at most five research context items.", nameof(request));
+    }
 
     private async Task ValidateConversationAsync(Guid companyId, Guid conversationId, CancellationToken cancellationToken)
     {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getApiErrorMessage } from "../../api/client";
-import { briefingTemplates, getBriefingChanges, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing,
+import { briefingTemplates, getBriefingChanges, getBriefingVersion, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing,
   type Briefing, type BriefingCandidate, type BriefingChange, type BriefingTemplate, type BriefingVersion } from "../../api/briefings";
 import { BriefingResearchDialog } from "./BriefingResearchDialog";
 import styles from "./company-briefings.module.css";
@@ -9,10 +9,11 @@ const date = (value: string) => new Intl.DateTimeFormat(undefined, { day: "numer
 
 interface Props {
   companyId: string; briefing: Briefing; onChanged: (value: Briefing) => void;
+  initialVersionNumber?: number | null;
   onDeepResearch?: (objective: string) => void; onExternalResearch?: (objective: string) => void;
 }
 
-export function BriefingWorkspace({ companyId, briefing, onChanged, onDeepResearch, onExternalResearch }: Props) {
+export function BriefingWorkspace({ companyId, briefing, initialVersionNumber, onChanged, onDeepResearch, onExternalResearch }: Props) {
   const [viewed, setViewed] = useState<BriefingVersion>(briefing.currentVersion);
   const [versions, setVersions] = useState<BriefingVersion[] | null>(null);
   const [changes, setChanges] = useState<BriefingChange | null>(null);
@@ -31,7 +32,16 @@ export function BriefingWorkspace({ companyId, briefing, onChanged, onDeepResear
   const historyDialog = useRef<HTMLDialogElement>(null);
   const changesDialog = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => { setViewed(briefing.currentVersion); setVersions(null); setChanges(null); setTitle(briefing.title); setTemplate(briefing.template); setObjective(briefing.objective); }, [briefing.id, briefing.currentVersion]);
+  useEffect(() => {
+    let active = true;
+    setViewed(briefing.currentVersion); setVersions(null); setChanges(null); setTitle(briefing.title); setTemplate(briefing.template); setObjective(briefing.objective);
+    if (initialVersionNumber && initialVersionNumber !== briefing.currentVersion.versionNumber) {
+      void getBriefingVersion(companyId, briefing.id, initialVersionNumber)
+        .then((version) => { if (active) setViewed(version); })
+        .catch((reason) => { if (active) setError(getApiErrorMessage(reason, "Could not open the cited Briefing version.")); });
+    }
+    return () => { active = false; };
+  }, [briefing.id, briefing.currentVersion, companyId, initialVersionNumber]);
   useEffect(() => { if (updateOpen && !updateDialog.current?.open) updateDialog.current?.showModal(); if (!updateOpen && updateDialog.current?.open) updateDialog.current.close(); }, [updateOpen]);
   useEffect(() => { if (editOpen && !editDialog.current?.open) editDialog.current?.showModal(); if (!editOpen && editDialog.current?.open) editDialog.current.close(); }, [editOpen]);
   useEffect(() => { if (versions && !historyDialog.current?.open) historyDialog.current?.showModal(); if (!versions && historyDialog.current?.open) historyDialog.current.close(); }, [versions]);

@@ -14,10 +14,11 @@ public sealed class CompanyDeletionService(RavenDbContext dbContext)
         var versionIds = await dbContext.CompanyProfileVersions.Where(profile => profile.CompanyId == companyId).Select(profile => profile.Id).ToArrayAsync(cancellationToken);
         var briefingIds = await dbContext.ResearchBriefings.Where(brief => brief.CompanyId == companyId).Select(brief => brief.Id).ToArrayAsync(cancellationToken);
         var deleted = 0;
-        if (briefingIds.Length > 0) deleted += await dbContext.ResearchBriefingVersions.Where(item => briefingIds.Contains(item.BriefingId)).ExecuteDeleteAsync(cancellationToken);
-        deleted += await dbContext.ResearchBriefings.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.InvestigationReviewStates.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ResearchContextAttachments.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
+        deleted += await dbContext.ChatConversations.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
+        if (briefingIds.Length > 0) deleted += await dbContext.ResearchBriefingVersions.Where(item => briefingIds.Contains(item.BriefingId)).ExecuteDeleteAsync(cancellationToken);
+        deleted += await dbContext.ResearchBriefings.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ManagedResearchInvestigations.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ManagedResearchJobs.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ProfileEvidences.Where(item => (item.CompanyProfileCandidateId.HasValue && candidateIds.Contains(item.CompanyProfileCandidateId.Value)) || (item.CompanyProfileVersionId.HasValue && versionIds.Contains(item.CompanyProfileVersionId.Value))).ExecuteDeleteAsync(cancellationToken);

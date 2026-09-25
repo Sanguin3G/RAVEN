@@ -7,14 +7,6 @@ namespace Raven.Api.Tests;
 
 public sealed class ChatWebSearchPolicyAndRerankerTests
 {
-    [Theory]
-    [InlineData("What does the company do?", true, ChatWebSearchExpectationKind.Optional)]
-    [InlineData("What changed recently?", true, ChatWebSearchExpectationKind.Required)]
-    [InlineData("Tìm trên web tin mới nhất", true, ChatWebSearchExpectationKind.Required)]
-    [InlineData("What changed recently?", false, ChatWebSearchExpectationKind.Unavailable)]
-    public void Policy_keeps_normal_questions_optional_and_requires_web_only_for_current_or_explicit_requests(string question, bool enabled, ChatWebSearchExpectationKind expected) =>
-        Assert.Equal(expected, new ChatWebSearchPolicy().Evaluate(question, enabled).Kind);
-
     [Fact]
     public void Reranker_prefers_official_relevant_results_and_limits_each_domain()
     {
@@ -33,13 +25,44 @@ public sealed class ChatWebSearchPolicyAndRerankerTests
     }
 
     [Fact]
-    public void Evidence_reranker_keeps_relevant_bounded_passages()
+    public void Chunker_uses_the_original_question_and_requested_years_instead_of_the_page_title()
     {
-        var markdown = new string('a', 1200) + " investor update revenue growth " + new string('b', 1200) + " investor update earnings " + new string('c', 1200) + " investor update outlook " + new string('d', 1200);
-        var selected = new ChatEvidenceReranker().Select("investor update", markdown);
-        Assert.Contains("revenue growth", selected);
-        Assert.Contains("earnings", selected);
-        Assert.DoesNotContain(new string('d', 1200), selected);
+        var markdown = "# Generic newsroom\n\n" + new string('x', 2600) +
+            "\n\n## Thành tích\n\nFPT Software đạt giải thưởng quan trọng trong năm 2023, 2024 và 2025.";
+
+        var selected = new ChatEvidenceChunker().Select(
+            "Các thành tích từ năm 2023 đến năm 2025 của FPT Software là gì?", ["thành tích", "giải thưởng"], markdown);
+
+        Assert.Contains("FPT Software", selected);
+        Assert.Contains("2023", selected);
+        Assert.Contains("2025", selected);
+    }
+
+    [Fact]
+    public void Reranker_rewards_the_years_requested_by_this_question_without_hard_coding_current_year()
+    {
+        var reranker = new ChatWebSearchReranker(new SourceUrlNormalizer());
+        var ranked = reranker.Rank(new Company { Name = "FPT Software", Website = "https://fptsoftware.com" },
+            "FPT Software achievements 2023 2024", [
+                new SearchResult("Generic update", "https://news.example.com/generic", "FPT Software update", 1),
+                new SearchResult("Awards", "https://awards.example.org/fpt", "FPT Software achievements in 2023 and 2024", 4)
+            ]);
+
+        Assert.Equal("https://awards.example.org/fpt", ranked[0].NormalizedUrl);
+    }
+
+    [Fact]
+    public void Reranker_uses_the_accepted_profile_website_when_the_company_record_has_no_website()
+    {
+        var reranker = new ChatWebSearchReranker(new SourceUrlNormalizer());
+        var ranked = reranker.Rank(new Company { Name = "Masan Group Corporation" },
+            "Masan subsidiaries", [
+                new SearchResult("Masan business", "https://www.masangroup.com/our-business.html", "Corporate structure", 4),
+                new SearchResult("Masan discussion", "https://example.org/masan", "Masan subsidiaries", 1)
+            ], "https://www.masangroup.com/");
+
+        Assert.Equal("www.masangroup.com", ranked[0].Domain);
+        Assert.Contains("authoritative source", ranked[0].Reason, StringComparison.Ordinal);
     }
 
     [Fact]

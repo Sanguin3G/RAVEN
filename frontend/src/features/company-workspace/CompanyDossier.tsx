@@ -23,7 +23,7 @@ const tabs: Array<{ id: DossierTab; label: string }> = [
   { id: "monitoring", label: "Monitoring" },
 ];
 
-export function CompanyDossier({ company, profile, sources, research, tracking, monitoring, coverage, investigations, initialEnrichmentTargets, initialEnrichmentArtifactId, initialManagedResearchInvestigationId, initialChatCapability, initialChatQuestion, openEnrichment, onProfileConfirmed, onOpenProfileImprovement, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
+export function CompanyDossier({ company, profile, sources, research, tracking, monitoring, coverage, investigations, initialEnrichmentTargets, initialEnrichmentArtifactId, initialManagedResearchInvestigationId, initialChatCapability, initialChatQuestion, initialBriefingId, initialBriefingVersionNumber, openEnrichment, onProfileConfirmed, onOpenProfileImprovement, activeTab, initialTab = "overview", onTabChange }: CompanyDossierProps) {
   const [internalTab, setInternalTab] = useState<DossierTab>(initialTab);
   const [assistantCollapsed, setAssistantCollapsed] = useState(false);
   const [externalAssist, setExternalAssist] = useState<{ targets?: ResearchTarget[]; objective?: string } | null>(null);
@@ -79,7 +79,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
           }
           onOpenProfileImprovement?.(targets, sourceMaterialId, sourceMaterialKind);
         }} />}
-        {selectedTab === "briefings" && <CompanyBriefingsTab companyId={company.id} initialInvestigationId={briefingSeedId} onSeedConsumed={() => setBriefingSeedId(null)} onExternalResearch={(objective) => setExternalAssist({ objective })} onDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective }); }} />}
+        {selectedTab === "briefings" && <CompanyBriefingsTab companyId={company.id} initialInvestigationId={briefingSeedId} initialBriefingId={initialBriefingId} initialBriefingVersionNumber={initialBriefingVersionNumber} onSeedConsumed={() => setBriefingSeedId(null)} onExternalResearch={(objective) => setExternalAssist({ objective })} onDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective }); }} />}
         {selectedTab === "changes" && <CompanyChangesTab tracking={tracking} />}
         {selectedTab === "monitoring" && <CompanyMonitoringTab companyName={company.displayName} monitoring={monitoring} research={research} />}
       </div>

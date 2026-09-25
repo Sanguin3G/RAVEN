@@ -33,11 +33,18 @@ export interface ResearchContextAttachment {
   id: string;
   companyId: string;
   conversationId: string;
-  investigationId: string;
-  origin: string;
-  objective: string;
-  summary: string;
-  completedAt: string;
+  kind: "Investigation" | "Briefing";
+  investigationId?: string | null;
+  origin?: string | null;
+  objective?: string | null;
+  summary?: string | null;
+  completedAt?: string | null;
+  briefingId?: string | null;
+  briefingVersionId?: string | null;
+  briefingVersionNumber?: number | null;
+  title?: string | null;
+  template?: string | null;
+  researchThrough?: string | null;
   attachedAt: string;
 }
 
@@ -113,5 +120,25 @@ export function removeResearchContext(
   conversationId: string) {
   return request<void>(
     `${contextAttachmentPath(companyId, investigationId)}?conversationId=${encodeURIComponent(conversationId)}`,
+    { method: "DELETE" });
+}
+
+export function attachBriefingContext(
+  companyId: string,
+  briefingId: string,
+  versionNumber: number,
+  conversationId: string) {
+  return request<ResearchContextAttachment>(
+    `/api/companies/${encodeURIComponent(companyId)}/briefings/${encodeURIComponent(briefingId)}/versions/${versionNumber}/context-attachments`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId }),
+    });
+}
+
+export function removeBriefingContext(companyId: string, briefingId: string, conversationId: string) {
+  return request<void>(
+    `/api/companies/${encodeURIComponent(companyId)}/briefings/${encodeURIComponent(briefingId)}/context-attachments?conversationId=${encodeURIComponent(conversationId)}`,
     { method: "DELETE" });
 }

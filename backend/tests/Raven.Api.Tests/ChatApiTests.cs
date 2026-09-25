@@ -15,6 +15,10 @@ using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Ai;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.ManagedResearch;
+using Raven.Api.Features.Search;
+using Raven.Api.Features.Crawling;
+using Raven.Api.Features.Research.Briefings;
+using Raven.Api.Features.Research.SavedArtifacts;
 
 namespace Raven.Api.Tests;
 
@@ -299,19 +303,18 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     [Fact]
     public async Task Structured_insufficient_evidence_status_is_accepted_from_gemini_shape()
     {
+        var provider = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["achievements"],"requestedYears":["2025"],"query":"achievements 2025","profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"status":"insufficient_evidence","answer":"The accepted profile does not contain this information.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":[],"citedInvestigationIds":[],"claims":[],"limitations":["No verified evidence"],"followUpQuestion":null}
+            """
+        ]);
         using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
         {
             services.RemoveAll<IAiModelProvider>();
-            services.AddScoped<IAiModelProvider>(_ => new FixedAiProvider("""
-                {
-                  "action": "final",
-                  "status": "insufficient_evidence",
-                  "answer": "The accepted profile does not contain this information.",
-                  "sourceDocumentId": null,
-                  "citedSourceDocumentIds": [],
-                  "followUpQuestion": null
-                }
-                """));
+            services.AddScoped<IAiModelProvider>(_ => provider);
         })).CreateClient();
         var company = await CreateCompanyAsync(client);
         await SeedProfileAsync(company.Id, 1, "Example profile");
@@ -327,9 +330,14 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     [Fact]
     public async Task Chat_uses_the_configured_chat_model_not_the_profile_model()
     {
-        var provider = new FixedAiProvider("""
-            {"action":"final","status":"insufficient_evidence","answer":"No verified answer.","sourceDocumentId":null,"query":null,"webCandidateId":null,"citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":[],"followUpQuestion":null}
-            """);
+        var provider = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["achievements"],"requestedYears":[],"query":"achievements","profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"status":"insufficient_evidence","answer":"No verified answer.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":[],"citedInvestigationIds":[],"claims":[],"limitations":["No verified evidence"],"followUpQuestion":null}
+            """
+        ]);
         var settings = new ResearchSettingsService(new InMemoryResearchSettingsStore());
         var defaults = await settings.GetAsync();
         await settings.UpdateAsync(new UpdateResearchSettingsRequest(
@@ -353,7 +361,7 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
             new CreateChatMessageRequest("What achievements did the company have?"));
 
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
-        Assert.Equal("gemini-3.8-flash", provider.LastRequest?.Model);
+        Assert.All(provider.Requests, request => Assert.Equal("gemini-3.8-flash", request.Model));
     }
 
     [Fact]
@@ -539,9 +547,293 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         Assert.Equal(job.Objective, user.Content);
     }
 
-    private static async Task<CompanyResponse> CreateCompanyAsync(HttpClient client)
+    [Fact]
+    public async Task Web_enabled_factual_question_searches_crawls_accumulates_evidence_and_returns_citations()
     {
-        var response = await client.PostAsJsonAsync("/api/companies", new CreateCompanyRequest($"Chat Company {Guid.NewGuid():N}", "https://example.com", "Vietnam"));
+        var ai = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["achievements","awards"],"requestedYears":["2023","2024","2025"],"query":"achievements awards 2023 2024 2025","profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"sufficient":true,"missingEvidence":[],"nextQuery":null,"candidateIds":[]}
+            """,
+            """
+            {"status":"answered","answer":"Nguồn chưa crawl cũng có thành tích.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":["r2"],"citedInvestigationIds":[],"claims":[{"text":"Nguồn chưa crawl.","evidenceIds":["web:r2"]}],"limitations":[],"followUpQuestion":null}
+            """,
+            """
+            {"status":"answered","answer":"FPT Software có các thành tích đã được xác minh trong giai đoạn 2023–2025.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":["r1"],"citedInvestigationIds":[],"claims":[{"text":"Các thành tích đã được xác minh.","evidenceIds":["web:r1"]}],"limitations":[],"followUpQuestion":null}
+            """
+        ]);
+        var search = new RecordingSearchProvider();
+        var crawler = new RecordingCrawlerProvider();
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiModelProvider>();
+            services.AddScoped<IAiModelProvider>(_ => ai);
+            services.RemoveAll<ISearchProvider>();
+            services.AddScoped<ISearchProvider>(_ => search);
+            services.RemoveAll<ICrawlerProvider>();
+            services.AddScoped<ICrawlerProvider>(_ => crawler);
+            services.PostConfigure<ChatResearchOptions>(options => options.MaxParallelCrawls = 1);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client, "FPT Software");
+        await SeedProfileAsync(company.Id, 1, "FPT Software");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var capability = await client.PatchAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/capabilities",
+            new UpdateChatCapabilitiesRequest(true));
+        capability.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("Các thành tích từ năm 2023 đến năm 2025 của FPT Software là gì?"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.IsSuccessStatusCode, body);
+        var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        Assert.Equal(ChatAnswerStatus.Answered, message.Status);
+        Assert.Contains(message.ToolExecutions, item => item.Tool == "search_web" && item.Status == "succeeded");
+        Assert.Contains(message.ToolExecutions, item => item.Tool == "read_web_page" && item.Status == "succeeded");
+        Assert.Single(message.WebEvidenceSnapshots);
+        Assert.Single(message.Citations, item => item.Origin == ChatCitationOrigin.Web);
+        Assert.Contains("FPT Software", search.Requests[0].Query, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("2023", search.Requests[0].Query, StringComparison.Ordinal);
+        Assert.Contains("2025", search.Requests[0].Query, StringComparison.Ordinal);
+        Assert.Equal(1, crawler.CallCount);
+        Assert.Equal(4, ai.Requests.Count);
+        Assert.DoesNotContain("UNCRAWLED_CANDIDATE_MARKER", ai.Requests[2].Prompt, StringComparison.Ordinal);
+        Assert.Equal("company-chat-research-final-v1-repair", ai.Requests[3].PromptTemplateVersion);
+        var allowedWebIds = ai.Requests[2].ResponseSchema.GetProperty("properties")
+            .GetProperty("citedWebEvidenceCandidateIds").GetProperty("items").GetProperty("enum")
+            .EnumerateArray().Select(item => item.GetString()!).ToArray();
+        Assert.Equal(["r1"], allowedWebIds);
+    }
+
+    [Fact]
+    public async Task Attached_briefing_pins_an_exact_version_and_restores_its_citation()
+    {
+        var agent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Conversational, "Ready", [], null));
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => agent);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var sourceInvestigationId = Guid.NewGuid();
+        var briefing = new ResearchBriefing
+        {
+            CompanyId = company.Id,
+            Title = "Markets Briefing",
+            Template = "Markets & Expansion",
+            Objective = "Summarize market expansion"
+        };
+        var source = new BriefingSourceSnapshot(
+            sourceInvestigationId, InvestigationMaterialKind.Managed, null, "Japan expansion research",
+            "ManagedAi", InvestigationPurpose.GeneralResearch, ["Markets"], DateTimeOffset.UtcNow.AddDays(-2),
+            "A source summary that must not be copied as raw context.", [], [], ["Customer count remains uncertain."],
+            "RAW_SECRET_MATERIAL_MUST_NOT_ENTER_CHAT");
+        var versionOne = new ResearchBriefingVersion
+        {
+            BriefingId = briefing.Id,
+            VersionNumber = 1,
+            GeneratedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            ResearchThrough = DateTimeOffset.UtcNow.AddDays(-2),
+            Title = briefing.Title,
+            Template = briefing.Template,
+            Objective = briefing.Objective,
+            SectionsJson = JsonSerializer.Serialize(new[]
+            {
+                new BriefingSection("markets", "Markets", ["Japan expansion is underway."], [sourceInvestigationId])
+            }, JsonOptions),
+            SourcesJson = JsonSerializer.Serialize(new[] { source }, JsonOptions)
+        };
+        var versionTwo = new ResearchBriefingVersion
+        {
+            BriefingId = briefing.Id,
+            VersionNumber = 2,
+            GeneratedAt = DateTimeOffset.UtcNow,
+            ResearchThrough = DateTimeOffset.UtcNow,
+            Title = briefing.Title,
+            Template = briefing.Template,
+            Objective = briefing.Objective,
+            SectionsJson = JsonSerializer.Serialize(new[]
+            {
+                new BriefingSection("markets", "Markets", ["A newer version exists."], [sourceInvestigationId])
+            }, JsonOptions),
+            SourcesJson = JsonSerializer.Serialize(new[] { source }, JsonOptions)
+        };
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.AddRange(briefing, versionOne, versionTwo);
+            await db.SaveChangesAsync();
+        }
+
+        var attach = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/briefings/{briefing.Id}/versions/1/context-attachments",
+            new AttachResearchContextRequest(conversation.Id));
+        Assert.Equal(HttpStatusCode.Created, attach.StatusCode);
+        var attached = await attach.Content.ReadFromJsonAsync<ResearchContextAttachmentResponse>(JsonOptions);
+        Assert.NotNull(attached);
+        Assert.Equal("Briefing", attached.Kind);
+        Assert.Equal(versionOne.Id, attached.BriefingVersionId);
+
+        agent.Result = new ChatAgentResult(ChatAnswerStatus.Answered,
+            "The pinned Briefing reports Japan expansion.", [], null, [], [], [versionOne.Id]);
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("What does the Markets Briefing say?"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, body);
+        var requestBriefing = Assert.Single(agent.LastRequest!.Briefings!);
+        Assert.Equal(versionOne.Id, requestBriefing.VersionId);
+        Assert.Contains("Japan expansion is underway.", requestBriefing.Material, StringComparison.Ordinal);
+        Assert.Contains("Customer count remains uncertain.", requestBriefing.Material, StringComparison.Ordinal);
+        Assert.DoesNotContain("RAW_SECRET_MATERIAL_MUST_NOT_ENTER_CHAT", requestBriefing.Material, StringComparison.Ordinal);
+        Assert.DoesNotContain("A source summary that must not be copied as raw context.", requestBriefing.Material, StringComparison.Ordinal);
+
+        var sent = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        var sentCitation = Assert.Single(sent.Citations);
+        Assert.Equal(ChatCitationOrigin.Briefing, sentCitation.Origin);
+        Assert.Equal(versionOne.Id, sentCitation.BriefingVersionId);
+        Assert.Contains($"briefingVersion=1&conversation={conversation.Id:D}", sentCitation.Url, StringComparison.Ordinal);
+
+        var restored = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        var assistant = Assert.Single(restored!.Messages, item => item.Role == ChatMessageRole.Assistant);
+        var restoredCitation = Assert.Single(assistant.Citations);
+        Assert.Equal(ChatCitationOrigin.Briefing, restoredCitation.Origin);
+        Assert.Equal(versionOne.Id, restoredCitation.BriefingVersionId);
+        Assert.Contains($"briefingVersion=1&conversation={conversation.Id:D}", restoredCitation.Url, StringComparison.Ordinal);
+
+        var updatePin = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/briefings/{briefing.Id}/versions/2/context-attachments",
+            new AttachResearchContextRequest(conversation.Id));
+        Assert.Equal(HttpStatusCode.Created, updatePin.StatusCode);
+        var attachments = await client.GetFromJsonAsync<ResearchContextAttachmentResponse[]>(
+            $"/api/companies/{company.Id}/research-context-attachments?conversationId={conversation.Id}", JsonOptions);
+        var updatedAttachment = Assert.Single(attachments!);
+        Assert.Equal(versionTwo.Id, updatedAttachment.BriefingVersionId);
+        Assert.Equal(2, updatedAttachment.BriefingVersionNumber);
+
+        var remove = await client.DeleteAsync(
+            $"/api/companies/{company.Id}/briefings/{briefing.Id}/context-attachments?conversationId={conversation.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, remove.StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<ResearchContextAttachmentResponse[]>(
+            $"/api/companies/{company.Id}/research-context-attachments?conversationId={conversation.Id}", JsonOptions))!);
+    }
+
+    [Fact]
+    public async Task Research_rounds_keep_prior_search_and_crawl_evidence_in_the_final_context()
+    {
+        var ai = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["awards by year"],"requestedYears":["2023","2024"],"query":"awards 2023","profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"sufficient":false,"missingEvidence":["2024 award"],"nextQuery":"awards 2024","candidateIds":[]}
+            """,
+            """
+            {"sufficient":true,"missingEvidence":[],"nextQuery":null,"candidateIds":[]}
+            """,
+            """
+            {"status":"answered","answer":"Đã tìm thấy bằng chứng cho cả năm 2023 và 2024.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":["r1","r2"],"citedInvestigationIds":[],"claims":[{"text":"Có bằng chứng năm 2023.","evidenceIds":["web:r1"]},{"text":"Có bằng chứng năm 2024.","evidenceIds":["web:r2"]}],"limitations":[],"followUpQuestion":null}
+            """
+        ]);
+        var search = new MultiRoundSearchProvider();
+        var crawler = new MultiRoundCrawlerProvider();
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiModelProvider>();
+            services.AddScoped<IAiModelProvider>(_ => ai);
+            services.RemoveAll<ISearchProvider>();
+            services.AddScoped<ISearchProvider>(_ => search);
+            services.RemoveAll<ICrawlerProvider>();
+            services.AddScoped<ICrawlerProvider>(_ => crawler);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client, $"FPT Multi Round {Guid.NewGuid():N}");
+        await SeedProfileAsync(company.Id, 1, company.Name);
+        var conversation = await CreateConversationAsync(client, company.Id);
+        (await client.PatchAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/capabilities",
+            new UpdateChatCapabilitiesRequest(true))).EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("Các giải thưởng trong năm 2023 và 2024 là gì?"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.IsSuccessStatusCode, body);
+        var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        Assert.Equal(2, message.WebEvidenceSnapshots.Count);
+        Assert.Equal(2, message.Citations.Count(item => item.Origin == ChatCitationOrigin.Web));
+        Assert.Equal(2, search.Requests.Count);
+        Assert.Equal(2, crawler.CallCount);
+        Assert.Equal(4, ai.Requests.Count);
+        Assert.Contains("Evidence for 2023", ai.Requests[^1].Prompt, StringComparison.Ordinal);
+        Assert.Contains("Evidence for 2024", ai.Requests[^1].Prompt, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Invalid_final_after_model_budget_returns_insufficient_evidence_and_persists_tool_results()
+    {
+        var ai = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["subsidiaries"],"requestedYears":[],"query":"Masan subsidiaries","profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"sufficient":false,"missingEvidence":["another subsidiary source"],"nextQuery":"Masan subsidiaries annual report","candidateIds":[]}
+            """,
+            """
+            {"sufficient":true,"missingEvidence":[],"nextQuery":null,"candidateIds":[]}
+            """,
+            """
+            {"status":"answered","answer":"Unsupported citation.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":["r999"],"citedInvestigationIds":[],"claims":[{"text":"Unsupported.","evidenceIds":["web:r999"]}],"limitations":[],"followUpQuestion":null}
+            """
+        ]);
+        var search = new MultiRoundSearchProvider();
+        var crawler = new MultiRoundCrawlerProvider();
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiModelProvider>();
+            services.AddScoped<IAiModelProvider>(_ => ai);
+            services.RemoveAll<ISearchProvider>();
+            services.AddScoped<ISearchProvider>(_ => search);
+            services.RemoveAll<ICrawlerProvider>();
+            services.AddScoped<ICrawlerProvider>(_ => crawler);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client, $"Masan Fallback {Guid.NewGuid():N}");
+        await SeedProfileAsync(company.Id, 1, company.Name);
+        var conversation = await CreateConversationAsync(client, company.Id);
+        (await client.PatchAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/capabilities",
+            new UpdateChatCapabilitiesRequest(true))).EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("Masan có các công ty con nào?"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.IsSuccessStatusCode, body);
+        var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        Assert.Equal(ChatAnswerStatus.InsufficientEvidence, message.Status);
+        Assert.Contains("chưa thể xác minh", message.Answer, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(message.ToolExecutions, item => item.Tool == "search_web");
+        Assert.Contains(message.ToolExecutions, item => item.Tool == "read_web_page");
+        Assert.Equal(2, message.WebEvidenceSnapshots.Count);
+        Assert.Empty(message.Citations);
+        Assert.Equal(4, ai.Requests.Count);
+    }
+
+    private static async Task<CompanyResponse> CreateCompanyAsync(HttpClient client, string? name = null)
+    {
+        var response = await client.PostAsJsonAsync("/api/companies", new CreateCompanyRequest(name ?? $"Chat Company {Guid.NewGuid():N}", "https://example.com", "Vietnam"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<CompanyResponse>())!;
     }
@@ -631,20 +923,77 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
                 Task.FromResult(completion);
         }
     }
-    private sealed class FixedAiProvider(string response) : IAiModelProvider
+    private sealed class SequencedAiProvider(IEnumerable<string> responses) : IAiModelProvider
     {
-        public string Id => "fake";
-        public AiModelRequest? LastRequest { get; private set; }
+        private readonly Queue<string> responses = new(responses);
+        public string Id => "fake-sequenced";
+        public List<AiModelRequest> Requests { get; } = [];
 
         public Task<AiModelResult> GenerateStructuredAsync(AiModelRequest request, CancellationToken cancellationToken = default)
         {
-            LastRequest = request;
-            using var document = JsonDocument.Parse(response);
-            return Task.FromResult(new AiModelResult(
-                "fake",
-                request.Model,
-                document.RootElement.Clone(),
-                TimeSpan.Zero));
+            Requests.Add(request);
+            if (responses.Count == 0) throw new InvalidOperationException("No configured AI response remains.");
+            using var document = JsonDocument.Parse(responses.Dequeue());
+            return Task.FromResult(new AiModelResult("fake", request.Model, document.RootElement.Clone(), TimeSpan.Zero));
+        }
+    }
+
+    private sealed class RecordingSearchProvider : ISearchProvider
+    {
+        public string Id => "fake-search";
+        public List<SearchRequest> Requests { get; } = [];
+
+        public Task<SearchResponse> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new SearchResponse(Id, [
+                new SearchResult("FPT Software achievements 2023–2025", "https://example.com/fpt-achievements", "Awards and milestones in 2023, 2024 and 2025", 1),
+                new SearchResult("UNCRAWLED_CANDIDATE_MARKER", "https://other.example.org/unread", "FPT Software secondary candidate", 2)
+            ]));
+        }
+    }
+
+    private sealed class RecordingCrawlerProvider : ICrawlerProvider
+    {
+        public string Id => "fake-crawler";
+        public int CallCount { get; private set; }
+
+        public Task<CrawlResult> CrawlAsync(CrawlRequest request, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(new CrawlResult(Id, request.Url, request.Url, "FPT Software achievements",
+                "# Achievements\n\nFPT Software received verified recognition in 2023. Further awards followed in 2024 and 2025.",
+                true, null, DateTimeOffset.Parse("2026-09-24T00:00:00Z")));
+        }
+    }
+
+    private sealed class MultiRoundSearchProvider : ISearchProvider
+    {
+        public string Id => "fake-search";
+        public List<SearchRequest> Requests { get; } = [];
+
+        public Task<SearchResponse> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            var year = Requests.Count == 1 ? "2023" : "2024";
+            return Task.FromResult(new SearchResponse(Id, [
+                new SearchResult($"Award {year}", $"https://awards.example.org/{year}", $"Company award {year}", 1)
+            ]));
+        }
+    }
+
+    private sealed class MultiRoundCrawlerProvider : ICrawlerProvider
+    {
+        public string Id => "fake-crawler";
+        public int CallCount { get; private set; }
+
+        public Task<CrawlResult> CrawlAsync(CrawlRequest request, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            var year = request.Url.EndsWith("2023", StringComparison.Ordinal) ? "2023" : "2024";
+            return Task.FromResult(new CrawlResult(Id, request.Url, request.Url, $"Award {year}",
+                $"# Award {year}\n\nEvidence for {year} was verified by the award organizer.", true, null,
+                DateTimeOffset.Parse("2026-09-24T00:00:00Z")));
         }
     }
 }

@@ -1,14 +1,14 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBriefing, getBriefing, getBriefings, getBriefingChanges, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing, type Briefing } from "../../api/briefings";
+import { createBriefing, getBriefing, getBriefings, getBriefingChanges, getBriefingVersion, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing, type Briefing } from "../../api/briefings";
 import { getInvestigations, type Investigation } from "../../api/investigations";
 import { CompanyBriefingsTab } from "./CompanyBriefingsTab";
 
 vi.mock("../../api/briefings", async importOriginal => ({
   ...await importOriginal<typeof import("../../api/briefings")>(),
   createBriefing: vi.fn(), getBriefing: vi.fn(), getBriefings: vi.fn(), getBriefingChanges: vi.fn(),
-  getBriefingVersions: vi.fn(), getNewerBriefingInvestigations: vi.fn(), updateBriefing: vi.fn(),
+  getBriefingVersion: vi.fn(), getBriefingVersions: vi.fn(), getNewerBriefingInvestigations: vi.fn(), updateBriefing: vi.fn(),
 }));
 vi.mock("../../api/investigations", () => ({ getInvestigations: vi.fn() }));
 
@@ -39,6 +39,7 @@ describe("CompanyBriefingsTab", () => {
     vi.mocked(getInvestigations).mockResolvedValue([material, second]);
     vi.mocked(getBriefings).mockResolvedValue([]);
     vi.mocked(getBriefing).mockResolvedValue(briefing);
+    vi.mocked(getBriefingVersion).mockResolvedValue(briefing.currentVersion);
     vi.mocked(getBriefingChanges).mockResolvedValue({ fromVersion: 1, toVersion: 2, newMaterial: ["European hiring"], changedMaterial: [], removedMaterial: [], newUncertainties: [] });
     vi.mocked(getBriefingVersions).mockResolvedValue([briefing.currentVersion]);
     vi.mocked(getNewerBriefingInvestigations).mockResolvedValue([{ id: second.id, title: second.title, origin: second.origin, purpose: second.purpose, topics: second.topics, materialUpdatedAt: second.materialUpdatedAt }]);

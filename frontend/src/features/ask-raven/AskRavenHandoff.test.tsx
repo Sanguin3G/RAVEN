@@ -4,13 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatConversation, getChatConversation, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import { ApiError } from "../../api/client";
 import {
+  attachBriefingContext,
   attachResearchContext,
   getManagedResearchJobs,
   getResearchContextAttachments,
   previewManagedResearchBrief,
+  removeBriefingContext,
   removeResearchContext,
   startManagedResearch,
 } from "../../api/managedResearch";
+import { getBriefings } from "../../api/briefings";
 import { AskRavenHandoff } from "./AskRavenHandoff";
 
 vi.mock("../../api/chat", () => ({
@@ -21,13 +24,17 @@ vi.mock("../../api/chat", () => ({
 }));
 
 vi.mock("../../api/managedResearch", () => ({
+  attachBriefingContext: vi.fn(),
   attachResearchContext: vi.fn(),
   getManagedResearchJobs: vi.fn(),
   getResearchContextAttachments: vi.fn(),
   previewManagedResearchBrief: vi.fn(),
+  removeBriefingContext: vi.fn(),
   removeResearchContext: vi.fn(),
   startManagedResearch: vi.fn(),
 }));
+
+vi.mock("../../api/briefings", () => ({ getBriefings: vi.fn() }));
 
 const props = {
   companyId: "company-1",
@@ -70,6 +77,7 @@ describe("AskRavenHandoff", () => {
     vi.clearAllMocks();
     vi.mocked(getManagedResearchJobs).mockResolvedValue([]);
     vi.mocked(getResearchContextAttachments).mockResolvedValue([]);
+    vi.mocked(getBriefings).mockResolvedValue([]);
     vi.mocked(previewManagedResearchBrief).mockResolvedValue(briefPreview as never);
   });
 
@@ -90,7 +98,8 @@ describe("AskRavenHandoff", () => {
     renderHandoff();
 
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
-    expect(screen.getByRole("link", { name: /Open Investigations/ })).toHaveAttribute("href", "/companies/company-1?tab=investigations");
+    expect(screen.getByRole("button", { name: "Attach evidence" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open Investigations/ })).not.toBeInTheDocument();
     const webSearch = screen.getByRole("checkbox", { name: "Web search" });
     expect(webSearch).not.toBeChecked();
 
@@ -133,7 +142,6 @@ describe("AskRavenHandoff", () => {
     expect(screen.queryByRole("link", { name: /Company update/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Nguồn" }));
     expect(screen.getByRole("link", { name: /Company update/ })).toHaveAttribute("href", "https://example.com/update");
-    expect(screen.getByText("Web", { exact: true })).toBeInTheDocument();
     expect(screen.queryByText(/brave.*result #1/)).not.toBeInTheDocument();
   });
 
@@ -210,7 +218,8 @@ describe("AskRavenHandoff", () => {
     await waitFor(() => expect(screen.getByText("FPT Smart Cloud operates in cloud services.")).toBeInTheDocument());
     expect(createChatConversation).toHaveBeenCalledWith("company-1");
     expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "What does it do?" }, expect.any(Function));
-    expect(screen.getByText("Mixed", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nguồn" })).toBeInTheDocument();
+    expect(screen.queryByText("Mixed", { exact: true })).not.toBeInTheDocument();
   });
 
   it("does not restore an empty conversation until the first streamed turn has completed", async () => {
@@ -365,8 +374,9 @@ describe("AskRavenHandoff", () => {
     }]);
     renderHandoff();
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Add research" })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Add research" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Additional capabilities" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: "Attach evidence" }));
     expect(screen.getByText("Recent expansion")).toBeInTheDocument();
     expect(screen.queryByTestId("managed-research-completion")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
@@ -388,6 +398,7 @@ describe("AskRavenHandoff", () => {
       id: "attachment-1",
       companyId: "company-1",
       conversationId: "conversation-1",
+      kind: "Investigation",
       investigationId: "investigation-1",
       origin: "ManagedAi",
       objective: "Recent expansion",
@@ -397,8 +408,9 @@ describe("AskRavenHandoff", () => {
     });
     renderHandoff();
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Add research" })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Add research" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Additional capabilities" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: "Attach evidence" }));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() => expect(screen.getByLabelText("Attached research context")).toBeInTheDocument());
@@ -408,5 +420,39 @@ describe("AskRavenHandoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove Recent expansion context" }));
     await waitFor(() => expect(removeResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1"));
     await waitFor(() => expect(screen.queryByLabelText("Attached research context")).not.toBeInTheDocument());
+  });
+
+  it("pins and removes the current Briefing version from Chat context", async () => {
+    vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
+    vi.mocked(getBriefings).mockResolvedValue([{
+      id: "briefing-1", title: "Japan market briefing", template: "Markets & Expansion",
+      generatedAt: "2026-09-20T00:00:00Z", researchThrough: "2026-09-19T00:00:00Z",
+      versionNumber: 2, sourceCount: 3, newerRelevantCount: 0,
+    }]);
+    vi.mocked(attachBriefingContext).mockResolvedValue({
+      id: "attachment-briefing-1",
+      companyId: "company-1",
+      conversationId: "conversation-1",
+      kind: "Briefing",
+      briefingId: "briefing-1",
+      briefingVersionId: "briefing-version-2",
+      briefingVersionNumber: 2,
+      title: "Japan market briefing",
+      template: "Markets & Expansion",
+      researchThrough: "2026-09-19T00:00:00Z",
+      attachedAt: "2026-09-20T00:00:00Z",
+    });
+    renderHandoff();
+
+    await waitFor(() => expect(getBriefings).toHaveBeenCalledWith("company-1"));
+    fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
+    fireEvent.click(screen.getByRole("button", { name: "Attach evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(attachBriefingContext).toHaveBeenCalledWith("company-1", "briefing-1", 2, "conversation-1"));
+    expect(screen.getByLabelText("Attached research context")).toHaveTextContent("Briefing · Japan market briefing · v2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Japan market briefing context" }));
+    await waitFor(() => expect(removeBriefingContext).toHaveBeenCalledWith("company-1", "briefing-1", "conversation-1"));
   });
 });
