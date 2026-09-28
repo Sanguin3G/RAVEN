@@ -33,12 +33,12 @@
 
 Final completion pass — 28 Sep 2026:
 
-- Backend Chat/Web Search focused tests after integrating current `main`: 37/37 passed. The full backend suite will run in the final clean-environment CI.
-- Frontend focused tests: 43/43 passed across 5 files. Production build passed; Vite reports the main JavaScript chunk at 823.83 kB, above its 500 kB advisory threshold.
+- Backend: Release build passed; 344/344 tests passed in GitHub Actions.
+- Frontend: 106/106 tests across 20 files passed; production build passed. Vite reports the main JavaScript chunk at 823.83 kB, above its 500 kB advisory threshold.
 - EF Core `has-pending-model-changes`: no changes since the last migration. EF tools 10.0.10 reported that runtime 10.0.11 is newer.
-- Edge smoke: Help topic navigation to Voice & speech left the section heading visible beneath the sticky navigation; About RAVEN and its first-viewport flow rendered. Earlier fixture-backed Chat restoration/action smoke remains recorded on the preceding baseline; Gemini playback was not live-tested.
+- Edge smoke: Help topic navigation to Voice & speech left the section heading visible beneath the sticky navigation; About RAVEN and its first-viewport flow rendered. Fixture-backed Chat restoration/action smoke also passed; Gemini playback was not live-tested.
 - Live providers: no Gemini or external search calls were made in this completion pass.
-- `git diff --check`: passed. Final GitHub Actions results will be recorded after the pushed branch run completes.
+- `git diff --check`: passed. GitHub Actions CI passed on implementation commit `6b067d6` ([run 36422190803](https://github.com/Sanguin3G/RAVEN/actions/runs/36422190803)).
 
 ## Compatibility
 
