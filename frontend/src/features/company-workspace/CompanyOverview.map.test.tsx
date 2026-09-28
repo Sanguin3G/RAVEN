@@ -20,7 +20,7 @@ const profile: DossierProfile = {
 };
 
 describe("CompanyOverview headquarters map", () => {
-  beforeEach(() => vi.unstubAllEnvs());
+  beforeEach(() => vi.stubEnv("VITE_GOOGLE_MAPS_EMBED_API_KEY", ""));
   afterEach(() => vi.unstubAllEnvs());
 
   it("does not render a map when no headquarters address is available", () => {

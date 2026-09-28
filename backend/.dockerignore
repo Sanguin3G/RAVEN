@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.env*
+**/raven.db*
+**/*.db
+!src/Raven.Api/seed/raven.seed.db
+**/*.db-wal
+**/*.db-shm
+**/test-results/
+tools/
+SeedDatabase/

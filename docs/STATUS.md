@@ -19,8 +19,11 @@
 - Ask RAVEN can attach completed managed Investigations and Briefings as research context; other saved or external Investigation origins are not attachable through the current Chat contract. Attachments are persisted but do not create accepted profile truth.
 - Briefing generation is an explicit, synchronous AI synthesis of persisted material; it does not search or verify sources. Research latest/gaps uses existing Deep Research or External Assist entry points.
 - Gemini live transcription and read-aloud are not included. Browser dictation is the only speech provider in this release.
+- Cloud Run demo images use a bundled SQLite seed and ephemeral runtime storage. Runtime changes disappear when the API instance is replaced; request-based CPU does not guarantee in-process background work after the response.
 
 ## Validation baseline
+
+Cloud Run demo packaging (branch `codex/cloud-run-demo`, 29 September 2026): clean SQLite seed generated with 30 migrations, one default Research Settings row, zero Companies/Profile versions/Chat conversations, and `PRAGMA integrity_check=ok`; backend Release build and 343/343 tests passed. Frontend production build and 95/95 tests passed after making the Maps test independent of a local `.env.local` key. Both Docker image builds passed; the API container returned `/health` 200, frontend deep links returned 200, Chat streaming CORS preflight returned 204, and the API saw a separate Crawl4AI container as available. The pinned Crawl4AI v0.9.3 image returned `/health` 200 and crawled example.com locally with and without an enlarged shared-memory setting. Cloud Run IAM, deployment, live browser research, and live AI providers remain unverified; the project owner will operate Google Cloud Console.
 
 Release validation (28 September 2026):
 

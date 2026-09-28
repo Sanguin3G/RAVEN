@@ -151,6 +151,59 @@ docker compose logs crawl4ai
 
 Do not silently substitute a cloud crawler if the local crawler fails; surface the source-level failure and continue eligible work.
 
+### Cloud Run demo: three services
+
+This is a short-lived demo deployment. The API still uses EF Core SQLite. `src/Raven.Api/seed/raven.seed.db` is a clean, versioned starter database generated from the current migrations with one default Research Settings row and no Company, Profile, Chat, or provider key data. The API copies it to `/app/data/raven.db` only when that runtime file is absent, then applies pending migrations. Do **not** copy the ignored local `src/Raven.Api/raven.db` into an image. A Cloud Run instance's filesystem is disposable: a replacement instance starts again from the seed, so any research, profile, chat, or settings change made during the demo is lost. Maximum instances is one to avoid concurrent independent SQLite databases. A new revision can temporarily overlap the previous revision; route 100% of traffic to the new revision after deployment.
+
+To regenerate the seed after new migrations, move the existing seed to a temporary backup outside the repository, then from `backend` run `dotnet run --project SeedDatabase -- src/Raven.Api/seed/raven.seed.db`. The generator refuses to overwrite an existing file. Before committing, verify SQLite integrity, migration count, the single settings row, and absence of business records and secret values. Restore the backup if validation fails.
+
+The Docker build contexts are the `backend` and `frontend` directories. Locally, after starting Docker Engine, build and smoke-test:
+
+```powershell
+docker build -t raven-api:demo backend
+docker run --rm -p 8080:8080 raven-api:demo
+# In another terminal: curl.exe http://localhost:8080/health
+
+docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 -t raven-frontend:demo frontend
+docker run --rm -p 8081:8080 raven-frontend:demo
+# In another terminal: curl.exe http://localhost:8081/companies
+```
+
+For a local API run with persistent demo data between container restarts, bind-mount a dedicated host directory at `/app/data`; do not use that local option as a Cloud Run persistence claim. The frontend Docker build requires `VITE_API_BASE_URL` because the production Vite bundle does not use the local dev proxy. If Maps Embed is needed, supply a separately restricted browser key at build time; never pass server provider keys to Vite.
+
+#### Google Cloud Console setup
+
+In your Google Cloud project, enable billing and the Cloud Run, Cloud Build, Artifact Registry, and Secret Manager APIs. In **Artifact Registry**, create a Docker repository named `raven` in your chosen region. Create a service account named `raven-api` for the API. Add provider keys used by the demo to **Secret Manager** (`GEMINI_API_KEY`, `BRAVE_SEARCH_API_KEY`, optionally `EXA_API_KEY`) and create one strong `CRAWL4AI_API_TOKEN` plus a separate crawler `SECRET_KEY`; grant the API service account Secret Manager Secret Accessor on its required secrets. Grant that service account **Cloud Run Invoker** on the Crawl4AI service only. Use the same crawler token secret for API and Crawl4AI; keep all keys out of Git, Cloud Build substitutions, and frontend build args.
+
+From Cloud Shell in the Console, check out a repository revision that contains these deployment files and the tracked SQLite seed (or upload the same source tree). Then build the API image, replacing the placeholders with your project, region, and a unique tag:
+
+```bash
+REGION=asia-southeast1
+PROJECT_ID=your-project-id
+TAG=demo-1
+gcloud builds submit backend --tag "$REGION-docker.pkg.dev/$PROJECT_ID/raven/raven-api:$TAG"
+```
+
+Create the **Crawl4AI** Cloud Run service first, from the pinned Linux amd64 upstream image `docker.io/unclecode/crawl4ai@sha256:84751dab794259db05d5bd4e5c766a8041a65f0554326e4516e620abdf2fa18b` (v0.9.3, locally tested 29 September 2026). Set container port `11235`, memory initially `4 GiB`, CPU `2`, minimum instances `0`, maximum instances `1`, and **Require authentication**. Bind `CRAWL4AI_API_TOKEN` and `SECRET_KEY` from Secret Manager. Confirm its service URL in the Console. Its `/health` is private; a browser request without Google identity should be denied. The pinned image digest makes the deployed image reproducible, but browser crawling still needs a live smoke test on Cloud Run.
+
+Create the **API** Cloud Run service from the Artifact Registry image, container port `8080`, memory initially `1 GiB`, CPU `1`, minimum instances `0`, maximum instances `1`, request-based billing, **Allow unauthenticated invocations**, and the `raven-api` service account. Set `CRAWL4AI_LOCAL_BASE_URL` and `CRAWL4AI_CLOUD_RUN_AUDIENCE` both to the crawler's root service URL (no `/health` suffix), and set `Crawl4AI__Local__TimeoutSeconds=180` to allow for crawler cold start. Bind `CRAWL4AI_API_TOKEN` and the required provider keys from Secret Manager. The image sets `ConnectionStrings__Raven=Data Source=/app/data/raven.db`. The API requests a Google ID token from its Cloud Run metadata server and sends it to the crawler in `X-Serverless-Authorization`, leaving `Authorization: Bearer <crawler token>` for Crawl4AI itself. Record the API URL.
+
+Build the frontend image **after** the API URL is known. `frontend/cloudbuild.yaml` passes the API URL as a Vite build argument; it is a public URL, not a secret:
+
+```bash
+API_URL=https://your-api-service-url
+gcloud builds submit frontend --config frontend/cloudbuild.yaml \
+  --substitutions "_IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/raven/raven-frontend:$TAG,_API_BASE_URL=$API_URL"
+```
+
+Create the **frontend** Cloud Run service from that image, container port `8080`, minimum instances `0`, **Allow unauthenticated invocations**. Record its URL. Then edit the API service and set `Cors__AllowedOrigins__0` to that exact frontend origin (scheme and host, without a trailing slash); deploying this change creates a new API revision and resets its ephemeral SQLite state. The same CORS policy covers JSON API requests and the Chat streaming endpoint. A reload at `/companies` must return the SPA, not an Nginx 404.
+
+#### Acceptance checks after deployment
+
+Check API `/health` and `/api/health`, then the frontend's deep-link reload and provider status page. `GET /api/system/crawler-status` through the API must report the private crawler available; direct unauthenticated browser access to the crawler should return 401/403. Perform one authorized crawl/research request, verify the resulting source, and exercise a Chat stream with provider keys configured. Restart or replace the API instance to confirm that runtime data returns to the seed. Check Cloud Run logs for startup, migrations, token failures, crawler browser failures, and CORS errors without logging any token value.
+
+This low-cost profile uses zero minimum instances and request-based CPU. It does not guarantee that Monitoring, Deep Research, or other in-process queue workers continue after the initiating request returns. Minimum instances greater than zero can incur idle charges; consult [Cloud Run pricing](https://cloud.google.com/run/pricing) before enabling them for a longer demonstration.
+
 ## Database
 
 SQLite is the source of record. API startup applies EF Core migrations. With the documented backend startup command, the default file is `backend/src/Raven.Api/raven.db`.

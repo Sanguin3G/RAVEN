@@ -32,6 +32,14 @@ Crawler         Crawl4AI Local (Docker)
 AI              Gemini structured output
 ```
 
+## Cloud Run demo topology
+
+The demo uses three Cloud Run services: a public static frontend, a public ASP.NET Core API, and an IAM-protected Crawl4AI service. The API presents its service-account identity in `X-Serverless-Authorization` when calling Crawl4AI and separately sends the crawler's own bearer token. The crawler service URL is configured at runtime; frontend API URL is embedded during the Vite build.
+
+The API image contains a clean SQLite seed with all migrations and default Research Settings. On first startup, the API copies that seed into its writable runtime directory and then runs pending EF migrations. The seed is never overwritten by runtime changes. Cloud Run's per-instance filesystem is ephemeral, so a new instance starts from the seed and accepted profiles, chat, settings changes, and other runtime state from a previous instance do not carry over. This deployment is for a short demo; it is not the durable storage topology described for the normal RAVEN product.
+
+The demo API is limited to one instance and request-based billing with zero minimum instances. Its in-process workers can pause after an HTTP response and queued work can be lost on instance restart. The deployment does not claim reliable background research or monitoring.
+
 ## Provider boundaries
 
 Search, crawling, and AI inference are independent capabilities:
