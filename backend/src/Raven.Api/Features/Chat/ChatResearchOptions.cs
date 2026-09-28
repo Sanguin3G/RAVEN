@@ -5,7 +5,8 @@ public sealed class ChatResearchOptions
     public const string SectionName = "ChatResearch";
 
     public int MaxResearchRounds { get; set; } = 3;
-    public int MaxSearchCalls { get; set; } = 3;
+    public int MaxSearchCalls { get; set; } = 4;
+    public int MaxQueriesPerRound { get; set; } = 3;
     public int MaxCrawlCalls { get; set; } = 5;
     public int MaxResultsPerSearch { get; set; } = 5;
     public int MaxParallelCrawls { get; set; } = 2;

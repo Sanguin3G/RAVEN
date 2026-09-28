@@ -439,6 +439,58 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     }
 
     [Fact]
+    public async Task Short_person_questions_use_the_pinned_profile_and_relevant_late_source_excerpt()
+    {
+        var ai = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["leadership"],"requestedYears":[],"query":null,"profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"status":"insufficient_evidence","answer":"The pinned profile has no such leader.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":[],"citedInvestigationIds":[],"citedBriefingVersionIds":[],"claims":[],"limitations":[],"followUpQuestion":null}
+            """
+        ]);
+        using var client = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiModelProvider>();
+            services.AddScoped<IAiModelProvider>(_ => ai);
+        })).CreateClient();
+        var company = await CreateCompanyAsync(client, $"Apple Inc. {Guid.NewGuid():N}");
+        var sourceContent = new string('x', 28_000) +
+            "\n\n# Founders\nSteve Jobs co-founded the company.\n\n" +
+            new string('y', 40_000) + "\n\n# Leadership\nSteve Jobs served as interim CEO.";
+        await SeedProfileAsync(company.Id, 1, company.Name);
+        var olderConversation = await CreateConversationAsync(client, company.Id);
+        await SeedProfileAsync(company.Id, 2, company.Name, "Steve Jobs", "interim CEO", sourceContent);
+        var conversation = await CreateConversationAsync(client, company.Id);
+        Assert.Equal(2, conversation.ProfileVersion);
+        Assert.False(conversation.WebSearchEnabled);
+
+        foreach (var question in new[] { "Steve Jobs", "Steve Jobs là ai?", "trong profile có thông tin của Steve Jobs không?" })
+        {
+            var response = await client.PostAsJsonAsync(
+                $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+                new CreateChatMessageRequest(question));
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.True(response.IsSuccessStatusCode, body);
+            var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+            Assert.Equal(ChatAnswerStatus.Answered, message.Status);
+            Assert.Contains("Steve Jobs", message.Answer, StringComparison.Ordinal);
+            Assert.Contains("interim CEO", message.Answer, StringComparison.Ordinal);
+            Assert.Single(message.Citations, citation => citation.Origin == ChatCitationOrigin.Profile);
+            Assert.Contains(message.ToolExecutions, execution => execution.Tool == "get_source_excerpt" && execution.Status == "succeeded");
+        }
+        Assert.Empty(ai.Requests);
+
+        var olderResponse = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{olderConversation.Id}/messages",
+            new CreateChatMessageRequest("Steve Jobs"));
+        olderResponse.EnsureSuccessStatusCode();
+        var olderMessage = (await olderResponse.Content.ReadFromJsonAsync<SendChatMessageResponse>(JsonOptions))!;
+        Assert.Equal(ChatAnswerStatus.InsufficientEvidence, olderMessage.Status);
+        Assert.Equal(2, ai.Requests.Count);
+    }
+
+    [Fact]
     public async Task Chat_uses_the_configured_chat_model_not_the_profile_model()
     {
         var provider = new SequencedAiProvider([
@@ -783,6 +835,55 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     }
 
     [Fact]
+    public async Task Planner_runs_three_distinct_facet_queries_and_deduplicates_search_results_before_crawl()
+    {
+        var ai = new SequencedAiProvider([
+            """
+            {"questionKind":"company_factual","facets":["products","software","services"],"requestedYears":[],"queries":[{"facet":"products","query":"hardware product lines","sourcePreference":"company_primary"},{"facet":"software","query":"software platforms","sourcePreference":"company_primary"},{"facet":"services","query":"online services","sourcePreference":"neutral"}],"profileSourceDocumentIds":[],"answer":null,"followUpQuestion":null}
+            """,
+            """
+            {"sufficient":true,"missingEvidence":[],"nextQuery":null,"candidateIds":[]}
+            """,
+            """
+            {"status":"answered","answer":"The company has documented offerings.","citedSourceDocumentIds":[],"citedWebEvidenceCandidateIds":["__WEB_ID__"],"citedInvestigationIds":[],"citedBriefingVersionIds":[],"claims":[{"text":"Documented offerings.","evidenceIds":["web:__WEB_ID__"]}],"limitations":[],"followUpQuestion":null}
+            """
+        ]);
+        var search = new RecordingSearchProvider();
+        var crawler = new RecordingCrawlerProvider();
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiModelProvider>();
+            services.AddScoped<IAiModelProvider>(_ => ai);
+            services.RemoveAll<ISearchProvider>();
+            services.AddScoped<ISearchProvider>(_ => search);
+            services.RemoveAll<ICrawlerProvider>();
+            services.AddScoped<ICrawlerProvider>(_ => crawler);
+            services.PostConfigure<ChatResearchOptions>(options => options.MaxParallelCrawls = 1);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client, $"FPT Facets {Guid.NewGuid():N}");
+        await SeedProfileAsync(company.Id, 1, company.Name);
+        var conversation = await CreateConversationAsync(client, company.Id);
+        (await client.PatchAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/capabilities",
+            new UpdateChatCapabilitiesRequest(true))).EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("Which products, software, and services does this company offer?"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, body);
+        var message = JsonSerializer.Deserialize<SendChatMessageResponse>(body, JsonOptions)!;
+        Assert.Equal(ChatAnswerStatus.Answered, message.Status);
+        Assert.Equal(3, search.Requests.Count);
+        Assert.Equal(3, message.ToolExecutions.Count(item => item.Tool == "search_web"));
+        Assert.All(search.Requests, item => Assert.Contains(company.Name, item.Query, StringComparison.OrdinalIgnoreCase));
+        Assert.Single(message.WebEvidenceSnapshots);
+        Assert.Single(message.Citations, citation => citation.Origin == ChatCitationOrigin.Web);
+        Assert.Equal(1, crawler.CallCount);
+    }
+
+    [Fact]
     public async Task Attached_briefing_pins_an_exact_version_and_restores_its_citation()
     {
         var agent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Conversational, "Ready", [], null));
@@ -1018,7 +1119,8 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         return JsonSerializer.Deserialize<ChatConversationResponse>(body, JsonOptions)!;
     }
 
-    private async Task<SeededProfile> SeedProfileAsync(Guid companyId, int version, string displayName)
+    private async Task<SeededProfile> SeedProfileAsync(Guid companyId, int version, string displayName,
+        string? leaderName = null, string? leaderTitle = null, string? sourceContent = null)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
@@ -1040,7 +1142,7 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
             Title = "Profile",
             SourceDomain = "example.com",
             RetrievedAt = DateTimeOffset.UtcNow,
-            Content = "industry evidence",
+            Content = sourceContent ?? "industry evidence",
             ContentHash = Guid.NewGuid().ToString("N").PadRight(64, '0'),
             CrawlerProvider = "fake"
         };
@@ -1058,6 +1160,19 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         var evidence = new ProfileEvidence { CompanyProfileVersionId = profile.Id, FieldPath = "primaryIndustry", SourceDocumentIdsJson = JsonSerializer.Serialize(new[] { source.Id }) };
         evidence.SourceDocumentIds.Add(source.Id);
         profile.Evidence.Add(evidence);
+        if (leaderName is not null)
+        {
+            profile.Leadership.Add(new ProfileLeader(leaderName, leaderTitle));
+            var leadershipEvidence = new ProfileEvidence
+            {
+                CompanyProfileVersionId = profile.Id,
+                FieldPath = "leadership",
+                SourceDocumentIdsJson = JsonSerializer.Serialize(new[] { source.Id })
+            };
+            leadershipEvidence.SourceDocumentIds.Add(source.Id);
+            profile.Evidence.Add(leadershipEvidence);
+            db.ProfileEvidences.Add(leadershipEvidence);
+        }
         profile.ProfileJson = JsonSerializer.Serialize(profile, JsonOptions);
         db.ResearchRuns.Add(run);
         db.SourceDocuments.Add(source);
@@ -1105,7 +1220,15 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         {
             Requests.Add(request);
             if (responses.Count == 0) throw new InvalidOperationException("No configured AI response remains.");
-            using var document = JsonDocument.Parse(responses.Dequeue());
+            var response = responses.Dequeue();
+            if (response.Contains("__WEB_ID__", StringComparison.Ordinal))
+            {
+                var webId = request.ResponseSchema.GetProperty("properties")
+                    .GetProperty("citedWebEvidenceCandidateIds").GetProperty("items")
+                    .GetProperty("enum")[0].GetString()!;
+                response = response.Replace("__WEB_ID__", webId, StringComparison.Ordinal);
+            }
+            using var document = JsonDocument.Parse(response);
             return Task.FromResult(new AiModelResult("fake", request.Model, document.RootElement.Clone(), TimeSpan.Zero));
         }
     }

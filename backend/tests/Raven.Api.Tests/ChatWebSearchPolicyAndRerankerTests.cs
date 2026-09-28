@@ -62,7 +62,45 @@ public sealed class ChatWebSearchPolicyAndRerankerTests
             ], "https://www.masangroup.com/");
 
         Assert.Equal("www.masangroup.com", ranked[0].Domain);
-        Assert.Contains("authoritative source", ranked[0].Reason, StringComparison.Ordinal);
+        Assert.Contains("official company domain", ranked[0].Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Authority_does_not_promote_third_party_profile_website_to_official()
+    {
+        var policy = new ChatSourceAuthorityPolicy();
+        Assert.Null(policy.OfficialHost("https://en.wikipedia.org/wiki/Apple_Inc.", null));
+        Assert.Equal(ChatSourceTier.Community, policy.Evaluate("apple.fandom.com", null, "company_primary").Tier);
+        Assert.True(policy.Evaluate("apple.com", "apple.com", "company_primary").Score >
+            policy.Evaluate("apple.fandom.com", "apple.com", "company_primary").Score);
+        Assert.True(policy.Evaluate("sec.gov", "apple.com", "independent_or_regulatory").Score >
+            policy.Evaluate("apple.com", "apple.com", "independent_or_regulatory").Score);
+    }
+
+    [Fact]
+    public void Search_ranker_prefers_official_products_page_over_equally_relevant_fandom_page()
+    {
+        var reranker = new ChatWebSearchReranker(new SourceUrlNormalizer());
+        var ranked = reranker.Rank(new Company { Name = "Apple", Website = "https://apple.com" },
+            "Apple product lines", [
+                new SearchResult("Apple product lines", "https://apple.fandom.com/wiki/Products", "Apple products", 1),
+                new SearchResult("Apple product lines", "https://www.apple.com/iphone/", "Apple products", 2)
+            ], "https://apple.com", "company_primary");
+
+        Assert.Equal("www.apple.com", ranked[0].Domain);
+        Assert.Contains("official company domain", ranked[0].Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Profile_source_excerpt_can_reach_a_person_and_role_deep_in_a_document()
+    {
+        var markdown = new string('x', 28_000) + "\n\n# Founders\nSteve Jobs co-founded Apple.\n\n" +
+            new string('y', 40_000) + "\n\n# Leadership\nSteve Jobs served as interim CEO.";
+
+        var selected = new ChatEvidenceChunker().Select("Steve Jobs", ["Steve Jobs", "interim CEO"], markdown);
+
+        Assert.Contains("Steve Jobs", selected, StringComparison.Ordinal);
+        Assert.Contains("interim CEO", selected, StringComparison.Ordinal);
     }
 
     [Fact]

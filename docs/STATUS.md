@@ -35,6 +35,12 @@ Release validation — 28 Sep 2026:
 - GitHub Actions: backend and frontend passed on implementation/docs commit `d20c1a3` ([run 36397623478](https://github.com/Sanguin3G/RAVEN/actions/runs/36397623478)). The final status-only follow-up is also checked by this workflow before handoff.
 - `git diff --check`: passed.
 
+Current `feat/fix-web-search-chatbot` branch (not yet merged into `main`):
+
+- Ask RAVEN now hydrates pinned Profile collections, retrieves relevant passages from long profile sources, and answers short source-backed leader questions without Web Search.
+- Chat Web Search plans bounded facet queries and ranks merged candidates with a claim-aware source authority policy.
+- Backend Release build passed with no warnings or errors; backend tests passed 341/341. The new tests use fake providers; live Search/Crawl quality has not been verified.
+
 ## Compatibility
 
 Historical migrations remain unchanged. Legacy persisted provider identifiers are normalized to supported provider priorities when settings are read. Historical research and profile records remain readable; explicit profile confirmation remains the accepted-profile mutation boundary.
