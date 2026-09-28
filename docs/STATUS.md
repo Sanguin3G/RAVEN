@@ -28,7 +28,7 @@ Release validation (28 September 2026):
 - Frontend production build: passed; 95/95 tests passed. Existing React test fixtures emit non-failing `act(...)` warnings, and the production bundle reports a size advisory.
 - EF migrations: applied to in-memory scratch SQLite; no pending model changes.
 - Edge smoke: Company A/B chat restoration, navigation, reload, Recent Chats, Research Context attachment, Web state restoration, and API restart recovery passed. Investigations and Briefings tabs opened without resetting Chat. The test environment denied microphone access, so live dictation was not verified.
-- GitHub Actions: the release branch CI result is pending push and remote execution.
+- GitHub Actions: backend and frontend passed on code commit `d8674cf` ([run 36377798696](https://github.com/Sanguin3G/RAVEN/actions/runs/36377798696)).
 - No live AI-provider calls were required or performed for this validation.
 
 ## Compatibility
