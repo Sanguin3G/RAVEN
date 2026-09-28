@@ -38,7 +38,13 @@ public sealed class ChatWebTool(
     public Task<ChatWebSearchResult> SearchAsync(Company company, string query, CancellationToken cancellationToken) =>
         SearchAsync(company, query, null, cancellationToken);
 
-    public async Task<ChatWebSearchResult> SearchAsync(Company company, string query, string? acceptedProfileWebsite, CancellationToken cancellationToken)
+    public Task<ChatWebSearchResult> SearchAsync(Company company, string query, string? acceptedProfileWebsite, CancellationToken cancellationToken) =>
+        SearchAsync(company, query, acceptedProfileWebsite, null, null, cancellationToken);
+
+    public Task<ChatWebSearchResult> SearchAsync(Company company, string query, string? acceptedProfileWebsite, string? sourcePreference, CancellationToken cancellationToken) =>
+        SearchAsync(company, query, acceptedProfileWebsite, sourcePreference, null, cancellationToken);
+
+    public async Task<ChatWebSearchResult> SearchAsync(Company company, string query, string? acceptedProfileWebsite, string? sourcePreference, string? facet, CancellationToken cancellationToken)
     {
         var normalizedQuery = ChatText.NormalizeQuestion(query);
         if (normalizedQuery.Length is < 1 or > 500)
@@ -62,7 +68,7 @@ public sealed class ChatWebTool(
                 cancellationToken);
             stopwatch.Stop();
 
-            var results = reranker.Rank(company, normalizedQuery, response.Results.Where(result => IsSafePublicHttpUrl(result.Url)), acceptedProfileWebsite)
+            var results = reranker.Rank(company, normalizedQuery, response.Results.Where(result => IsSafePublicHttpUrl(result.Url)), acceptedProfileWebsite, sourcePreference)
                 .Select(candidate =>
                 {
                     var result = new ChatWebCandidate(
@@ -74,7 +80,8 @@ public sealed class ChatWebTool(
                         candidate.SearchRank,
                         candidate.Score,
                         candidate.Reason,
-                        response.Provider);
+                        response.Provider,
+                        facet);
                     candidates.TryAdd(result.Id, result);
                     return result;
                 })
@@ -238,7 +245,8 @@ public sealed record ChatWebCandidate(
     int SearchRank,
     int Score,
     string RankReason,
-    string SearchProvider);
+    string SearchProvider,
+    string? Facet = null);
 
 public sealed record ChatWebEvidenceDraft(
     string CandidateId,

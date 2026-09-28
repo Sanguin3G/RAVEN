@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.Research;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Settings;
 
@@ -16,12 +17,13 @@ public sealed class CompanyChatAgentFactory(
     ChatWebTool webTool,
     ChatEvidenceChunker evidenceChunker,
     IOptions<ChatResearchOptions> options,
+    IResearchRunConfigurationSnapshot configurationSnapshot,
     IResearchExecutionContext executionContext,
     IChatActivityReporter activityReporter,
     ILogger<CompanyChatAgent> logger) : ICompanyChatAgentFactory
 {
     public ICompanyChatAgent Create() => new CompanyChatAgent(
-        aiProvider, settings, evidenceTool, webTool, evidenceChunker, options, executionContext, activityReporter, logger);
+        aiProvider, settings, evidenceTool, webTool, evidenceChunker, options, configurationSnapshot, executionContext, activityReporter, logger);
 }
 
 /// <summary>
@@ -36,12 +38,13 @@ public sealed partial class CompanyChatAgent(
     ChatWebTool webTool,
     ChatEvidenceChunker evidenceChunker,
     IOptions<ChatResearchOptions> configuredOptions,
+    IResearchRunConfigurationSnapshot configurationSnapshot,
     IResearchExecutionContext executionContext,
     IChatActivityReporter activityReporter,
     ILogger<CompanyChatAgent> logger) : ICompanyChatAgent
 {
     private const int MaxExcerptCalls = 2;
-    private const string PlannerPromptVersion = "company-chat-research-planner-v1";
+    private const string PlannerPromptVersion = "company-chat-research-planner-v2";
     private const string CoveragePromptVersion = "company-chat-research-coverage-v1";
     private const string FinalPromptVersion = "company-chat-research-final-v1";
     private readonly ChatResearchOptions options = configuredOptions.Value;
@@ -52,7 +55,7 @@ public sealed partial class CompanyChatAgent(
     };
 
     private static readonly JsonElement PlannerSchema = JsonDocument.Parse("""
-      {"type":"OBJECT","properties":{"questionKind":{"type":"STRING","enum":["company_factual","conversational","guidance","clarification_required","unsupported_scope"]},"facets":{"type":"ARRAY","items":{"type":"STRING"}},"requestedYears":{"type":"ARRAY","items":{"type":"STRING"}},"query":{"type":"STRING","nullable":true},"profileSourceDocumentIds":{"type":"ARRAY","items":{"type":"STRING"}},"answer":{"type":"STRING","nullable":true},"followUpQuestion":{"type":"STRING","nullable":true}},"required":["questionKind","facets","requestedYears","query","profileSourceDocumentIds","answer","followUpQuestion"]}
+      {"type":"OBJECT","properties":{"questionKind":{"type":"STRING","enum":["company_factual","conversational","guidance","clarification_required","unsupported_scope"]},"facets":{"type":"ARRAY","items":{"type":"STRING"}},"requestedYears":{"type":"ARRAY","items":{"type":"STRING"}},"queries":{"type":"ARRAY","items":{"type":"OBJECT","properties":{"facet":{"type":"STRING"},"query":{"type":"STRING"},"sourcePreference":{"type":"STRING","enum":["neutral","company_primary","independent_or_regulatory"]}},"required":["facet","query","sourcePreference"]}},"profileSourceDocumentIds":{"type":"ARRAY","items":{"type":"STRING"}},"answer":{"type":"STRING","nullable":true},"followUpQuestion":{"type":"STRING","nullable":true}},"required":["questionKind","facets","requestedYears","queries","profileSourceDocumentIds","answer","followUpQuestion"]}
       """).RootElement.Clone();
 
     private static readonly JsonElement CoverageSchema = JsonDocument.Parse("""
@@ -61,7 +64,11 @@ public sealed partial class CompanyChatAgent(
 
     public async Task<ChatAgentCompletion> RunAsync(ChatAgentRequest request, CancellationToken cancellationToken = default)
     {
+        var profilePersonAnswer = await TryAnswerProfilePersonAsync(request, cancellationToken);
+        if (profilePersonAnswer is not null) return profilePersonAnswer;
+
         var configured = await settings.GetAsync(cancellationToken);
+        configurationSnapshot.Set(configured);
         var model = configured.ChatModel;
         var stopwatch = Stopwatch.StartNew();
         var tools = new List<ChatToolExecution>();
@@ -74,39 +81,72 @@ public sealed partial class CompanyChatAgent(
             request.ConversationId,
             options.PlannerTimeoutSeconds, cancellationToken);
         var plan = ParsePlan(planningResult.Json);
-        state.Facets.AddRange(plan.Facets.Select(item => ChatText.Bound(item, 300)).Where(item => item.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase));
+        state.Facets.AddRange(plan.Facets.Concat(plan.Queries.Select(item => item.Facet))
+            .Select(item => ChatText.Bound(item, 300)).Where(item => item.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase));
         foreach (var year in plan.RequestedYears.Where(IsYear)) state.RequestedYears.Add(year);
         baseContext = BuildBaseContext(request, state);
         await ReadProfileEvidenceAsync(request, plan.ProfileSourceDocumentIds, state, tools, cancellationToken);
 
         var factual = plan.Kind == ChatQuestionKind.CompanyFactual;
-        var nextQuery = plan.Query;
+        string? nextQuery = null;
+        var searchCalls = 0;
         IReadOnlyList<string> preferredCandidateIds = [];
-        if (request.WebSearchEnabled && factual && request.RequiredInvestigationId is null)
+        if (request.WebSearchEnabled && factual && request.RequiredInvestigationId is null &&
+            (plan.Queries.Count > 0 || plan.ProfileSourceDocumentIds.Count == 0))
         {
             for (var round = 0; round < options.MaxResearchRounds && HasResearchTime(stopwatch); round++)
             {
-                var query = EnrichQuery(request, nextQuery, round);
-                if (!state.TryAddQuery(query))
+                var remainingSearches = options.MaxSearchCalls - searchCalls;
+                if (remainingSearches <= 0) break;
+                var roundBudget = Math.Min(options.MaxQueriesPerRound,
+                    round == 0 && options.MaxResearchRounds > 1 && remainingSearches > 1
+                        ? remainingSearches - 1 : remainingSearches);
+                var proposed = round == 0
+                    ? plan.Queries.Take(roundBudget).ToArray()
+                    : [new PlannedQuery("coverage gap", nextQuery ?? string.Empty, "neutral")];
+                if (proposed.Length == 0) proposed = [new PlannedQuery("question", string.Empty, "neutral")];
+                var queries = new List<PlannedQuery>();
+                foreach (var item in proposed)
                 {
-                    query = EnrichQuery(request, null, round);
-                    if (!state.TryAddQuery(query)) break;
+                    var query = EnrichQuery(request, item.Query, round);
+                    if (state.TryAddQuery(query)) queries.Add(item with { Query = query });
                 }
-
+                if (queries.Count == 0) break;
                 await ReportProgressAsync(request, ChatProgressStage.WebSearching, $"Searching public evidence (round {round + 1}/{options.MaxResearchRounds})", round, options.MaxResearchRounds, cancellationToken);
                 await activityReporter.ReportAsync(request.AssistantMessageId, "Searching the web", cancellationToken);
                 state.SearchAttempted = true;
-                var search = await webTool.SearchAsync(request.Company, query, request.Profile.Website, cancellationToken);
-                AddExecution(tools, search.Execution);
-                if (!search.Succeeded)
+                var searches = new List<ChatWebSearchResult>();
+                foreach (var item in queries)
                 {
+                    var remainingResearchTime = TimeSpan.FromSeconds(
+                        options.TurnDeadlineSeconds - options.FinalReserveSeconds) - stopwatch.Elapsed;
+                    if (remainingResearchTime <= TimeSpan.Zero) break;
+                    using var searchDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    searchDeadline.CancelAfter(remainingResearchTime);
+                    searchCalls++;
+                    try
+                    {
+                        searches.Add(await webTool.SearchAsync(request.Company, item.Query, request.Profile.Website,
+                            item.SourcePreference, item.Facet, searchDeadline.Token));
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        state.ProviderFailureObserved = true;
+                        state.MissingEvidence.Add("Search timed out before the final-answer window.");
+                        break;
+                    }
+                }
+                if (searches.Count == 0) break;
+                foreach (var search in searches)
+                {
+                    AddExecution(tools, search.Execution);
+                    if (search.Succeeded) continue;
                     state.ProviderFailureObserved = true;
                     state.MissingEvidence.Add($"Search failed: {search.ErrorCode}");
-                    nextQuery = null;
-                    continue;
                 }
-                state.AddCandidates(search.Candidates);
-                await ReportProgressAsync(request, ChatProgressStage.WebSearching, $"Found {search.Candidates.Count} ranked public sources", round + 1, options.MaxResearchRounds, cancellationToken);
+                state.AddCandidates(searches.Where(search => search.Succeeded).SelectMany(search => search.Candidates));
+                if (searches.All(search => !search.Succeeded) || !HasResearchTime(stopwatch)) continue;
+                await ReportProgressAsync(request, ChatProgressStage.WebSearching, $"Found {state.Candidates.Count} ranked public sources", round + 1, options.MaxResearchRounds, cancellationToken);
 
                 var remainingCrawls = Math.Max(0, options.MaxCrawlCalls - tools.Count(item => item.Tool == "read_web_page"));
                 var selected = state.NextCandidates(Math.Min(options.MaxParallelCrawls, remainingCrawls), preferredCandidateIds);
@@ -177,6 +217,45 @@ public sealed partial class CompanyChatAgent(
             state.WebEvidence);
     }
 
+    private async Task<ChatAgentCompletion?> TryAnswerProfilePersonAsync(ChatAgentRequest request, CancellationToken cancellationToken)
+    {
+        var match = ChatProfilePersonPolicy.Match(request.Profile, request.Question);
+        if (match is null) return null;
+
+        var tools = new List<ChatToolExecution>();
+        foreach (var sourceId in match.SourceIds)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var excerpt = await evidenceTool.ReadExcerptAsync(request, sourceId, cancellationToken,
+                [match.Leader.Name, match.Leader.Title ?? string.Empty]);
+            stopwatch.Stop();
+            tools.Add(new ChatToolExecution
+            {
+                Tool = "get_source_excerpt", Provider = "raven-db", Status = excerpt.Succeeded ? "succeeded" : "failed",
+                DurationMs = stopwatch.ElapsedMilliseconds, InputSummary = sourceId.ToString(),
+                OutputSummary = ChatText.Bound(excerpt.Succeeded ? excerpt.Content : excerpt.Error, 500),
+                ErrorCode = excerpt.ErrorCode
+            });
+            if (!excerpt.Succeeded || excerpt.Content?.Contains(match.Leader.Name, StringComparison.OrdinalIgnoreCase) != true)
+                continue;
+
+            var company = request.Profile.DisplayName ?? request.Company.Name;
+            var title = match.Leader.Title;
+            var vietnamese = ChatProfilePersonPolicy.PreferVietnamese(request.Question, request.RecentMessages);
+            var answer = vietnamese
+                ? title is null
+                    ? $"Company Profile đã xác nhận của {company} có ghi nhận {match.Leader.Name}, nhưng chưa nêu chức danh."
+                    : $"Company Profile đã xác nhận của {company} ghi nhận {match.Leader.Name} là {title}."
+                : title is null
+                    ? $"The accepted Company Profile for {company} lists {match.Leader.Name}, without a role."
+                    : $"The accepted Company Profile for {company} lists {match.Leader.Name} as {title}.";
+            return new ChatAgentCompletion(
+                new ChatAgentResult(ChatAnswerStatus.Answered, answer, [sourceId], null),
+                "raven", "accepted-profile", tools);
+        }
+        return null;
+    }
+
     private async Task ReadProfileEvidenceAsync(ChatAgentRequest request, IReadOnlyList<Guid> sourceIds, ChatResearchState state,
         List<ChatToolExecution> tools, CancellationToken cancellationToken)
     {
@@ -184,7 +263,7 @@ public sealed partial class CompanyChatAgent(
         {
             await ReportProgressAsync(request, ChatProgressStage.CheckingProfile, "Reading accepted profile evidence", cancellationToken);
             var stopwatch = Stopwatch.StartNew();
-            var result = await evidenceTool.ReadExcerptAsync(request, sourceId, cancellationToken);
+            var result = await evidenceTool.ReadExcerptAsync(request, sourceId, cancellationToken, state.Facets);
             stopwatch.Stop();
             tools.Add(new ChatToolExecution
             {
@@ -256,7 +335,7 @@ public sealed partial class CompanyChatAgent(
         {context}
         QUESTION: {ChatText.Bound(request.Question, 4_000)}
         WEB SEARCH PERMISSION: {(request.WebSearchEnabled ? "enabled" : "disabled")}
-        Classify the question, decompose factual coverage into concise facets, extract every explicitly requested year, and propose one focused Web query. Select at most two accepted-profile source IDs worth reading. Do not answer factual company questions from model knowledge. Other companies are unsupported. Return operational fields only, never hidden reasoning.
+        Classify the question, decompose factual coverage into concise facets, and extract every explicitly requested year. For a factual question with Web permission, propose up to three different focused queries, each tied to one facet or requested year. Use sourcePreference neutral, company_primary, or independent_or_regulatory as an ordering hint for the type of claim. Search is optional when the accepted profile already answers the question. Select at most two accepted-profile source IDs worth reading. Do not answer factual company questions from model knowledge. Other companies are unsupported. Return operational fields only, never hidden reasoning.
         """;
 
     private string FinalPrompt(ChatAgentRequest request, string baseContext, ChatResearchState state, PlanDecision plan, bool factual)
@@ -364,16 +443,11 @@ public sealed partial class CompanyChatAgent(
         var query = ChatText.NormalizeQuestion(proposed ?? string.Empty);
         if (query.Length == 0)
         {
-            var suffix = round switch
-            {
-                0 => "official news achievements awards milestones",
-                1 => "independent awards recognition reports",
-                _ => "press releases milestones announcements"
-            };
-            query = $"{request.Question} {suffix}";
+            query = request.Question;
         }
         if (!query.Contains(request.Company.Name, StringComparison.OrdinalIgnoreCase)) query = $"\"{request.Company.Name}\" {query}";
-        foreach (var year in ExtractYears(request.Question).Where(year => !query.Contains(year, StringComparison.Ordinal))) query += $" {year}";
+        if (ExtractYears(query).Count == 0)
+            foreach (var year in ExtractYears(request.Question)) query += $" {year}";
         return ChatText.Bound(ChatText.NormalizeQuestion(query), 500);
     }
 
@@ -447,7 +521,15 @@ public sealed partial class CompanyChatAgent(
             "unsupported_scope" => ChatQuestionKind.UnsupportedScope,
             _ => throw InvalidResponse()
         };
-        return new(kind, Strings(json, "facets"), Strings(json, "requestedYears"), Read(json, "query"),
+        var queries = json.TryGetProperty("queries", out var queryArray) && queryArray.ValueKind == JsonValueKind.Array
+            ? queryArray.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object)
+                .Select(item => new PlannedQuery(Read(item, "facet") ?? string.Empty, Read(item, "query") ?? string.Empty,
+                    Read(item, "sourcePreference") is "company_primary" or "independent_or_regulatory" ? Read(item, "sourcePreference")! : "neutral"))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Query)).Take(3).ToArray()
+            : [];
+        if (queries.Length == 0 && Read(json, "query") is { Length: > 0 } legacyQuery)
+            queries = [new PlannedQuery("question", legacyQuery, "neutral")];
+        return new(kind, Strings(json, "facets"), Strings(json, "requestedYears"), queries,
             Guids(json, "profileSourceDocumentIds", "profile:"), Read(json, "answer"), Read(json, "followUpQuestion"));
     }
 
@@ -543,8 +625,9 @@ public sealed partial class CompanyChatAgent(
     private static partial Regex VietnameseQuestionRegex();
 
     private enum ChatQuestionKind { CompanyFactual, Conversational, Guidance, ClarificationRequired, UnsupportedScope }
+    private sealed record PlannedQuery(string Facet, string Query, string SourcePreference);
     private sealed record PlanDecision(ChatQuestionKind Kind, IReadOnlyList<string> Facets, IReadOnlyList<string> RequestedYears,
-        string? Query, IReadOnlyList<Guid> ProfileSourceDocumentIds, string? Answer, string? FollowUpQuestion);
+        IReadOnlyList<PlannedQuery> Queries, IReadOnlyList<Guid> ProfileSourceDocumentIds, string? Answer, string? FollowUpQuestion);
     private sealed record CoverageDecision(bool Sufficient, IReadOnlyList<string> MissingEvidence, string? NextQuery, IReadOnlyList<string> CandidateIds);
     private sealed record ClaimDecision(string Text, IReadOnlyList<string> EvidenceIds);
     private sealed record FinalDecision(ChatAnswerStatus Status, string Answer, IReadOnlyList<Guid> ProfileCitations,

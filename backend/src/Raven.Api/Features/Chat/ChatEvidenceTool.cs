@@ -3,12 +3,13 @@ using Raven.Api.Data;
 
 namespace Raven.Api.Features.Chat;
 
-public sealed class ChatEvidenceTool(RavenDbContext dbContext)
+public sealed class ChatEvidenceTool(RavenDbContext dbContext, ChatEvidenceChunker chunker)
 {
     public async Task<ChatEvidenceToolResult> ReadExcerptAsync(
         ChatAgentRequest request,
         Guid sourceDocumentId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IEnumerable<string>? focusTerms = null)
     {
         var allowed = request.Profile.Evidence
             .SelectMany(item => item.SourceDocumentIds)
@@ -35,7 +36,7 @@ public sealed class ChatEvidenceTool(RavenDbContext dbContext)
             source.Title,
             source.Url,
             string.Join(", ", fieldPaths),
-            ChatText.Bound(source.Content, 8_000));
+            ChatText.Bound(chunker.Select(request.Question, focusTerms ?? fieldPaths, source.Content ?? string.Empty), 8_000));
     }
 }
 

@@ -22,6 +22,7 @@ public sealed class CompanyChatService(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
+        PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 

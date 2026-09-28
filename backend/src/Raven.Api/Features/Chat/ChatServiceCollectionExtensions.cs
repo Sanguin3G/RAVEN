@@ -9,7 +9,9 @@ public static class ChatServiceCollectionExtensions
         services.AddOptions<ChatResearchOptions>()
             .Bind(configuration.GetSection(ChatResearchOptions.SectionName))
             .Validate(options => options.MaxResearchRounds is >= 1 and <= 3, "Chat research rounds must be between 1 and 3.")
-            .Validate(options => options.MaxSearchCalls is >= 1 and <= 3, "Chat search calls must be between 1 and 3.")
+            .Validate(options => options.MaxSearchCalls is >= 1 and <= 4, "Chat search calls must be between 1 and 4.")
+            .Validate(options => options.MaxQueriesPerRound is >= 1 and <= 3 && options.MaxQueriesPerRound <= options.MaxSearchCalls,
+                "Chat queries per round must be between 1 and 3 and cannot exceed the search budget.")
             .Validate(options => options.MaxCrawlCalls is >= 1 and <= 5, "Chat crawl calls must be between 1 and 5.")
             .Validate(options => options.MaxResultsPerSearch is >= 1 and <= 10, "Chat search results must be between 1 and 10.")
             .Validate(options => options.MaxParallelCrawls >= 1 && options.MaxParallelCrawls <= options.MaxCrawlCalls,

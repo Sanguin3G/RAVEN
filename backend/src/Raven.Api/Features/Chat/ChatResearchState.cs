@@ -32,24 +32,48 @@ internal sealed class ChatResearchState(string question, IEnumerable<string> req
 
     public void AddCandidates(IEnumerable<ChatWebCandidate> candidates)
     {
-        foreach (var candidate in candidates)
+        foreach (var candidate in candidates.OrderByDescending(item => item.Score).ThenBy(item => item.SearchRank))
         {
             if (Candidates.All(existing => !string.Equals(existing.NormalizedUrl, candidate.NormalizedUrl, StringComparison.Ordinal)))
                 Candidates.Add(candidate);
         }
+        Candidates.Sort((left, right) => right.Score != left.Score
+            ? right.Score.CompareTo(left.Score) : left.SearchRank.CompareTo(right.SearchRank));
     }
 
     public IReadOnlyList<ChatWebCandidate> NextCandidates(int count, IReadOnlyList<string>? preferredIds = null)
     {
         var preferences = (preferredIds ?? []).Distinct(StringComparer.Ordinal).Select((id, index) => new { id, index })
             .ToDictionary(item => item.id, item => item.index, StringComparer.Ordinal);
-        return Candidates
-        .Where(candidate => !crawledCandidateIds.Contains(candidate.Id))
-        .OrderBy(candidate => preferences.TryGetValue(candidate.Id, out var index) ? index : int.MaxValue)
-        .ThenByDescending(candidate => candidate.Score)
-        .ThenBy(candidate => candidate.SearchRank)
-        .Take(count)
-        .ToArray();
+        var ranked = Candidates
+            .OrderBy(candidate => preferences.TryGetValue(candidate.Id, out var index) ? index : int.MaxValue)
+            .ThenByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.SearchRank)
+            .ToArray();
+        var selected = new List<ChatWebCandidate>();
+        var domainCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var eligible = new List<ChatWebCandidate>();
+        foreach (var candidate in ranked.Where(item => !crawledCandidateIds.Contains(item.Id)))
+        {
+            if (!Uri.TryCreate(candidate.NormalizedUrl, UriKind.Absolute, out var uri)) continue;
+            var domain = uri.Host;
+            var used = domainCounts.GetValueOrDefault(domain);
+            if (used >= 2) continue;
+            domainCounts[domain] = used + 1;
+            eligible.Add(candidate);
+            if (eligible.Count == 5) break;
+        }
+        foreach (var candidate in eligible)
+        {
+            if (selected.Count == count) break;
+            if (selected.Count > 0 && !string.IsNullOrWhiteSpace(candidate.Facet) &&
+                selected.Any(item => item.Facet == candidate.Facet) &&
+                eligible.Any(item => !crawledCandidateIds.Contains(item.Id) && !selected.Contains(item) &&
+                    item.Facet != candidate.Facet && item.Score >= candidate.Score - 10))
+                continue;
+            selected.Add(candidate);
+        }
+        return selected;
     }
 
     public void MarkCrawled(string candidateId) => crawledCandidateIds.Add(candidateId);
