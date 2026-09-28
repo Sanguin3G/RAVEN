@@ -54,6 +54,17 @@ public sealed class ResearchTelemetryBackgroundService(
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        // A host can request shutdown immediately after StartAsync, before the
+        // reader has begun consuming. A flush marker waits for the queued batch
+        // to be persisted instead of racing BackgroundService cancellation.
+        try
+        {
+            await transport.FlushAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Diagnostics remain best effort when the host's shutdown window ends.
+        }
         transport.Complete();
         await base.StopAsync(cancellationToken);
     }
