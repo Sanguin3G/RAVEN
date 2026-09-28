@@ -279,6 +279,12 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         };
         artifact.SourceDocumentIds.Add(duplicateSource.Id);
         artifact.SourceDocumentIds.Add(movedSource.Id);
+        var briefingJob = new BriefingGenerationJob
+        {
+            CompanyId = duplicate.Id,
+            Operation = BriefingGenerationOperation.Create,
+            RequestJson = "{}"
+        };
 
         dbContext.Companies.AddRange(canonical, duplicate);
         dbContext.ResearchRuns.AddRange(canonicalRun, duplicateRun);
@@ -286,6 +292,7 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         dbContext.CompanyProfileVersions.AddRange(canonicalProfile, duplicateProfile);
         dbContext.ProfileEvidences.Add(evidence);
         dbContext.SavedResearchArtifacts.Add(artifact);
+        dbContext.BriefingGenerationJobs.Add(briefingJob);
         await dbContext.SaveChangesAsync();
         dbContext.Entry(artifact).Property(item => item.SourceDocumentIdsJson).CurrentValue = $"[\"{duplicateSource.Id}\",\"{movedSource.Id}\"]";
         await dbContext.SaveChangesAsync();
@@ -322,6 +329,8 @@ public sealed class CompanyLifecycleServiceTests : IDisposable
         Assert.DoesNotContain(duplicateSource.Id.ToString(), rewrittenEvidence.SourceDocumentIdsJson);
         var mergedArtifact = await dbContext.SavedResearchArtifacts.AsNoTracking().SingleAsync();
         Assert.Equal(canonical.Id, mergedArtifact.CompanyId);
+        var mergedBriefingJob = await dbContext.BriefingGenerationJobs.AsNoTracking().SingleAsync();
+        Assert.Equal(canonical.Id, mergedBriefingJob.CompanyId);
         var rewrittenArtifact = mergedArtifact;
         Assert.Contains(canonicalSource.Id.ToString(), rewrittenArtifact.SourceDocumentIdsJson);
         Assert.DoesNotContain(duplicateSource.Id.ToString(), rewrittenArtifact.SourceDocumentIdsJson);

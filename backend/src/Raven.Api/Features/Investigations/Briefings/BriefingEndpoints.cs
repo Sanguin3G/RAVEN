@@ -12,12 +12,15 @@ public static class BriefingEndpoints
             .Produces<BriefingListItemResponse[]>(StatusCodes.Status200OK);
         group.MapGet("/{id:guid}", GetAsync).WithName("GetBriefing").WithSummary("Get the current Briefing version")
             .Produces<BriefingResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
-        group.MapPost("/", CreateAsync).WithName("CreateBriefing").WithSummary("Generate a Briefing from selected persisted Investigations")
-            .Produces<BriefingResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status502BadGateway);
-        group.MapPost("/{id:guid}/versions", UpdateAsync).WithName("UpdateBriefing").WithSummary("Create an immutable version from existing and selected new Investigations")
-            .Produces<BriefingResponse>(StatusCodes.Status201Created).Produces(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status502BadGateway);
+        group.MapPost("/", CreateAsync).WithName("CreateBriefing").WithSummary("Queue Briefing generation from selected persisted Investigations")
+            .Produces<BriefingGenerationJobResponse>(StatusCodes.Status202Accepted).ProducesProblem(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+        group.MapPost("/{id:guid}/versions", UpdateAsync).WithName("UpdateBriefing").WithSummary("Queue an immutable Briefing version from selected new Investigations")
+            .Produces<BriefingGenerationJobResponse>(StatusCodes.Status202Accepted).Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet("/generation-jobs/{jobId:guid}", GenerationJobAsync).WithName("GetBriefingGenerationJob")
+            .WithSummary("Get Briefing generation status").Produces<BriefingGenerationJobResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
         group.MapGet("/{id:guid}/versions", VersionsAsync).WithName("ListBriefingVersions").WithSummary("List immutable Briefing versions")
             .Produces<BriefingVersionResponse[]>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
         group.MapGet("/{id:guid}/versions/{number:int}", VersionAsync).WithName("GetBriefingVersion").WithSummary("Get an earlier Briefing version")
@@ -38,28 +41,33 @@ public static class BriefingEndpoints
         return brief is null ? TypedResults.NotFound() : TypedResults.Ok(brief);
     }
 
-    private static async Task<IResult> CreateAsync(Guid companyId, CreateBriefingRequest request, BriefingService service, CancellationToken ct)
+    private static async Task<IResult> CreateAsync(Guid companyId, CreateBriefingRequest request, BriefingGenerationService service, CancellationToken ct)
     {
         try
         {
-            var brief = await service.CreateAsync(companyId, request, ct);
-            return TypedResults.Created($"/api/companies/{companyId:D}/briefings/{brief.Id:D}", brief);
+            var job = await service.StartCreateAsync(companyId, request, ct);
+            return TypedResults.Accepted($"/api/companies/{companyId:D}/briefings/generation-jobs/{job.Id:D}", job);
         }
         catch (ArgumentException exception) { return TypedResults.Problem(exception.Message, statusCode: 400); }
         catch (KeyNotFoundException) { return TypedResults.NotFound(); }
-        catch (InvalidOperationException exception) { return TypedResults.Problem(exception.Message, statusCode: 502); }
     }
 
-    private static async Task<IResult> UpdateAsync(Guid companyId, Guid id, UpdateBriefingRequest request, BriefingService service, CancellationToken ct)
+    private static async Task<IResult> UpdateAsync(Guid companyId, Guid id, UpdateBriefingRequest request, BriefingGenerationService service, CancellationToken ct)
     {
         try
         {
-            var brief = await service.UpdateAsync(companyId, id, request, ct);
-            return brief is null ? TypedResults.NotFound() : TypedResults.Created($"/api/companies/{companyId:D}/briefings/{id:D}/versions/{brief.CurrentVersion.VersionNumber}", brief);
+            var job = await service.StartUpdateAsync(companyId, id, request, ct);
+            return job is null ? TypedResults.NotFound() : TypedResults.Accepted($"/api/companies/{companyId:D}/briefings/generation-jobs/{job.Id:D}", job);
         }
         catch (ArgumentException exception) { return TypedResults.Problem(exception.Message, statusCode: 400); }
-        catch (DbUpdateException) { return TypedResults.Problem("The Briefing changed while this version was being saved. Reload and try again.", statusCode: 409); }
-        catch (InvalidOperationException exception) { return TypedResults.Problem(exception.Message, statusCode: 502); }
+        catch (InvalidOperationException exception) { return TypedResults.Problem(exception.Message, statusCode: 400); }
+    }
+
+    private static async Task<Results<Ok<BriefingGenerationJobResponse>, NotFound>> GenerationJobAsync(
+        Guid companyId, Guid jobId, BriefingGenerationService service, CancellationToken ct)
+    {
+        var job = await service.GetAsync(companyId, jobId, ct);
+        return job is null ? TypedResults.NotFound() : TypedResults.Ok(job);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<BriefingVersionResponse>>, NotFound>> VersionsAsync(Guid companyId, Guid id, BriefingService service, CancellationToken ct)

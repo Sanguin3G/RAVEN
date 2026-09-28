@@ -129,7 +129,8 @@ public sealed record ChatAgentRequest(
     Guid? RequiredInvestigationId = null,
     IReadOnlyList<ChatBriefingContext>? Briefings = null);
 
-public sealed record ChatInvestigationContext(Guid Id, string Objective, string Summary, string Material, DateTimeOffset CompletedAt);
+public sealed record ChatInvestigationContext(Guid Id, string Objective, string Summary, string Material, DateTimeOffset CompletedAt,
+    Guid? SavedResearchArtifactId = null);
 public sealed record ChatBriefingContext(Guid BriefingId, Guid VersionId, int VersionNumber, string Title,
     string Template, string Objective, string Material, DateTimeOffset GeneratedAt, DateTimeOffset ResearchThrough);
 
@@ -151,6 +152,7 @@ public interface ICompanyChatAgentFactory
 public interface ICompanyChatService
 {
     Task<IReadOnlyList<ChatConversationSummary>> ListConversationsAsync(Guid companyId, CancellationToken cancellationToken);
+    Task<bool> DeleteConversationAsync(Guid companyId, Guid conversationId, CancellationToken cancellationToken);
     Task<ChatConversationResponse> CreateConversationAsync(Guid companyId, CancellationToken cancellationToken);
     Task<ChatConversationResponse> GetConversationAsync(Guid companyId, Guid conversationId, CancellationToken cancellationToken);
     Task<ChatConversationResponse> UpdateCapabilitiesAsync(Guid companyId, Guid conversationId, UpdateChatCapabilitiesRequest request, CancellationToken cancellationToken);

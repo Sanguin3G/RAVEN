@@ -16,6 +16,9 @@ Content-Type: application/json
 ### Get a missing company
 GET {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000
 
+### Delete a company-scoped Ask RAVEN conversation
+DELETE {{baseUrl}}/api/companies/00000000-0000-0000-0000-000000000000/chat/conversations/00000000-0000-0000-0000-000000000000
+
 ### Check Crawl4AI Local
 GET {{baseUrl}}/api/system/crawler-status
 

@@ -1,0 +1,11 @@
+.mark {
+  background: var(--ai);
+  border: 1px solid color-mix(in srgb, var(--ai) 55%, var(--border));
+  border-radius: 0.38rem;
+  box-shadow: 0 0 0.8rem color-mix(in srgb, var(--ai) 18%, transparent);
+  display: block;
+  flex: 0 0 auto;
+  height: 1.8rem;
+  mask: url("/raven-logo.svg") center / 72% no-repeat;
+  width: 1.8rem;
+}

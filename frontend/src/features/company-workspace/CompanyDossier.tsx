@@ -79,7 +79,7 @@ export function CompanyDossier({ company, profile, sources, research, tracking, 
           }
           onOpenProfileImprovement?.(targets, sourceMaterialId, sourceMaterialKind);
         }} />}
-        {selectedTab === "briefings" && <CompanyBriefingsTab companyId={company.id} initialInvestigationId={briefingSeedId} initialBriefingId={initialBriefingId} initialBriefingVersionNumber={initialBriefingVersionNumber} onSeedConsumed={() => setBriefingSeedId(null)} onExternalResearch={(objective) => setExternalAssist({ objective })} onDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective }); }} />}
+        {selectedTab === "briefings" && <CompanyBriefingsTab companyId={company.id} companyName={company.displayName} initialInvestigationId={briefingSeedId} initialBriefingId={initialBriefingId} initialBriefingVersionNumber={initialBriefingVersionNumber} onSeedConsumed={() => setBriefingSeedId(null)} onExternalResearch={(objective) => setExternalAssist({ objective })} onDeepResearch={(objective) => { setAssistantCollapsed(false); setChatLaunch({ capability: "deepResearch", question: objective }); }} />}
         {selectedTab === "changes" && <CompanyChangesTab tracking={tracking} />}
         {selectedTab === "monitoring" && <CompanyMonitoringTab companyName={company.displayName} monitoring={monitoring} research={research} />}
       </div>

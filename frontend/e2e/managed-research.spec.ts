@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const companyId = "88888888-8888-8888-8888-888888888888";
 const company = { id: companyId, name: "Northwind Research", website: "https://northwind.example", country: "Vietnam", legalName: "Northwind Research Co.", registrationNumber: null, headquarters: "17 Duy Tan Street, Cau Giay, Hanoi, Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z", lastResearchedAt: null, archivedAt: null };
-const profile = { id: "profile-day8", companyId, researchRunId: "run-day8", generatedAt: "2026-09-10T00:00:00Z", confirmedAt: "2026-09-10T00:00:00Z", version: 1, legalName: company.legalName, website: company.website, country: company.country, headquarters: company.headquarters, registrationNumberOrTaxId: null, foundedYear: null, primaryIndustry: "Research", secondaryIndustries: [], companySize: null, employeeCount: null, employeeCountRange: null, summary: "A research company.", productsServices: [], markets: [], leadership: [], locations: [], publicLinks: [], evidence: [], validationWarnings: [] };
+const profile = { id: "fixture-profile-managed", companyId, researchRunId: "fixture-run-managed", generatedAt: "2026-09-10T00:00:00Z", confirmedAt: "2026-09-10T00:00:00Z", version: 1, legalName: company.legalName, website: company.website, country: company.country, headquarters: company.headquarters, registrationNumberOrTaxId: null, foundedYear: null, primaryIndustry: "Research", secondaryIndustries: [], companySize: null, employeeCount: null, employeeCountRange: null, summary: "A research company.", productsServices: [], markets: [], leadership: [], locations: [], publicLinks: [], evidence: [], validationWarnings: [] };
 
 async function installManagedResearchFixture(page: import("@playwright/test").Page) {
   let jobs: object[] = [];
@@ -21,9 +21,9 @@ async function installManagedResearchFixture(page: import("@playwright/test").Pa
     } else if (pathname.endsWith("/managed-research") && method === "POST") {
       const request = route.request().postDataJSON() as { objective: string; conversationId?: string; answerInChat?: boolean };
       const objective = request.objective;
-      body = { id: "job-day8", companyId, objective, provider: "exa-agent", status: "Queued", conversationId: request.conversationId, answerInChat: request.answerInChat, chatMessageId: "research-user-day8", createdAt: "2026-09-18T00:00:00Z" };
+      body = { id: "fixture-job-managed", companyId, objective, provider: "exa-agent", status: "Queued", conversationId: request.conversationId, answerInChat: request.answerInChat, chatMessageId: "fixture-message-user-managed", createdAt: "2026-09-18T00:00:00Z" };
       jobs = [body];
-      messages = [...messages, { id: "research-user-day8", role: "User", content: objective, status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" }];
+      messages = [...messages, { id: "fixture-message-user-managed", role: "User", content: objective, status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" }];
     } else if (pathname.endsWith("/managed-research")) body = jobs;
     else if (pathname.endsWith(`/companies/${companyId}/investigations`)) body = jobs.map((job) => {
       const managed = job as { id: string; objective: string; status: string };
@@ -31,18 +31,18 @@ async function installManagedResearchFixture(page: import("@playwright/test").Pa
     });
     else if (pathname.endsWith("/external-research/brief")) body = { markdown: "# Research Summary\n\nNorthwind notes", evidenceGaps: [] };
     else if (pathname.endsWith("/external-research/import/preview")) body = { summary: "Imported research notes", claims: [{ field: "Markets", statement: "Operates in Vietnam", notes: null }], sourceLeads: [{ id: "lead-1", title: "Northwind", url: "https://northwind.example", publisher: "Northwind" }], uncertainties: [], suggestedFollowUps: [], rawMarkdown: "# Research Summary" };
-    else if (pathname.endsWith("/external-research/import")) body = { id: "artifact-day8", title: "External research", question: "Markets", summary: "Imported research notes", result: "Imported research notes", sourceCount: 0, researchType: "Fast", createdAt: "2026-09-18T00:00:00Z" };
-    else if (pathname.endsWith("/chat/conversations") && method === "POST") body = { id: "conversation-day8", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled: false, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages };
+    else if (pathname.endsWith("/external-research/import")) body = { id: "fixture-artifact-managed", title: "External research", question: "Markets", summary: "Imported research notes", result: "Imported research notes", sourceCount: 0, researchType: "Fast", createdAt: "2026-09-18T00:00:00Z" };
+    else if (pathname.endsWith("/chat/conversations") && method === "POST") body = { id: "fixture-conversation-managed", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled: false, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages };
     else if (pathname.endsWith("/messages/stream") && method === "POST") {
-      const response = { conversationId: "conversation-day8", messageId: "message-day8", companyId, profileVersion: 1, status: "Conversational", answer: "Normal Chat remains available.", citations: [], webEvidenceSnapshots: [], toolExecutions: [], followUpQuestion: null };
+      const response = { conversationId: "fixture-conversation-managed", messageId: "fixture-message-managed", companyId, profileVersion: 1, status: "Conversational", answer: "Normal Chat remains available.", citations: [], webEvidenceSnapshots: [], toolExecutions: [], followUpQuestion: null };
       messages = [
-        { id: "user-day8", role: "User", content: "Hello", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" },
+        { id: "fixture-user-managed", role: "User", content: "Hello", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" },
         { id: response.messageId, role: "Assistant", content: response.answer, status: "Completed", answerStatus: response.status, citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-18T00:00:00Z" },
       ];
       await route.fulfill({ contentType: "text/event-stream", body: `event: progress\ndata: {"stage":"Analyzing","message":"Analyzing the question"}\n\nevent: completed\ndata: ${JSON.stringify(response)}\n\n` });
       return;
     }
-    else if (pathname.endsWith("/chat/conversations/conversation-day8")) body = { id: "conversation-day8", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled: false, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages };
+    else if (pathname.endsWith("/chat/conversations/fixture-conversation-managed")) body = { id: "fixture-conversation-managed", companyId, profileVersionId: profile.id, profileVersion: 1, webSearchEnabled: false, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages };
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
   });
 }

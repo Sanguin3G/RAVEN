@@ -1,13 +1,13 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBriefing, getBriefing, getBriefings, getBriefingChanges, getBriefingVersion, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing, type Briefing } from "../../api/briefings";
+import { createBriefing, getBriefing, getBriefingGenerationJob, getBriefings, getBriefingChanges, getBriefingVersion, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing, type Briefing, type BriefingGenerationJob } from "../../api/briefings";
 import { getInvestigations, type Investigation } from "../../api/investigations";
 import { CompanyBriefingsTab } from "./CompanyBriefingsTab";
 
 vi.mock("../../api/briefings", async importOriginal => ({
   ...await importOriginal<typeof import("../../api/briefings")>(),
-  createBriefing: vi.fn(), getBriefing: vi.fn(), getBriefings: vi.fn(), getBriefingChanges: vi.fn(),
+  createBriefing: vi.fn(), getBriefing: vi.fn(), getBriefingGenerationJob: vi.fn(), getBriefings: vi.fn(), getBriefingChanges: vi.fn(),
   getBriefingVersion: vi.fn(), getBriefingVersions: vi.fn(), getNewerBriefingInvestigations: vi.fn(), updateBriefing: vi.fn(),
 }));
 vi.mock("../../api/investigations", () => ({ getInvestigations: vi.fn() }));
@@ -30,6 +30,10 @@ const briefing: Briefing = {
       claims: [], sourceLeads: [], uncertainties: [] }],
   },
 };
+const generationJob: BriefingGenerationJob = {
+  id: "job-1", companyId: "company-1", operation: "Create", status: "Queued",
+  createdAt: "2026-09-28T00:00:00Z", updatedAt: "2026-09-28T00:00:00Z",
+};
 
 describe("CompanyBriefingsTab", () => {
   beforeEach(() => {
@@ -39,6 +43,7 @@ describe("CompanyBriefingsTab", () => {
     vi.mocked(getInvestigations).mockResolvedValue([material, second]);
     vi.mocked(getBriefings).mockResolvedValue([]);
     vi.mocked(getBriefing).mockResolvedValue(briefing);
+    vi.mocked(getBriefingGenerationJob).mockResolvedValue({ ...generationJob, status: "Completed", resultBriefingId: briefing.id });
     vi.mocked(getBriefingVersion).mockResolvedValue(briefing.currentVersion);
     vi.mocked(getBriefingChanges).mockResolvedValue({ fromVersion: 1, toVersion: 2, newMaterial: ["European hiring"], changedMaterial: [], removedMaterial: [], newUncertainties: [] });
     vi.mocked(getBriefingVersions).mockResolvedValue([briefing.currentVersion]);
@@ -47,7 +52,7 @@ describe("CompanyBriefingsTab", () => {
 
   it("creates a General Research Briefing from a user-selected Investigation without a Profile", async () => {
     const user = userEvent.setup();
-    vi.mocked(createBriefing).mockResolvedValue(briefing);
+    vi.mocked(createBriefing).mockResolvedValue(generationJob);
     render(<CompanyBriefingsTab companyId="company-1" />);
     await screen.findByRole("heading", { name: /Turn selected research into reusable company intelligence/ });
     await user.click(screen.getByRole("button", { name: "Create your first Briefing" }));
@@ -68,7 +73,8 @@ describe("CompanyBriefingsTab", () => {
       versionNumber: 1, sourceCount: 1, newerRelevantCount: 1 }]);
     const updated = { ...briefing, versionCount: 2, newerRelevantCount: 0, currentVersion: { ...briefing.currentVersion,
       id: "version-2", versionNumber: 2, sources: [...briefing.currentVersion.sources, { ...briefing.currentVersion.sources[0], investigationId: second.id, title: second.title, materialUpdatedAt: second.materialUpdatedAt }] } };
-    vi.mocked(updateBriefing).mockResolvedValue(updated);
+    vi.mocked(updateBriefing).mockResolvedValue({ ...generationJob, operation: "Update", briefingId: briefing.id });
+    vi.mocked(getBriefingGenerationJob).mockResolvedValue({ ...generationJob, operation: "Update", status: "Generating", briefingId: briefing.id });
     vi.mocked(getBriefingVersions).mockResolvedValue([updated.currentVersion, briefing.currentVersion]);
     render(<CompanyBriefingsTab companyId="company-1" />);
     await screen.findByRole("heading", { name: "Talent & Hiring" });
@@ -78,20 +84,21 @@ describe("CompanyBriefingsTab", () => {
     await user.click(await within(dialog).findByRole("checkbox", { name: /European hiring/ }));
     await user.click(within(dialog).getByRole("button", { name: "Update briefing" }));
     await waitFor(() => expect(updateBriefing).toHaveBeenCalledWith("company-1", briefing.id, { newInvestigationIds: [second.id] }));
+    const generation = await screen.findByRole("dialog", { name: /Updating.*Talent & Hiring/ });
+    await user.click(within(generation).getByRole("button", { name: "Minimize briefing generation" }));
     await user.click(screen.getByText(/More/));
     await user.click(screen.getByRole("button", { name: "Version history" }));
     const history = await screen.findByRole("dialog", { name: "Version history" });
     expect(within(history).getByRole("button", { name: /v1/ })).toBeInTheDocument();
   });
 
-  it("disables an Add to briefing target that already contains the Investigation", async () => {
+  it("shows an informational included state instead of a disabled action", async () => {
     vi.mocked(getBriefings).mockResolvedValue([{ id: briefing.id, title: briefing.title, template: briefing.template,
       generatedAt: briefing.currentVersion.generatedAt, researchThrough: briefing.currentVersion.researchThrough,
       versionNumber: 1, sourceCount: 1, newerRelevantCount: 0 }]);
     render(<CompanyBriefingsTab companyId="company-1" initialInvestigationId={material.id} />);
 
-    const existingTarget = await screen.findByRole("button", { name: /Talent & Hiring.*Already included/ });
-    expect(existingTarget).toBeDisabled();
+    expect(await screen.findByText(/Included/)).toBeInTheDocument();
     expect(updateBriefing).not.toHaveBeenCalled();
   });
 });

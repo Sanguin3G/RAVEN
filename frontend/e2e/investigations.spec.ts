@@ -2,9 +2,9 @@
 
 const companyId = "99999999-9999-9999-9999-999999999999";
 const company = { id: companyId, name: "Northwind Investigations", website: "https://northwind.example", country: "Vietnam", legalName: "Northwind Investigations Co.", registrationNumber: null, headquarters: "17 Duy Tan Street, Cau Giay, Hanoi, Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", lastResearchedAt: null, archivedAt: null };
-const profile = { id: "profile-day9", companyId, researchRunId: "run-day9", generatedAt: "2026-09-18T00:00:00Z", confirmedAt: "2026-09-18T00:00:00Z", version: 1, legalName: company.legalName, website: company.website, country: company.country, headquarters: company.headquarters, registrationNumberOrTaxId: null, foundedYear: null, primaryIndustry: "Research", secondaryIndustries: [], companySize: null, employeeCount: null, employeeCountRange: null, summary: "A research company.", productsServices: [], markets: [], leadership: [], locations: [], publicLinks: [], evidence: [], validationWarnings: [] };
+const profile = { id: "fixture-profile-investigation", companyId, researchRunId: "fixture-run-investigation", generatedAt: "2026-09-18T00:00:00Z", confirmedAt: "2026-09-18T00:00:00Z", version: 1, legalName: company.legalName, website: company.website, country: company.country, headquarters: company.headquarters, registrationNumberOrTaxId: null, foundedYear: null, primaryIndustry: "Research", secondaryIndustries: [], companySize: null, employeeCount: null, employeeCountRange: null, summary: "A research company.", productsServices: [], markets: [], leadership: [], locations: [], publicLinks: [], evidence: [], validationWarnings: [] };
 const artifact = {
-  id: "artifact-day9",
+  id: "fixture-artifact-investigation",
   companyId,
   title: "Japan expansion",
   question: "How has Northwind expanded in Japan?",
@@ -34,17 +34,17 @@ async function installInvestigationFixture(page: import("@playwright/test").Page
     else if (pathname.endsWith(`/companies/${companyId}/coverage`)) body = { companyId, researchRunId: null, items: [{ target: "Leadership", level: "Missing", supportingSourceCount: 0, strongestSourceKind: null, reasons: [] }], budgetExhausted: false };
     else if (pathname.endsWith(`/companies/${companyId}/monitoring`)) body = { companyId, enabled: false, cadence: "Weekly", nextRunAt: null, lastRunAt: null, lastRunStatus: null };
     else if (pathname.endsWith(`/companies/${companyId}/saved-research`)) body = [artifact];
-    else if (pathname.endsWith(`/companies/${companyId}/saved-research/${artifact.id}/organization`)) body = { id: "organization-day9", savedResearchArtifactId: artifact.id, version: 1, createdAt: "2026-09-18T00:00:00Z", executiveSummary: "Organized Japan expansion findings.", themes: [{ name: "Japan partnerships", summary: "Partner activity is the main theme.", claimCount: 1 }], evidenceGaps: ["Current operating scale"], suggestedFollowUps: ["Verify the partnership's current status."], uncertainties: artifact.uncertainties, isHumanEdited: false };
+    else if (pathname.endsWith(`/companies/${companyId}/saved-research/${artifact.id}/organization`)) body = { id: "fixture-organization-investigation", savedResearchArtifactId: artifact.id, version: 1, createdAt: "2026-09-18T00:00:00Z", executiveSummary: "Organized Japan expansion findings.", themes: [{ name: "Japan partnerships", summary: "Partner activity is the main theme.", claimCount: 1 }], evidenceGaps: ["Current operating scale"], suggestedFollowUps: ["Verify the partnership's current status."], uncertainties: artifact.uncertainties, isHumanEdited: false };
     else if (pathname.endsWith("/external-research/brief")) body = { objective: "Current leadership", focusedTargets: ["Leadership"], markdown: "Company:\nNorthwind Investigations\n\nTarget:\nCurrent leadership\n\nFocus only on current senior leadership and supporting URLs." };
-    else if (pathname.endsWith("/external-research/analyze") && method === "POST") body = { id: "analysis-day9", companyId, question: "Current leadership", status: "Queued", createdAt: "2026-09-18T00:00:00Z" };
+    else if (pathname.endsWith("/external-research/analyze") && method === "POST") body = { id: "fixture-analysis-investigation", companyId, question: "Current leadership", status: "Queued", createdAt: "2026-09-18T00:00:00Z" };
     else if (pathname.includes("/external-research/analyze/")) {
       analysisPolls += 1;
       body = analysisPolls < 5
-        ? { id: "analysis-day9", companyId, question: "Current leadership", status: "Analyzing", createdAt: "2026-09-18T00:00:00Z" }
-        : { id: "analysis-day9", companyId, question: "Current leadership", status: "Completed", createdAt: "2026-09-18T00:00:00Z", completedAt: "2026-09-18T00:01:00Z", result: { summary: "Jane Doe is the current regional CEO.", claims: [{ field: "Leadership", statement: "Jane Doe became regional CEO in January 2026.", supportingSourceLeadIds: ["lead-1"] }], sourceLeads: [{ id: "lead-1", title: "Leadership page", url: "https://northwind.example/leadership", publisher: "Northwind" }], uncertainties: ["A secondary source may be outdated."], suggestedFollowUps: [], rawMarkdown: "## Research Summary" } };
+        ? { id: "fixture-analysis-investigation", companyId, question: "Current leadership", status: "Analyzing", createdAt: "2026-09-18T00:00:00Z" }
+        : { id: "fixture-analysis-investigation", companyId, question: "Current leadership", status: "Completed", createdAt: "2026-09-18T00:00:00Z", completedAt: "2026-09-18T00:01:00Z", result: { summary: "Jane Doe is the current regional CEO.", claims: [{ field: "Leadership", statement: "Jane Doe became regional CEO in January 2026.", supportingSourceLeadIds: ["lead-1"] }], sourceLeads: [{ id: "lead-1", title: "Leadership page", url: "https://northwind.example/leadership", publisher: "Northwind" }], uncertainties: ["A secondary source may be outdated."], suggestedFollowUps: [], rawMarkdown: "## Research Summary" } };
     } else if (pathname.endsWith("/external-research/import") && method === "POST") body = { ...artifact, title: "Current leadership", question: "Current leadership" };
-    else if (pathname.endsWith("/research/verify-source-leads") && method === "POST") body = { id: "run-verify-day9", companyId, status: "Queued", stage: "Discovering", documentsAdded: 1 };
-    else if (pathname.endsWith("/chat/conversations") && method === "POST") body = { id: "conversation-day9", companyId, profileVersionId: profile.id, profileVersion: 1, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages: [] };
+    else if (pathname.endsWith("/research/verify-source-leads") && method === "POST") body = { id: "fixture-run-verify", companyId, status: "Queued", stage: "Discovering", documentsAdded: 1 };
+    else if (pathname.endsWith("/chat/conversations") && method === "POST") body = { id: "fixture-conversation-investigation", companyId, profileVersionId: profile.id, profileVersion: 1, title: null, createdAt: "2026-09-18T00:00:00Z", updatedAt: "2026-09-18T00:00:00Z", messages: [] };
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
   });
 }
@@ -109,12 +109,12 @@ test.describe("mobile research workspace", () => {
     await page.getByRole("button", { name: "Collapse assistant" }).click();
     await page.getByRole("tab", { name: "Investigations" }).click();
     await expect(page.getByTestId("dossier-investigations").getByRole("heading", { name: "Japan expansion" })).toBeVisible();
-    await page.screenshot({ path: "test-results/day9-mobile-workspace.png", fullPage: true });
+    await page.screenshot({ path: "test-results/investigation-mobile-workspace.png", fullPage: true });
 
     await page.getByRole("tab", { name: "Overview" }).click();
     await page.getByRole("button", { name: "Find leadership" }).click();
     await page.getByRole("button", { name: /External AI Assist/ }).click();
     await expect(page.getByRole("heading", { name: /External AI Assist.*Leadership/ })).toBeVisible();
-    await page.screenshot({ path: "test-results/day9-mobile-external-assist.png", fullPage: true });
+    await page.screenshot({ path: "test-results/investigation-mobile-external-assist.png", fullPage: true });
   });
 });

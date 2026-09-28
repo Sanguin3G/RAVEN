@@ -11,8 +11,7 @@ using Raven.Api.Features.Research.Planning;
 using Raven.Api.Features.Research.Sources;
 using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
-using Day6IdentitySnapshot = Raven.Api.Features.Research.Identity.ResolvedIdentitySnapshot;
-using Day6IdentitySnapshotSerializer = Raven.Api.Features.Research.Identity.ResolvedIdentitySnapshotSerializer;
+using Raven.Api.Features.Research.Identity;
 using Raven.Api.Features.Search;
 using Raven.Api.Features.Settings;
 using Raven.Api.Features.Profiles.Persistence;
@@ -81,7 +80,7 @@ public sealed partial class ResearchCompanyService(
             Mode = request?.Mode ?? ResearchMode.Initial,
             BaseProfileVersionId = request?.BaseProfileVersionId,
             ResearchTargetsJson = SerializeTargets(request?.Targets),
-            ResolvedIdentitySnapshotJson = Day6IdentitySnapshotSerializer.Serialize(request?.ResolvedIdentity),
+            ResolvedIdentitySnapshotJson = ResolvedIdentitySnapshotSerializer.Serialize(request?.ResolvedIdentity),
             Stage = ResearchStage.Identifying,
             Status = ResearchRunStatus.Searching
         };
@@ -172,7 +171,7 @@ public sealed partial class ResearchCompanyService(
                 Mode = request?.Mode ?? ResearchMode.Initial,
                 BaseProfileVersionId = request?.BaseProfileVersionId,
                 ResearchTargetsJson = SerializeTargets(request?.Targets),
-                ResolvedIdentitySnapshotJson = Day6IdentitySnapshotSerializer.Serialize(request?.ResolvedIdentity)
+                ResolvedIdentitySnapshotJson = ResolvedIdentitySnapshotSerializer.Serialize(request?.ResolvedIdentity)
             };
             dbContext.ResearchRuns.Add(run);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -190,7 +189,7 @@ public sealed partial class ResearchCompanyService(
                 company,
                 run.ResearchHint,
                 request?.UseAcceptedProfileIdentity == true,
-                Day6IdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson),
+                ResolvedIdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson),
                 cancellationToken);
             var (searchResults, errors) = await sourceDiscovery.SearchAsync(run, initialIdentity, cancellationToken);
 
@@ -717,7 +716,7 @@ public sealed partial class ResearchCompanyService(
         Company company,
         string? researchHint,
         bool useAcceptedProfileIdentity,
-        Day6IdentitySnapshot? resolvedIdentity,
+        ResolvedIdentitySnapshot? resolvedIdentity,
         CancellationToken cancellationToken)
     {
         if (resolvedIdentity is not null)
@@ -919,7 +918,7 @@ public sealed partial class ResearchCompanyService(
             run.Mode,
             run.BaseProfileVersionId,
             GetTargets(run),
-            Day6IdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson));
+        ResolvedIdentitySnapshotSerializer.Deserialize(run.ResolvedIdentitySnapshotJson));
 
     private static IReadOnlyList<ResearchTarget> GetTargets(ResearchRun run)
     {

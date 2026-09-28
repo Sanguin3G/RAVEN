@@ -122,7 +122,7 @@ it("resets the draft and persisted settings through the reset endpoint", async (
   expect(fetchMock).toHaveBeenCalledWith("/api/settings/research/reset", expect.objectContaining({ method: "POST" }));
 });
 
-it("uses the custom editors as the single priority view", async () => {
+it("keeps custom priority controls under a collapsed disclosure without dirtying settings", async () => {
   const customSettings = {
     ...settings,
     providerPreset: "Custom",
@@ -143,11 +143,16 @@ it("uses the custom editors as the single priority view", async () => {
 
   expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Advanced" }));
-  expect(screen.queryByText("Search priority")).not.toBeInTheDocument();
-  expect(screen.queryByText("Crawler priority")).not.toBeInTheDocument();
-  expect(screen.getByText("Search order")).toBeInTheDocument();
-  expect(screen.getByText("Page acquisition order")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Research providers" }));
+  expect(screen.queryByRole("button", { name: "Advanced" })).not.toBeInTheDocument();
+  const customRouting = document.querySelector("details");
+  expect(customRouting).not.toHaveAttribute("open");
+  expect(screen.getByText("All settings saved.")).toBeInTheDocument();
+  await user.click(screen.getByText("Custom routing"));
+  expect(customRouting).toHaveAttribute("open");
+  expect(screen.getByRole("list", { name: "Search order" })).toBeInTheDocument();
+  expect(screen.getByRole("list", { name: "Read pages order" })).toBeInTheDocument();
+  expect(screen.getByText("All settings saved.")).toBeInTheDocument();
   expect(screen.queryByText(/Firecrawl/i)).not.toBeInTheDocument();
 });
 
@@ -178,10 +183,13 @@ it("explains when the configured Gemini project exposes none of RAVEN's supporte
   expect(screen.getAllByRole("option", { name: /Gemini 3.8 Flash · unavailable to this project/ })[0]).toBeDisabled();
 });
 
-it("restores the saved custom route after named presets and links to both routing settings", async () => {
+it("restores the saved custom route after named presets", async () => {
   const user = userEvent.setup();
   const savedCustomSettings = {
     ...settings,
+    providerPreset: "Custom",
+    searchProviderPriority: ["exa", "brave"],
+    crawlerProviderPriority: ["exa", "crawl4ai-local"],
     customSearchProviderPriority: ["exa", "brave"],
     customCrawlerProviderPriority: ["exa", "crawl4ai-local"],
   } as const;
@@ -204,16 +212,14 @@ it("restores the saved custom route after named presets and links to both routin
   await user.click(screen.getByRole("radio", { name: /^Custom/ }));
   expect(screen.getByText("Exa Search & Contents → Brave Search")).toBeInTheDocument();
   expect(screen.getByText("Exa Search & Contents → Crawl4AI Local")).toBeInTheDocument();
+  const statusBeforeDisclosure = screen.getByText(/settings saved|unsaved changes/i).textContent;
+  await user.click(screen.getByText("Custom routing"));
+  expect(screen.getByText(statusBeforeDisclosure!)).toBeInTheDocument();
 
   await user.click(screen.getByRole("radio", { name: /Cloud-first/ }));
   expect(routePreview).toHaveTextContent(/Search\s*Exa Search & Contents\s*Read pages\s*Exa Search & Contents/);
   await user.click(screen.getByRole("radio", { name: /^Custom/ }));
   expect(screen.getByText("Exa Search & Contents → Brave Search")).toBeInTheDocument();
-
-  await user.click(screen.getByRole("button", { name: /Configure exact provider order in Advanced routing/ }));
-  expect(screen.getByRole("heading", { name: "Advanced routing" })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /Back to Research providers/ }));
-  expect(screen.getByRole("heading", { name: "Research route" })).toBeInTheDocument();
 });
 
 it("uses Resilient as the ordered fallback preset", async () => {

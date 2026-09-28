@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getApiErrorMessage } from "../../api/client";
-import { briefingTemplates, getBriefingChanges, getBriefingVersion, getBriefingVersions, getNewerBriefingInvestigations, updateBriefing,
+import { briefingTemplates, getBriefingChanges, getBriefingVersion, getBriefingVersions, getNewerBriefingInvestigations,
   type Briefing, type BriefingCandidate, type BriefingChange, type BriefingTemplate, type BriefingVersion } from "../../api/briefings";
 import { BriefingResearchDialog } from "./BriefingResearchDialog";
 import styles from "./company-briefings.module.css";
@@ -8,12 +8,13 @@ import styles from "./company-briefings.module.css";
 const date = (value: string) => new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 
 interface Props {
-  companyId: string; briefing: Briefing; onChanged: (value: Briefing) => void;
+  companyId: string; briefing: Briefing;
+  onGenerate: (briefingId: string, body: { newInvestigationIds: string[]; title?: string; template?: BriefingTemplate; objective?: string }, title: string) => Promise<void>;
   initialVersionNumber?: number | null;
   onDeepResearch?: (objective: string) => void; onExternalResearch?: (objective: string) => void;
 }
 
-export function BriefingWorkspace({ companyId, briefing, initialVersionNumber, onChanged, onDeepResearch, onExternalResearch }: Props) {
+export function BriefingWorkspace({ companyId, briefing, initialVersionNumber, onGenerate, onDeepResearch, onExternalResearch }: Props) {
   const [viewed, setViewed] = useState<BriefingVersion>(briefing.currentVersion);
   const [versions, setVersions] = useState<BriefingVersion[] | null>(null);
   const [changes, setChanges] = useState<BriefingChange | null>(null);
@@ -53,7 +54,7 @@ export function BriefingWorkspace({ companyId, briefing, initialVersionNumber, o
 
   const generate = async (body: { newInvestigationIds: string[]; title?: string; template?: BriefingTemplate; objective?: string }) => {
     setBusy(true); setError(null);
-    try { const updated = await updateBriefing(companyId, briefing.id, body); onChanged(updated); setUpdateOpen(false); setEditOpen(false); setSelectedNew([]); }
+    try { await onGenerate(briefing.id, body, body.title ?? briefing.title); setUpdateOpen(false); setEditOpen(false); setSelectedNew([]); }
     catch (reason) { setError(getApiErrorMessage(reason, "Briefing generation failed. Existing versions are unchanged.")); }
     finally { setBusy(false); }
   };

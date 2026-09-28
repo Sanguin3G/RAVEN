@@ -52,6 +52,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<InvestigationReviewState> InvestigationReviewStates => Set<InvestigationReviewState>();
     public DbSet<ResearchBriefing> ResearchBriefings => Set<ResearchBriefing>();
     public DbSet<ResearchBriefingVersion> ResearchBriefingVersions => Set<ResearchBriefingVersion>();
+    public DbSet<BriefingGenerationJob> BriefingGenerationJobs => Set<BriefingGenerationJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

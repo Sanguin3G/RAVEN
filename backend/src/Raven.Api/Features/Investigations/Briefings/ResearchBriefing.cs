@@ -28,6 +28,30 @@ public sealed class ResearchBriefingVersion
     public required string SourcesJson { get; init; }
 }
 
+public enum BriefingGenerationOperation { Create, Update }
+public enum BriefingGenerationStatus { Queued, Generating, Saving, Completed, Failed }
+
+/// <summary>Durable request and status for one user-requested Briefing generation.</summary>
+public sealed class BriefingGenerationJob
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid CompanyId { get; init; }
+    public Guid? BriefingId { get; init; }
+    public BriefingGenerationOperation Operation { get; init; }
+    public BriefingGenerationStatus Status { get; set; } = BriefingGenerationStatus.Queued;
+    public required string RequestJson { get; init; }
+    public Guid? ResultBriefingId { get; set; }
+    public int? ResultVersionNumber { get; set; }
+    public string? Error { get; set; }
+    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed record BriefingGenerationJobResponse(
+    Guid Id, Guid CompanyId, Guid? BriefingId, BriefingGenerationOperation Operation,
+    BriefingGenerationStatus Status, Guid? ResultBriefingId, int? ResultVersionNumber,
+    string? Error, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
 public sealed record BriefingSection(string Key, string Title, IReadOnlyList<string> Items, IReadOnlyList<Guid> SourceInvestigationIds);
 
 public sealed record BriefingSourceSnapshot(

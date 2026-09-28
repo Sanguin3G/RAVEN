@@ -126,6 +126,80 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     }
 
     [Fact]
+    public async Task Delete_conversation_is_company_scoped_and_removes_only_its_chat_records()
+    {
+        var client = factory.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        var otherCompany = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Company profile");
+        await SeedProfileAsync(otherCompany.Id, 1, "Other profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var otherConversation = await CreateConversationAsync(client, company.Id);
+        var message = new ChatMessage
+        {
+            ConversationId = conversation.Id, Role = ChatMessageRole.Assistant,
+            Content = "A sourced response", Status = ChatMessageStatus.Completed
+        };
+        var snapshot = new ChatWebEvidenceSnapshot
+        {
+            ChatMessageId = message.Id, Url = "https://example.com/news", NormalizedUrl = "https://example.com/news",
+            ContentExcerpt = "Company news", SearchProvider = "test", SearchRank = 1
+        };
+        var briefing = new ResearchBriefing
+        {
+            CompanyId = company.Id, Title = "Hiring", Template = "Talent & Hiring", Objective = "Hiring signals"
+        };
+        var briefingVersion = new ResearchBriefingVersion
+        {
+            BriefingId = briefing.Id, VersionNumber = 1, GeneratedAt = DateTimeOffset.UtcNow,
+            ResearchThrough = DateTimeOffset.UtcNow, Title = briefing.Title, Template = briefing.Template,
+            Objective = briefing.Objective, SectionsJson = "[]", SourcesJson = "[]"
+        };
+        var removedAttachment = new ResearchContextAttachment
+        {
+            CompanyId = company.Id, ConversationId = conversation.Id,
+            BriefingId = briefing.Id, BriefingVersionId = briefingVersion.Id
+        };
+        var retainedAttachment = new ResearchContextAttachment
+        {
+            CompanyId = company.Id, ConversationId = otherConversation.Id,
+            BriefingId = briefing.Id, BriefingVersionId = briefingVersion.Id
+        };
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.AddRange(message, snapshot, new ChatCitation
+            {
+                ChatMessageId = message.Id, WebEvidenceSnapshotId = snapshot.Id, Origin = ChatCitationOrigin.Web
+            }, new ChatToolExecution
+            {
+                ChatMessageId = message.Id, Tool = "search", Provider = "test", Status = "Completed"
+            }, briefing, briefingVersion, removedAttachment, retainedAttachment);
+            await db.SaveChangesAsync();
+        }
+
+        var foreignDelete = await client.DeleteAsync($"/api/companies/{otherCompany.Id}/chat/conversations/{conversation.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignDelete.StatusCode);
+        var delete = await client.DeleteAsync($"/api/companies/{company.Id}/chat/conversations/{conversation.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            Assert.False(await db.ChatConversations.AnyAsync(item => item.Id == conversation.Id));
+            Assert.True(await db.ChatConversations.AnyAsync(item => item.Id == otherConversation.Id));
+            Assert.False(await db.ChatMessages.AnyAsync(item => item.Id == message.Id));
+            Assert.False(await db.ChatCitations.AnyAsync(item => item.ChatMessageId == message.Id));
+            Assert.False(await db.ChatWebEvidenceSnapshots.AnyAsync(item => item.ChatMessageId == message.Id));
+            Assert.False(await db.ChatToolExecutions.AnyAsync(item => item.ChatMessageId == message.Id));
+            Assert.False(await db.ResearchContextAttachments.AnyAsync(item => item.Id == removedAttachment.Id));
+            Assert.True(await db.ResearchContextAttachments.AnyAsync(item => item.Id == retainedAttachment.Id));
+            Assert.True(await db.ResearchBriefings.AnyAsync(item => item.Id == briefing.Id));
+            Assert.True(await db.ResearchBriefingVersions.AnyAsync(item => item.Id == briefingVersion.Id));
+        }
+    }
+
+    [Fact]
     public async Task Web_search_capability_is_persisted_per_conversation()
     {
         var client = factory.CreateClient();
@@ -473,7 +547,7 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         }
 
         var attach = await client.PostAsJsonAsync(
-            $"/api/companies/{company.Id}/managed-research/{investigation.Id}/context-attachments",
+            $"/api/companies/{company.Id}/investigations/{investigation.Id}/context-attachments",
             new AttachResearchContextRequest(conversation.Id));
         Assert.Equal(HttpStatusCode.Created, attach.StatusCode);
         agent.Result = new ChatAgentResult(ChatAnswerStatus.Answered,
@@ -495,19 +569,80 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
         await SeedProfileAsync(other.Id, 1, "Other profile");
         var otherConversation = await CreateConversationAsync(client, other.Id);
         var wrongCompany = await client.PostAsJsonAsync(
-            $"/api/companies/{other.Id}/managed-research/{investigation.Id}/context-attachments",
+            $"/api/companies/{other.Id}/investigations/{investigation.Id}/context-attachments",
             new AttachResearchContextRequest(otherConversation.Id));
         Assert.Equal(HttpStatusCode.NotFound, wrongCompany.StatusCode);
         var wrongConversation = await client.PostAsJsonAsync(
-            $"/api/companies/{company.Id}/managed-research/{investigation.Id}/context-attachments",
+            $"/api/companies/{company.Id}/investigations/{investigation.Id}/context-attachments",
             new AttachResearchContextRequest(otherConversation.Id));
         Assert.Equal(HttpStatusCode.NotFound, wrongConversation.StatusCode);
         var wrongList = await client.GetAsync(
             $"/api/companies/{company.Id}/research-context-attachments?conversationId={otherConversation.Id}");
         Assert.Equal(HttpStatusCode.NotFound, wrongList.StatusCode);
         var wrongRemoval = await client.DeleteAsync(
-            $"/api/companies/{company.Id}/managed-research/{investigation.Id}/context-attachments?conversationId={otherConversation.Id}");
+            $"/api/companies/{company.Id}/investigations/{investigation.Id}/context-attachments?conversationId={otherConversation.Id}");
         Assert.Equal(HttpStatusCode.NotFound, wrongRemoval.StatusCode);
+    }
+
+    [Fact]
+    public async Task Saved_investigation_context_is_company_scoped_and_can_be_cited_in_chat()
+    {
+        var agent = new FakeAgentFactory(new ChatAgentResult(ChatAnswerStatus.Conversational, "Ready", [], null));
+        using var app = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ICompanyChatAgentFactory>();
+            services.AddScoped<ICompanyChatAgentFactory>(_ => agent);
+        }));
+        var client = app.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        await SeedProfileAsync(company.Id, 1, "Example profile");
+        var conversation = await CreateConversationAsync(client, company.Id);
+        var artifact = new SavedResearchArtifact
+        {
+            CompanyId = company.Id,
+            Title = "Current legal identity",
+            Question = "What is the registered legal name?",
+            Objective = "Verify the registered legal name",
+            Summary = "The imported research reports the registered company name.",
+            RawResponse = "An external assistant supplied this claim and an unverified registry link.",
+            Origin = SavedResearchOrigin.ExternalImport,
+            ResearchType = SavedResearchType.Deep,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CompletedAt = DateTimeOffset.UtcNow
+        };
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            db.SavedResearchArtifacts.Add(artifact);
+            await db.SaveChangesAsync();
+        }
+
+        var attach = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/investigations/{artifact.Id}/context-attachments",
+            new AttachResearchContextRequest(conversation.Id));
+        Assert.Equal(HttpStatusCode.Created, attach.StatusCode);
+        agent.Result = new ChatAgentResult(ChatAnswerStatus.Answered,
+            "The attached investigation reports a registered company name.", [], null, [], [artifact.Id]);
+        var response = await client.PostAsJsonAsync(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}/messages",
+            new CreateChatMessageRequest("What does the attached research report?"));
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        Assert.Contains(agent.LastRequest!.Investigations!, item => item.Id == artifact.Id &&
+            item.Material.Contains("external assistant", StringComparison.OrdinalIgnoreCase));
+        var restored = await client.GetFromJsonAsync<ChatConversationResponse>(
+            $"/api/companies/{company.Id}/chat/conversations/{conversation.Id}", JsonOptions);
+        var assistant = Assert.Single(restored!.Messages, item => item.Role == ChatMessageRole.Assistant);
+        var citation = Assert.Single(assistant.Citations);
+        Assert.Equal(ChatCitationOrigin.Investigation, citation.Origin);
+        Assert.Equal(artifact.Id, citation.InvestigationId);
+
+        var otherCompany = await CreateCompanyAsync(client);
+        await SeedProfileAsync(otherCompany.Id, 1, "Other company profile");
+        var otherConversation = await CreateConversationAsync(client, otherCompany.Id);
+        var foreign = await client.PostAsJsonAsync(
+            $"/api/companies/{otherCompany.Id}/investigations/{artifact.Id}/context-attachments",
+            new AttachResearchContextRequest(otherConversation.Id));
+        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
     }
 
     [Fact]

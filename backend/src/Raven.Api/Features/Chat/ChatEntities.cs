@@ -83,6 +83,8 @@ public sealed class ChatCitation
     public Guid? WebEvidenceSnapshotId { get; init; }
     public Guid? InvestigationId { get; init; }
     public ManagedResearchInvestigation? Investigation { get; init; }
+    public Guid? SavedResearchArtifactId { get; init; }
+    public Raven.Api.Features.Research.SavedArtifacts.SavedResearchArtifact? SavedResearchArtifact { get; init; }
     public Guid? BriefingVersionId { get; init; }
     public ResearchBriefingVersion? BriefingVersion { get; init; }
     public ChatWebEvidenceSnapshot? WebEvidenceSnapshot { get; init; }

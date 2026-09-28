@@ -122,6 +122,44 @@ public sealed class InvestigationBriefingTests : IDisposable
     }
 
     [Fact]
+    public async Task Background_generation_creates_immutable_versions_and_preserves_current_version_on_failure()
+    {
+        var first = await SaveAsync("European hiring", InvestigationPurpose.GeneralResearch);
+        var second = await SaveAsync("Technical roles", InvestigationPurpose.GeneralResearch);
+        var jobs = new BriefingGenerationService(db, briefings, new BriefingGenerationQueue());
+
+        var create = await jobs.StartCreateAsync(CompanyId,
+            new CreateBriefingRequest("Hiring", "Talent & Hiring", "Hiring signals", [first.Id]), default);
+        Assert.Equal(BriefingGenerationStatus.Queued, create.Status);
+        await jobs.ProcessAsync(create.Id, default);
+        var created = await jobs.GetAsync(CompanyId, create.Id, default);
+        Assert.Equal(BriefingGenerationStatus.Completed, created!.Status);
+        Assert.Equal(1, created.ResultVersionNumber);
+        Assert.NotNull(created.ResultBriefingId);
+
+        var update = await jobs.StartUpdateAsync(CompanyId, created.ResultBriefingId!.Value,
+            new UpdateBriefingRequest([second.Id]), default);
+        Assert.NotNull(update);
+        await jobs.ProcessAsync(update!.Id, default);
+        var updated = await jobs.GetAsync(CompanyId, update.Id, default);
+        Assert.Equal(BriefingGenerationStatus.Completed, updated!.Status);
+        Assert.Equal(2, updated.ResultVersionNumber);
+        Assert.Equal(2, (await briefings.GetAsync(CompanyId, created.ResultBriefingId.Value, default))!.VersionCount);
+
+        ai.FailNext = true;
+        var failedUpdate = await jobs.StartUpdateAsync(CompanyId, created.ResultBriefingId.Value,
+            new UpdateBriefingRequest([], Title: "Must not replace the current Briefing"), default);
+        Assert.NotNull(failedUpdate);
+        await jobs.ProcessAsync(failedUpdate!.Id, default);
+        var failed = await jobs.GetAsync(CompanyId, failedUpdate.Id, default);
+        var current = await briefings.GetAsync(CompanyId, created.ResultBriefingId.Value, default);
+        Assert.Equal(BriefingGenerationStatus.Failed, failed!.Status);
+        Assert.Equal("Hiring", current!.Title);
+        Assert.Equal(2, current.VersionCount);
+        Assert.Equal(2, (await briefings.VersionsAsync(CompanyId, created.ResultBriefingId.Value, default))!.Count);
+    }
+
+    [Fact]
     public async Task Newer_research_requires_company_topic_and_material_date()
     {
         var first = await SaveAsync("Hiring signals", InvestigationPurpose.GeneralResearch);

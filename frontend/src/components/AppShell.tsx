@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Buildings,
@@ -31,6 +31,7 @@ import { useTheme, type ThemePreference } from "../app/theme";
 import { cancelResearchRun, getActiveResearchRuns, getResearchRun } from "../api/research";
 import { getManagedResearchJobs } from "../api/managedResearch";
 import { getExternalResearchAnalysis } from "../api/externalResearch";
+import { getBriefingGenerationJob } from "../api/briefings";
 import { acknowledgeWorkspaceResearch, buildWorkspaceResearchReviewKey } from "../api/workspace";
 import { getCurrentCompanyProfile } from "../api/profiles";
 import type { ActiveResearchRun } from "../types/research";
@@ -39,6 +40,8 @@ import { canPauseResearchStage, isFinishedResearch, researchProgressLabel } from
 import { dismissResearchActivity, updateResearchActivity, useResearchActivities } from "../utils/researchActivity";
 import { getApiHealth, getProviderStatus } from "../api/system";
 import { hasUsableAcceptedProfile } from "../utils/profileReadiness";
+import { clearCompanyReturnRoute, readCompanyReturnRoute, rememberCompanyReturnRoute } from "../utils/companyReturnRoute";
+import { CompanyReturnLink } from "./CompanyReturnLink";
 
 const sidebarStorageKey = "raven-sidebar-collapsed";
 
@@ -113,6 +116,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sharedResearchActivities = useResearchActivities();
   const sharedResearchActivitiesRef = useRef(sharedResearchActivities);
   sharedResearchActivitiesRef.current = sharedResearchActivities;
+
+  const navigateGlobal = (event: MouseEvent<HTMLAnchorElement>, destination: string) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const isContextualDestination = destination === "/settings" || destination === "/status";
+    const hasCompanyReturnState = !!(location.state && typeof location.state === "object" &&
+      "companyReturn" in location.state && location.state.companyReturn === true);
+    const context = isContextualDestination
+      ? rememberCompanyReturnRoute(location.pathname, location.search, location.hash) ??
+        (hasCompanyReturnState ? readCompanyReturnRoute() : null)
+      : null;
+    if (isContextualDestination && !context || !isContextualDestination) clearCompanyReturnRoute();
+    navigate(destination, { state: context ? { companyReturn: true } : null });
+    closeMobileNavigation();
+    setAccountMenuOpen(false);
+  };
   useEffect(() => {
     let active = true;
     const checkServices = async () => {
@@ -143,6 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const tracked = sharedResearchActivitiesRef.current.filter((activity) => activity.origin === "Deep" || activity.status === "running");
       const deepCompanyIds = [...new Set(tracked.filter((activity) => activity.origin === "Deep").map((activity) => activity.companyId))];
       const externalJobs = tracked.filter((activity) => activity.origin === "External" && activity.jobId);
+      const briefingJobs = tracked.filter((activity) => activity.origin === "Briefing" && activity.jobId);
 
       await Promise.all([
         ...deepCompanyIds.map(async (companyId) => {
@@ -173,6 +193,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             detail: status === "ready" ? "Ready for review" : status === "failed" ? "Analysis failed; pasted material is preserved" : "Reading imported response",
             status,
             updatedAt: job.completedAt || job.createdAt,
+          });
+        }),
+        ...briefingJobs.map(async (activity) => {
+          const job = await getBriefingGenerationJob(activity.companyId, activity.jobId!).catch(() => null);
+          if (!active || !job) return;
+          const status = job.status === "Completed" ? "ready" : job.status === "Failed" ? "failed" : "running";
+          const href = job.resultBriefingId
+            ? `/companies/${encodeURIComponent(activity.companyId)}?tab=briefings&briefing=${encodeURIComponent(job.resultBriefingId)}`
+            : activity.href;
+          updateResearchActivity(activity.id, {
+            detail: status === "ready" ? "Briefing is ready" : status === "failed" ? "Briefing generation failed" : "Generating briefing…",
+            status,
+            href,
+            updatedAt: job.updatedAt,
           });
         }),
       ]);
@@ -391,7 +425,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={linkClass(isNavigationItemActive(item, location.pathname))}
               title={item.label}
               to={item.to}
-              onClick={() => closeMobileNavigation()}
+              state={null}
+              onClick={(event) => navigateGlobal(event, item.to)}
             >
               <ItemIcon size={19} weight="bold" />
               <span className="sidebar-nav__label">{item.label}</span>
@@ -430,7 +465,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <small className="account-menu__theme-note">Using {preference === "system" ? `system ${resolvedTheme}` : preference} appearance.</small>
               </div>
               <div className="account-menu__links">
-                <Link to="/settings"><GearSix size={17} weight="duotone" /> Settings</Link>
+                <Link to="/settings" state={null} onClick={(event) => navigateGlobal(event, "/settings")}><GearSix size={17} weight="duotone" /> Settings</Link>
                 <button type="button" disabled><Question size={17} weight="duotone" /> Help <small>Coming soon</small></button>
                 <button type="button" disabled><Info size={17} weight="duotone" /> About RAVEN <small>Coming soon</small></button>
               </div>
@@ -475,10 +510,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="context-topbar__eyebrow">RAVEN workspace</span>
             <strong>{routeTitle(location.pathname)}</strong>
           </div>
-          <Link className={`context-topbar__status context-topbar__status--${workspaceServiceState}`} to="/status" aria-label="View operational status">
+          <Link className={`context-topbar__status context-topbar__status--${workspaceServiceState}`} to="/status" state={null} onClick={(event) => navigateGlobal(event, "/status")} aria-label="View operational status">
             <span className="status-indicator" aria-hidden="true" />
             <span>{workspaceServiceLabel}</span>
           </Link>
+          <CompanyReturnLink active={(location.pathname === "/settings" || location.pathname === "/status") &&
+            !!(location.state && typeof location.state === "object" && "companyReturn" in location.state && location.state.companyReturn === true)} />
         </header>
 
         {(activeResearch.length > 0 || sharedResearchActivities.length > 0) && <section className={`global-research-strip global-research-strip--${researchActivityOverallState}`} aria-label="Research activity">
@@ -500,7 +537,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {sharedResearchActivities.slice(0, 6).map((activity) => {
               const Icon = activity.origin === "Deep" ? Sparkle : FileArrowUp;
               const locked = activity.status === "ready" && activity.locked;
-              const originLabel = activity.origin === "Deep" ? "Deep Research" : activity.origin === "Native" ? "RAVEN Research" : "External AI Assist";
+              const originLabel = activity.origin === "Deep" ? "Deep Research" : activity.origin === "Briefing" ? "Briefing" : activity.origin === "Native" ? "RAVEN Research" : "External AI Assist";
               const content = <><Icon size={16} weight={activity.origin === "Deep" ? "fill" : "bold"} aria-hidden="true" /><span><small className="global-research-run__origin">{originLabel}</small><strong>{activity.companyName}</strong><small>{locked ? "Create profile to unlock review" : activity.status === "ready" ? "Ready for review" : activity.detail}</small>{activity.status === "ready" && !locked ? <em className="global-research-run__cta">Review result</em> : null}</span></>;
               const accessibleName = `${originLabel} · ${activity.companyName} · ${activity.status === "ready" ? "Review result" : activity.detail}`;
               const openActivity = () => {

@@ -36,6 +36,34 @@ public sealed class CompanyChatService(
         return summaries.OrderByDescending(item => item.UpdatedAt).ThenByDescending(item => item.Id).Take(20).ToArray();
     }
 
+    public async Task<bool> DeleteConversationAsync(Guid companyId, Guid conversationId, CancellationToken cancellationToken)
+    {
+        var exists = await dbContext.ChatConversations.AsNoTracking()
+            .AnyAsync(item => item.Id == conversationId && item.CompanyId == companyId, cancellationToken);
+        if (!exists) return false;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await dbContext.ResearchContextAttachments
+            .Where(item => item.CompanyId == companyId && item.ConversationId == conversationId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        var messageIds = await dbContext.ChatMessages.AsNoTracking()
+            .Where(item => item.ConversationId == conversationId)
+            .Select(item => item.Id).ToArrayAsync(cancellationToken);
+        if (messageIds.Length > 0)
+        {
+            await dbContext.ChatCitations.Where(item => messageIds.Contains(item.ChatMessageId)).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.ChatToolExecutions.Where(item => messageIds.Contains(item.ChatMessageId)).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.ChatWebEvidenceSnapshots.Where(item => messageIds.Contains(item.ChatMessageId)).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.ChatMessages.Where(item => item.ConversationId == conversationId).ExecuteDeleteAsync(cancellationToken);
+        }
+
+        await dbContext.ChatConversations.Where(item => item.Id == conversationId && item.CompanyId == companyId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<ChatConversationResponse> CreateConversationAsync(Guid companyId, CancellationToken cancellationToken)
     {
         var companyExists = await dbContext.Companies.AnyAsync(company => company.Id == companyId, cancellationToken);
@@ -71,6 +99,7 @@ public sealed class CompanyChatService(
             .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.SourceDocument)
             .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.WebEvidenceSnapshot)
             .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.Investigation)
+            .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.SavedResearchArtifact)
             .Include(item => item.Messages).ThenInclude(item => item.Citations).ThenInclude(item => item.BriefingVersion)
             .Include(item => item.Messages).ThenInclude(item => item.WebEvidenceSnapshots)
             .Include(item => item.Messages).ThenInclude(item => item.ToolExecutions)
@@ -185,6 +214,7 @@ public sealed class CompanyChatService(
             foreach (var citation in validated.Citations)
                 dbContext.ChatCitations.Add(new ChatCitation { ChatMessageId = assistant.Id,
                     SourceDocumentId = citation.SourceDocumentId, InvestigationId = citation.InvestigationId,
+                    SavedResearchArtifactId = citation.SavedResearchArtifactId,
                     BriefingVersionId = citation.BriefingVersionId,
                     FieldPath = citation.FieldPath, Origin = citation.Origin });
             var snapshots = PersistWebEvidenceSnapshots(assistant.Id, completion.WebEvidenceDrafts ?? []);
@@ -212,8 +242,12 @@ public sealed class CompanyChatService(
         var selected = attachments.OrderByDescending(item => item.AttachedAt).Take(5).ToArray();
         var ids = selected.Where(item => item.InvestigationId.HasValue)
             .Select(item => item.InvestigationId!.Value).ToArray();
+        var savedArtifactIds = selected.Where(item => item.SavedResearchArtifactId.HasValue)
+            .Select(item => item.SavedResearchArtifactId!.Value).ToArray();
         var investigations = await dbContext.ManagedResearchInvestigations.AsNoTracking()
             .Where(item => item.CompanyId == companyId && ids.Contains(item.Id)).ToListAsync(ct);
+        var savedArtifacts = await dbContext.SavedResearchArtifacts.AsNoTracking()
+            .Where(item => item.CompanyId == companyId && savedArtifactIds.Contains(item.Id)).ToListAsync(ct);
         var versionIds = selected.Where(item => item.BriefingVersionId.HasValue)
             .Select(item => item.BriefingVersionId!.Value).ToArray();
         var versions = await dbContext.ResearchBriefingVersions.AsNoTracking()
@@ -223,7 +257,7 @@ public sealed class CompanyChatService(
             .Where(item => item.CompanyId == companyId && briefingIds.Contains(item.Id))
             .Select(item => item.Id).ToListAsync(ct);
         return new(
-            investigations.Select(ToInvestigationContext).ToArray(),
+            investigations.Select(ToInvestigationContext).Concat(savedArtifacts.Select(ToInvestigationContext)).ToArray(),
             versions.Where(item => ownedBriefingIds.Contains(item.BriefingId)).Select(ToBriefingContext).ToArray());
     }
 
@@ -247,6 +281,11 @@ public sealed class CompanyChatService(
         catch (JsonException) { /* Summary remains readable when old provider JSON is malformed. */ }
         return new(item.Id, objective, summary, string.Empty, item.CompletedAt);
     }
+
+    private static ChatInvestigationContext ToInvestigationContext(
+        Raven.Api.Features.Research.SavedArtifacts.SavedResearchArtifact item) =>
+        new(item.Id, ChatText.Bound(item.Objective ?? item.Question, 400), ChatText.Bound(item.Summary, 700),
+            ChatText.Bound(item.RawResponse ?? string.Empty, 3_000), item.CompletedAt ?? item.CreatedAt, item.Id);
 
     private static ChatBriefingContext ToBriefingContext(ResearchBriefingVersion item)
     {
@@ -348,6 +387,7 @@ public sealed class CompanyChatService(
                     ChatMessageId = assistant.Id,
                     SourceDocumentId = citation.SourceDocumentId,
                     InvestigationId = citation.InvestigationId,
+                    SavedResearchArtifactId = citation.SavedResearchArtifactId,
                     BriefingVersionId = citation.BriefingVersionId,
                     FieldPath = citation.FieldPath,
                     Origin = citation.Origin,
@@ -483,7 +523,9 @@ public sealed class CompanyChatService(
             var context = investigations.FirstOrDefault(item => item.Id == investigationId);
             if (context is null)
                 throw Problem(StatusCodes.Status502BadGateway, "ai_invalid_response", "Invalid AI response", "The chat provider cited an unattached Investigation.");
-            citations.Add(new ChatCitation { InvestigationId = investigationId, Origin = ChatCitationOrigin.Investigation });
+            citations.Add(context.SavedResearchArtifactId is { } savedArtifactId
+                ? new ChatCitation { SavedResearchArtifactId = savedArtifactId, Origin = ChatCitationOrigin.Investigation }
+                : new ChatCitation { InvestigationId = investigationId, Origin = ChatCitationOrigin.Investigation });
             responses.Add(new ChatCitationResponse(ChatCitationOrigin.Investigation, null, null, null,
                 context.Objective, $"/companies/{companyId:D}?tab=investigations&research={investigationId:D}",
                 context.CompletedAt, investigationId));
@@ -582,6 +624,10 @@ public sealed class CompanyChatService(
                 item.Origin, null, null, null, item.Investigation.Objective,
                 $"/companies/{item.Investigation.CompanyId:D}?tab=investigations&research={item.InvestigationId:D}",
                 item.Investigation.CompletedAt, item.InvestigationId),
+            ChatCitationOrigin.Investigation when item.SavedResearchArtifact is not null => new(
+                item.Origin, null, null, null, item.SavedResearchArtifact.Title,
+                $"/companies/{item.SavedResearchArtifact.CompanyId:D}?tab=investigations&research={item.SavedResearchArtifactId:D}",
+                item.SavedResearchArtifact.CompletedAt ?? item.SavedResearchArtifact.CreatedAt, item.SavedResearchArtifactId),
             ChatCitationOrigin.Briefing when item.BriefingVersion is not null => new(
                 item.Origin, null, null, null, $"{item.BriefingVersion.Title} · v{item.BriefingVersion.VersionNumber}",
                 $"/companies/{item.ChatMessage.Conversation.CompanyId:D}?tab=briefings&briefing={item.BriefingVersion.BriefingId:D}&briefingVersion={item.BriefingVersion.VersionNumber}&conversation={item.ChatMessage.ConversationId:D}",

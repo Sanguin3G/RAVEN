@@ -3,6 +3,7 @@ import { CaretDown, CaretUp, DotsSixVertical, Minus } from "@phosphor-icons/reac
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
 import { ThemeSelector } from "../components/ThemeSelector";
+import { VoiceSpeechSettings } from "../features/ask-raven/VoiceSpeechSettings";
 import { getProviderHealth, getProviderStatus, type ProviderHealthResponse, type ProviderStatus, type ProviderStatusResponse } from "../api/system";
 import {
   getGeminiModelCatalog,
@@ -59,10 +60,10 @@ const presetChoices: Array<{ value: ProviderPreset; title: string; description: 
   { value: "Resilient", title: "Balanced & resilient · Recommended", description: "Local and low-cost providers first, with cloud fallback for transient failures." },
   { value: "LocalFirst", title: "Local-first", description: "Brave Search and local Crawl4AI only; lowest external usage." },
   { value: "Cloud", title: "Cloud-first", description: "Exa Search and hosted page acquisition." },
-  { value: "Custom", title: "Custom", description: "Restore your saved custom route and choose its provider order in Advanced routing." },
+  { value: "Custom", title: "Custom", description: "Choose the exact search and page-reading order." },
 ];
 
-const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Appearance", "Advanced"] as const;
+const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Voice & speech", "Appearance"] as const;
 type SettingsSection = typeof settingsSections[number];
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
@@ -319,7 +320,7 @@ export function SettingsPage() {
   const customPriorityEditor = (kind: "searchProviderPriority" | "crawlerProviderPriority", label: string, options: string[]) => {
     const values = draft[kind];
     return <div className={styles.customEditor}>
-      <div className={styles.customEditorHeading}><strong>{label}</strong><small>First available provider wins.</small></div>
+      <div className={styles.customEditorHeading}><strong>{label}</strong><small>The first available provider is used.</small></div>
       <div className={styles.customEditorBody}>
         <div className={styles.customProviderChoices}>
           {options.map((provider) => <label key={provider} className={styles.customProviderChoice}><input type="checkbox" checked={values.includes(provider)} onChange={() => toggleCustomProvider(kind, provider)} /><span>{displayProvider(provider)}</span></label>)}
@@ -411,7 +412,14 @@ export function SettingsPage() {
             <div className={styles.sectionIntro}><p>Choose the provider route RAVEN should try. Cloud providers are not probed with billable requests from this page.</p></div>
             <fieldset className={styles.fieldSet} disabled={isLoading || isSaving || isResetting}><legend>Starting route</legend><div className={styles.presetGrid}>{presetChoices.map(choice => <label className={`${styles.preset} ${draft.providerPreset === choice.value ? styles["preset--active"] : ""}`} key={choice.value}><input className="sr-only" type="radio" name="provider-preset" value={choice.value} checked={draft.providerPreset === choice.value} onChange={() => selectPreset(choice.value)} /><strong>{choice.title}</strong><span>{choice.description}</span></label>)}</div></fieldset>
             <div className={styles.routePreview}><strong>Your route</strong><span><small>Search</small>{draft.searchProviderPriority.map(displayProvider).join(" → ")}</span><span><small>Read pages</small>{draft.crawlerProviderPriority.map(displayProvider).join(" → ")}</span></div>
-            {draft.providerPreset === "Custom" ? <button type="button" className={styles.settingsLink} onClick={() => setActiveSection("Advanced")}>Configure exact provider order in Advanced routing →</button> : null}
+            {draft.providerPreset === "Custom" ? <details className={styles.customRoutingDisclosure}>
+              <summary><strong>Custom routing</strong><small>Choose exact provider priority.</small></summary>
+              <div className={styles.customRoutingGrid}>
+                {customPriorityEditor("searchProviderPriority", "Search", customSearchProviders)}
+                {customPriorityEditor("crawlerProviderPriority", "Read pages", customCrawlerProviders)}
+              </div>
+              <small>First available provider is used.</small>
+            </details> : null}
             <div className={styles.providerArea}><h3>Connection configuration</h3><div className={styles.providerGrid} aria-live="polite">{[["Brave Search", providers?.brave], ["Crawl4AI Local", providers?.crawl4Ai], ["Exa", providers?.exa], ["Gemini", providers?.gemini]].map(([name, provider]) => { const typedProvider = provider as ProviderStatus | undefined; return <div className={styles.providerStatus} key={name as string}><span className={`${styles.statusDot} ${providerStatusClass(typedProvider)}`} aria-hidden="true" /><span><strong>{name as string}</strong><small>{providerStatusLabel(typedProvider)}</small></span></div>; })}</div></div>
             <p className={styles.catalogNote}>For recent request health and rate limits, see <a href="/status">System Status</a>.</p>
           </Panel> : null}
@@ -422,12 +430,13 @@ export function SettingsPage() {
             <label className={styles.depthControl} htmlFor="managed-research-depth"><strong>Default research depth</strong><small>Choose the breadth of new managed Investigations.</small><select id="managed-research-depth" value={draft.managedResearchDepth} disabled={isLoading || isSaving || isResetting} onChange={event => updateDraft({ managedResearchDepth: event.target.value as ManagedResearchDepth })}>{managedResearchDepthChoices.map(choice => <option key={choice.value} value={choice.value}>{choice.title}</option>)}</select><small>{managedResearchDepthChoices.find(choice => choice.value === draft.managedResearchDepth)?.description}</small></label>
           </Panel> : null}
 
+          {activeSection === "Voice & speech" ? <Panel title="Voice & speech" eyebrow="PREFERENCES" className={styles.section}>
+            <div className={styles.sectionIntro}><p>Choose how Ask RAVEN listens and reads responses aloud on this browser.</p></div>
+            <VoiceSpeechSettings geminiConfigured={!!providers?.gemini?.configured} />
+          </Panel> : null}
+
           {activeSection === "Appearance" ? <Panel title="Appearance" eyebrow="PREFERENCES" className={styles.section}><ThemeSelector /></Panel> : null}
 
-          {activeSection === "Advanced" ? <Panel title="Advanced routing" eyebrow="TECHNICAL CONFIGURATION" className={styles.section}>
-            {draft.providerPreset === "Custom" ? <div className={styles.customRouting}><div className={styles.customRoutingIntro}><strong>Custom provider order</strong><p>First available provider wins. Authentication and configuration failures are not silently retried.</p></div><div className={styles.customRoutingGrid}>{customPriorityEditor("searchProviderPriority", "Search order", customSearchProviders)}{customPriorityEditor("crawlerProviderPriority", "Page acquisition order", customCrawlerProviders)}</div><button type="button" className={styles.settingsLink} onClick={() => setActiveSection("Research providers")}>Back to Research providers →</button></div> : <div className={styles.sectionIntro}><p>Exact provider order is available when the Custom research route is selected.</p><button type="button" className={styles.settingsLink} onClick={() => setActiveSection("Research providers")}>Choose Custom under Research providers →</button><p>Model choices are restricted to RAVEN’s compatibility-tested catalog.</p></div>}
-            <p className={styles.catalogNote}>The internal compatibility names remain GroundingMode and DeepResearchModel for existing workflow contracts.</p>
-          </Panel> : null}
         </div>
 
         {error && <p className={styles.error} role="alert">{error}</p>}

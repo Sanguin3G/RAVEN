@@ -47,7 +47,7 @@ public static class ManagedResearchEndpoints
             .Produces<ResearchContextAttachmentResponse[]>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
 
-        app.MapPost("/api/companies/{companyId:guid}/managed-research/{investigationId:guid}/context-attachments", AttachContextAsync)
+        app.MapPost("/api/companies/{companyId:guid}/investigations/{investigationId:guid}/context-attachments", AttachContextAsync)
             .WithTags("Research Context")
             .WithName("AttachResearchContext")
             .WithSummary("Attach a completed investigation to a Chat conversation")
@@ -55,7 +55,7 @@ public static class ManagedResearchEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
-        app.MapDelete("/api/companies/{companyId:guid}/managed-research/{investigationId:guid}/context-attachments", RemoveContextAsync)
+        app.MapDelete("/api/companies/{companyId:guid}/investigations/{investigationId:guid}/context-attachments", RemoveContextAsync)
             .WithTags("Research Context")
             .WithName("RemoveResearchContext")
             .WithSummary("Remove an investigation from a Chat conversation")
@@ -192,7 +192,7 @@ public static class ManagedResearchEndpoints
         {
             var response = await service.AttachAsync(companyId, investigationId, request, cancellationToken);
             return TypedResults.Created(
-                $"/api/companies/{companyId:D}/managed-research/{investigationId:D}/context-attachments?conversationId={request.ConversationId:D}",
+                $"/api/companies/{companyId:D}/investigations/{investigationId:D}/context-attachments?conversationId={request.ConversationId:D}",
                 response);
         }
         catch (KeyNotFoundException)

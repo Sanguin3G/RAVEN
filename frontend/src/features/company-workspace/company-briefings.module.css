@@ -80,6 +80,10 @@
 .dialog footer { border-top: 1px solid var(--border); margin: 0 -1.2rem -1.2rem; padding: .8rem 1.2rem; }
 .dialog footer > div { display: flex; flex-wrap: wrap; gap: .4rem; }
 .notice { background: var(--surface-raised); }
+.targetRow { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: .8rem; justify-content: space-between; padding: .55rem .35rem; }
+.targetRow > span { display: grid; gap: .2rem; min-width: 0; }
+.targetRow small { color: var(--text-muted); font-size: .7rem; }
+.targetRow > .includedState { color: var(--success); font-weight: 750; white-space: nowrap; }
 .emptyHero { align-items: center; background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 10%, var(--surface-raised)), var(--surface-raised) 72%); border: 1px solid var(--border); border-radius: .8rem; display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr) minmax(9rem, 13rem); padding: clamp(1.1rem, 3vw, 2rem); }
 .emptyHero h3 { font-size: clamp(1.15rem, 2.4vw, 1.6rem); margin: .25rem 0 .5rem; max-width: 34rem; }
 .emptyHero p:not(.heroLabel) { color: var(--text-muted); line-height: 1.55; margin: 0 0 1rem; max-width: 62ch; }

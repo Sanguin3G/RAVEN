@@ -1,0 +1,18 @@
+.review {
+  background: color-mix(in srgb, var(--ai) 7%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--ai) 28%, var(--border));
+  border-radius: 0.45rem;
+  display: grid;
+  gap: 0.32rem;
+  margin-top: 0.32rem;
+  padding: 0.55rem;
+}
+
+.review > strong { color: var(--text); font-size: 0.75rem; }
+.review > p, .review > small { color: var(--text-muted); font-size: 0.67rem; line-height: 1.4; margin: 0; }
+.review textarea { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.35rem; color: var(--text); font: inherit; font-size: 0.75rem; line-height: 1.4; padding: 0.42rem 0.5rem; resize: vertical; width: 100%; }
+.review textarea:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.actions { display: flex; gap: 0.3rem; justify-content: flex-end; }
+.actions button { background: transparent; border: 1px solid var(--border); border-radius: 0.35rem; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 0.67rem; padding: 0.32rem 0.5rem; }
+.actions button:last-child { background: var(--primary); border-color: var(--primary); color: var(--surface); font-weight: 750; }
+.actions button:disabled { cursor: not-allowed; opacity: 0.55; }

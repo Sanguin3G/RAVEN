@@ -45,6 +45,9 @@ namespace Raven.Api.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("SavedResearchArtifactId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("SourceDocumentId")
                         .HasColumnType("TEXT");
 
@@ -57,6 +60,8 @@ namespace Raven.Api.Data.Migrations
 
                     b.HasIndex("InvestigationId");
 
+                    b.HasIndex("SavedResearchArtifactId");
+
                     b.HasIndex("SourceDocumentId");
 
                     b.HasIndex("WebEvidenceSnapshotId");
@@ -67,6 +72,9 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("ChatMessageId", "InvestigationId")
                         .IsUnique();
 
+                    b.HasIndex("ChatMessageId", "SavedResearchArtifactId")
+                        .IsUnique();
+
                     b.HasIndex("ChatMessageId", "SourceDocumentId")
                         .IsUnique();
 
@@ -75,7 +83,7 @@ namespace Raven.Api.Data.Migrations
 
                     b.ToTable("ChatCitations", t =>
                         {
-                            t.HasCheckConstraint("CK_ChatCitations_ExactlyOneEvidence", "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL AND \"InvestigationId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NOT NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"BriefingVersionId\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_ChatCitations_ExactlyOneEvidence", "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NOT NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NOT NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NOT NULL)");
                         });
                 });
 
@@ -663,6 +671,9 @@ namespace Raven.Api.Data.Migrations
                     b.Property<Guid?>("InvestigationId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("SavedResearchArtifactId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BriefingId");
@@ -670,6 +681,8 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("BriefingVersionId");
 
                     b.HasIndex("InvestigationId");
+
+                    b.HasIndex("SavedResearchArtifactId");
 
                     b.HasIndex("CompanyId", "ConversationId", "BriefingId")
                         .IsUnique()
@@ -679,9 +692,13 @@ namespace Raven.Api.Data.Migrations
                         .IsUnique()
                         .HasFilter("\"InvestigationId\" IS NOT NULL");
 
+                    b.HasIndex("CompanyId", "ConversationId", "SavedResearchArtifactId")
+                        .IsUnique()
+                        .HasFilter("\"SavedResearchArtifactId\" IS NOT NULL");
+
                     b.ToTable("ResearchContextAttachments", t =>
                         {
-                            t.HasCheckConstraint("CK_ResearchContextAttachments_ExactlyOneContext", "(\"InvestigationId\" IS NOT NULL AND \"BriefingId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"InvestigationId\" IS NULL AND \"BriefingId\" IS NOT NULL AND \"BriefingVersionId\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_ResearchContextAttachments_ExactlyOneContext", "(\"InvestigationId\" IS NOT NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NOT NULL AND \"BriefingId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingId\" IS NOT NULL AND \"BriefingVersionId\" IS NOT NULL)");
                         });
                 });
 
@@ -890,6 +907,60 @@ namespace Raven.Api.Data.Migrations
                     b.HasIndex("CompanyProfileVersionId", "FieldPath");
 
                     b.ToTable("ProfileEvidences");
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Research.Briefings.BriefingGenerationJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("BriefingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestJson")
+                        .IsRequired()
+                        .HasMaxLength(100000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ResultBriefingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ResultVersionNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BriefingId");
+
+                    b.HasIndex("CompanyId", "CreatedAt");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.ToTable("BriefingGenerationJobs");
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Research.Briefings.ResearchBriefing", b =>
@@ -1800,6 +1871,11 @@ namespace Raven.Api.Data.Migrations
                         .HasForeignKey("InvestigationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Raven.Api.Features.Research.SavedArtifacts.SavedResearchArtifact", "SavedResearchArtifact")
+                        .WithMany()
+                        .HasForeignKey("SavedResearchArtifactId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Raven.Api.Features.Research.SourceDocument", "SourceDocument")
                         .WithMany()
                         .HasForeignKey("SourceDocumentId")
@@ -1815,6 +1891,8 @@ namespace Raven.Api.Data.Migrations
                     b.Navigation("ChatMessage");
 
                     b.Navigation("Investigation");
+
+                    b.Navigation("SavedResearchArtifact");
 
                     b.Navigation("SourceDocument");
 
@@ -1947,10 +2025,29 @@ namespace Raven.Api.Data.Migrations
                         .WithMany()
                         .HasForeignKey("InvestigationId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raven.Api.Features.Research.SavedArtifacts.SavedResearchArtifact", null)
+                        .WithMany()
+                        .HasForeignKey("SavedResearchArtifactId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Raven.Api.Features.Monitoring.CompanyMonitoringSetting", b =>
                 {
+                    b.HasOne("Raven.Api.Features.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Raven.Api.Features.Research.Briefings.BriefingGenerationJob", b =>
+                {
+                    b.HasOne("Raven.Api.Features.Research.Briefings.ResearchBriefing", null)
+                        .WithMany()
+                        .HasForeignKey("BriefingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Raven.Api.Features.Companies.Company", null)
                         .WithMany()
                         .HasForeignKey("CompanyId")

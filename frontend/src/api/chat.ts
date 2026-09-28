@@ -80,3 +80,7 @@ export async function sendChatMessageStream(
 export function listChatConversations(companyId: string) {
   return request<ChatConversationSummary[]>(companyPath(companyId));
 }
+
+export function deleteChatConversation(companyId: string, conversationId: string) {
+  return request<void>(`${companyPath(companyId)}/${encodeURIComponent(conversationId)}`, { method: "DELETE" });
+}

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatConversation, getChatConversation, listChatConversations, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
+import { createChatConversation, deleteChatConversation, getChatConversation, listChatConversations, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import { ApiError } from "../../api/client";
 import {
   attachBriefingContext,
@@ -14,10 +14,12 @@ import {
   startManagedResearch,
 } from "../../api/managedResearch";
 import { getBriefings } from "../../api/briefings";
+import { getInvestigations, type Investigation } from "../../api/investigations";
 import { AskRavenHandoff } from "./AskRavenHandoff";
 
 vi.mock("../../api/chat", () => ({
   createChatConversation: vi.fn(),
+  deleteChatConversation: vi.fn(),
   getChatConversation: vi.fn(),
   listChatConversations: vi.fn(),
   sendChatMessageStream: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock("../../api/managedResearch", () => ({
 }));
 
 vi.mock("../../api/briefings", () => ({ getBriefings: vi.fn() }));
+vi.mock("../../api/investigations", () => ({ getInvestigations: vi.fn() }));
 
 const props = {
   companyId: "company-1",
@@ -49,6 +52,12 @@ const props = {
 const briefPreview = {
   question: "What public evidence describes FPT Smart Cloud's market presence, customers, and expansion in Japan?",
   contextRevision: "preview-revision",
+};
+const completedInvestigation: Investigation = {
+  id: "investigation-1", companyId: "company-1", materialKind: "Managed" as const, materialId: "investigation-1",
+  title: "Recent expansion", objective: "Recent expansion", summary: "Research summary", origin: "Deep Research",
+  purpose: "GeneralResearch" as const, topics: [], status: "Ready" as const, materialUpdatedAt: "2026-09-28T00:00:00Z",
+  profileImprovementLocked: false, claims: [], sourceLeads: [], uncertainties: [], briefingIds: [],
 };
 
 function renderHandoff(path = "/companies/company-1") {
@@ -81,6 +90,7 @@ describe("AskRavenHandoff", () => {
     vi.mocked(getManagedResearchJobs).mockResolvedValue([]);
     vi.mocked(getResearchContextAttachments).mockResolvedValue([]);
     vi.mocked(getBriefings).mockResolvedValue([]);
+    vi.mocked(getInvestigations).mockResolvedValue([]);
     vi.mocked(previewManagedResearchBrief).mockResolvedValue(briefPreview as never);
   });
 
@@ -146,7 +156,7 @@ describe("AskRavenHandoff", () => {
     expect(screen.getByText("Restored answer.")).toBeInTheDocument();
     expect(screen.getByText("Web")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company update/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Nguồn" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sources" }));
     expect(screen.getByRole("link", { name: /Company update/ })).toHaveAttribute("href", "https://example.com/update");
     expect(screen.queryByText(/brave.*result #1/)).not.toBeInTheDocument();
   });
@@ -225,7 +235,7 @@ describe("AskRavenHandoff", () => {
     await waitFor(() => expect(screen.getByText("FPT Smart Cloud operates in cloud services.")).toBeInTheDocument());
     expect(createChatConversation).toHaveBeenCalledWith("company-1");
     expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "What does it do?" }, expect.any(Function));
-    expect(screen.getByRole("button", { name: "Nguồn" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sources" })).toBeInTheDocument();
     expect(screen.queryByText("Mixed", { exact: true })).not.toBeInTheDocument();
   });
 
@@ -372,16 +382,25 @@ describe("AskRavenHandoff", () => {
   });
 
   it("keeps completed research out of the floating notification layer", async () => {
-    vi.mocked(getManagedResearchJobs).mockResolvedValue([{
+    vi.mocked(getInvestigations).mockResolvedValue([{
       id: "job-complete",
       companyId: "company-1",
+      materialKind: "Managed",
+      materialId: "investigation-1",
+      title: "Recent expansion",
       objective: "Recent expansion",
-      provider: "exa-agent",
-      status: "Completed",
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      investigationId: "investigation-1",
-    }]);
+      summary: "Recent market activity",
+      origin: "Deep Research" as const,
+      purpose: "GeneralResearch",
+      topics: [],
+      status: "Ready",
+      materialUpdatedAt: new Date().toISOString(),
+      profileImprovementLocked: false,
+      claims: [],
+      sourceLeads: [],
+      uncertainties: [],
+      briefingIds: [],
+    } satisfies Investigation]);
     renderHandoff();
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Additional capabilities" })).toBeInTheDocument());
@@ -394,16 +413,7 @@ describe("AskRavenHandoff", () => {
 
   it("attaches and removes an investigation context without changing the Chat contract", async () => {
     vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1" } as never);
-    vi.mocked(getManagedResearchJobs).mockResolvedValue([{
-      id: "job-complete",
-      companyId: "company-1",
-      objective: "Recent expansion",
-      provider: "exa-agent",
-      status: "Completed",
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      investigationId: "investigation-1",
-    }]);
+    vi.mocked(getInvestigations).mockResolvedValue([completedInvestigation]);
     vi.mocked(attachResearchContext).mockResolvedValue({
       id: "attachment-1",
       companyId: "company-1",
@@ -468,6 +478,53 @@ describe("AskRavenHandoff", () => {
     await waitFor(() => expect(removeBriefingContext).toHaveBeenCalledWith("company-1", "briefing-1", "conversation-1"));
   });
 
+  it("keeps Search latest review-only until confirmed and sends the edited Web follow-up", async () => {
+    vi.mocked(getChatConversation).mockResolvedValue({ id: "conversation-1", webSearchEnabled: false, profileVersionId: "profile-2", messages: [
+      { id: "user-1", role: "User", content: "What changed in Japan?", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:00Z" },
+      { id: "assistant-1", role: "Assistant", content: "The accepted profile does not cover recent activity.", status: "Completed", answerStatus: "Answered", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:01Z" },
+    ] } as never);
+    vi.mocked(updateChatCapabilities).mockResolvedValue({ id: "conversation-1", webSearchEnabled: true, messages: [] } as never);
+    vi.mocked(sendChatMessageStream).mockImplementation(async (_companyId, _conversationId, _payload, onEvent) => {
+      onEvent({ type: "completed", response: { messageId: "answer-2", answer: "A recent update was found.", status: "Answered", citations: [], webEvidenceSnapshots: [], toolExecutions: [] } as never });
+    });
+    renderHandoff("/companies/company-1?conversation=conversation-1");
+    await screen.findByText("The accepted profile does not cover recent activity.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Search latest" }));
+    expect(screen.getByRole("textbox", { name: "Follow-up question" })).toHaveValue("Search current public information about: What changed in Japan?");
+    expect(updateChatCapabilities).not.toHaveBeenCalled();
+    expect(sendChatMessageStream).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(updateChatCapabilities).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Search latest" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Follow-up question" }), { target: { value: "Find current hiring news in Japan." } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(updateChatCapabilities).toHaveBeenCalledWith("company-1", "conversation-1", { webSearchEnabled: true }));
+    await waitFor(() => expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "Find current hiring news in Japan." }, expect.any(Function)));
+  });
+
+  it("requires explicit confirmation before Research further starts a job", async () => {
+    vi.mocked(getChatConversation).mockResolvedValue({ id: "conversation-1", profileVersionId: "profile-2", messages: [
+      { id: "user-1", role: "User", content: "Compare its competitors in Japan.", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:00Z" },
+      { id: "assistant-1", role: "Assistant", content: "Here is a comparison.", status: "Completed", answerStatus: "Answered", citations: [{ origin: "Web", title: "Market update", url: "https://example.com", retrievedAt: "2026-09-28T00:00:00Z" }], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:01Z" },
+    ] } as never);
+    vi.mocked(startManagedResearch).mockResolvedValue({ id: "job-1", companyId: "company-1", objective: "Investigate in depth: competitors", provider: "exa-agent", status: "Queued", answerInChat: false, createdAt: "2026-09-28T00:00:00Z" });
+    renderHandoff("/companies/company-1?conversation=conversation-1");
+    await screen.findByText("Here is a comparison.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Research further" }));
+    expect(screen.getByRole("textbox", { name: "Research objective" })).toHaveValue("Investigate in depth: Compare its competitors in Japan.");
+    expect(startManagedResearch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(startManagedResearch).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Research further" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Research objective" }), { target: { value: "Investigate current competitors in Japan." } });
+    fireEvent.click(screen.getByRole("button", { name: "Start research" }));
+    await waitFor(() => expect(startManagedResearch).toHaveBeenCalledWith("company-1", "Investigate current competitors in Japan.", { purpose: "General" }));
+  });
+
   it("restores a remembered company conversation without a URL parameter", async () => {
     localStorage.setItem("raven:active-chat-by-company", JSON.stringify({ "company-1": "chat-a", "company-2": "chat-b" }));
     vi.mocked(getChatConversation).mockResolvedValue({ id: "chat-a", profileVersionId: "profile-2", webSearchEnabled: true,
@@ -518,5 +575,31 @@ describe("AskRavenHandoff", () => {
     renderHandoff();
     expect(await screen.findByDisplayValue("Unsent question")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeEnabled();
+  });
+
+  it("deletes an active recent chat and restores the next conversation", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    let deleted = false;
+    const chatA = { id: "chat-a", title: "Earlier question", profileVersionId: "profile-2", profileVersion: 2, messageCount: 2, webSearchEnabled: true, createdAt: "2026-09-27T00:00:00Z", updatedAt: "2026-09-28T00:00:00Z" };
+    const chatB = { id: "chat-b", title: "Next question", profileVersionId: "profile-2", profileVersion: 2, messageCount: 1, webSearchEnabled: false, createdAt: "2026-09-26T00:00:00Z", updatedAt: "2026-09-27T00:00:00Z" };
+    vi.mocked(listChatConversations).mockImplementation(async () => deleted ? [chatB] : [chatA, chatB]);
+    vi.mocked(getChatConversation).mockImplementation(async (_companyId, id) => ({ id, profileVersionId: "profile-2", webSearchEnabled: id === "chat-a",
+      messages: [{ id: `message-${id}`, role: "Assistant", content: `Restored ${id}.`, status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:00Z" }] } as never));
+    vi.mocked(deleteChatConversation).mockImplementation(async () => { deleted = true; });
+    localStorage.setItem("raven:active-chat-by-company", JSON.stringify({ "company-1": "chat-a" }));
+    localStorage.setItem("raven:chat-draft:company-1:chat-a", "Unsaved chat draft");
+    renderHandoff("/companies/company-1?conversation=chat-a");
+    expect(await screen.findByText("Restored chat-a.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Recent chats" }));
+    fireEvent.click(screen.getByRole("button", { name: "Options for Earlier question" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete chat" }));
+
+    await waitFor(() => expect(deleteChatConversation).toHaveBeenCalledWith("company-1", "chat-a"));
+    expect(confirm).toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByText("Restored chat-b.")).toBeInTheDocument());
+    expect(localStorage.getItem("raven:chat-draft:company-1:chat-a")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("raven:active-chat-by-company") ?? "{}")["company-1"]).toBe("chat-b");
+    expect(screen.queryByText("Earlier question")).not.toBeInTheDocument();
   });
 });

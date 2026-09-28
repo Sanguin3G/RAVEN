@@ -12,6 +12,7 @@ using Raven.Api.Features.Research.Events;
 using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.SavedArtifacts;
+using Raven.Api.Features.Research.Briefings;
 
 namespace Raven.Api.Features.Companies;
 
@@ -112,6 +113,7 @@ public sealed class CompanyMergeService(RavenDbContext dbContext)
             await ReassignCompanyAsync(dbContext.ResearchContextAttachments, item => item.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.InvestigationReviewStates, state => state.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.ResearchBriefings, brief => brief.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
+            await ReassignCompanyAsync(dbContext.BriefingGenerationJobs, job => job.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.InvestigationOrganizationRevisions, revision => revision.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await ReassignCompanyAsync(dbContext.ExternalResearchAnalysisJobs, job => job.CompanyId, canonical.Id, duplicate.Id, cancellationToken);
             await RewriteMovedProfilePayloadsAsync(

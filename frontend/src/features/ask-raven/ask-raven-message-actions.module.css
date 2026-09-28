@@ -1,0 +1,5 @@
+.actions { align-items: center; display: inline-flex; flex-wrap: wrap; gap: .25rem; }
+.actions button { background: transparent; border: 0; border-radius: .3rem; color: var(--text-muted); cursor: pointer; font: inherit; font-size: .66rem; padding: .15rem .28rem; }
+.actions button:hover, .actions button:focus-visible { color: var(--primary); text-decoration: underline; }
+.actions [role="status"], .actions [role="alert"] { color: var(--text-muted); font-size: .65rem; }
+.actions [role="alert"] { color: var(--warning); }

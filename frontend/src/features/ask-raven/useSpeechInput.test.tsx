@@ -22,8 +22,10 @@ function setupBrowser() {
   Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, value: FakeRecognition });
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }) } });
   Object.defineProperty(window, "AudioContext", { configurable: true, value: class {
-    createMediaStreamSource() { return { connect: vi.fn() }; }
-    createAnalyser() { return { fftSize: 0, getByteTimeDomainData: (samples: Uint8Array) => samples.fill(128) }; }
+    destination = {};
+    createMediaStreamSource() { return { connect: vi.fn(), disconnect: vi.fn() }; }
+    createAnalyser() { return { fftSize: 0, connect: vi.fn(), disconnect: vi.fn(), getByteTimeDomainData: (samples: Uint8Array) => samples.fill(128) }; }
+    createGain() { return { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() }; }
     close() { return Promise.resolve(); }
   } });
   return stop;

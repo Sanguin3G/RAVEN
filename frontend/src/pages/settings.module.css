@@ -457,6 +457,12 @@
 .routePreview > strong { font-size: .78rem; }
 .routePreview > span { align-items: baseline; display: flex; flex-wrap: wrap; gap: .25rem .7rem; font-size: .78rem; font-weight: 750; }
 .routePreview small { color: var(--text-muted); font-size: .67rem; min-width: 5rem; }
+.customRoutingDisclosure { border-block: 1px solid var(--border); margin-top: .7rem; padding: .55rem 0; }
+.customRoutingDisclosure > summary { align-items: baseline; cursor: pointer; display: flex; flex-wrap: wrap; gap: .25rem .55rem; list-style-position: inside; }
+.customRoutingDisclosure > summary::marker { color: var(--primary); }
+.customRoutingDisclosure > summary strong { font-size: .77rem; }
+.customRoutingDisclosure > summary small, .customRoutingDisclosure > small { color: var(--text-muted); font-size: .68rem; }
+.customRoutingDisclosure > small { display: block; margin-top: .45rem; }
 .researchProvider { align-items: center; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 5px; display: flex; gap: .65rem; margin-bottom: 1rem; padding: .75rem; }
 .researchProvider > div { display: grid; gap: .12rem; }
 .researchProvider strong { font-size: .85rem; }

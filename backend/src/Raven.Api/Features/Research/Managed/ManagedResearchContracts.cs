@@ -364,6 +364,7 @@ public sealed class ResearchContextAttachment
     public Guid CompanyId { get; init; }
     public Guid ConversationId { get; init; }
     public Guid? InvestigationId { get; init; }
+    public Guid? SavedResearchArtifactId { get; init; }
     public Guid? BriefingId { get; init; }
     public Guid? BriefingVersionId { get; set; }
     public DateTimeOffset AttachedAt { get; set; } = DateTimeOffset.UtcNow;

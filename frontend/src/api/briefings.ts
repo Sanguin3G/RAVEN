@@ -30,6 +30,12 @@ export interface BriefingChange {
   changedMaterial: string[]; removedMaterial: string[]; newUncertainties: string[];
 }
 export interface BriefingCandidate { id: string; title: string; origin: string; purpose: string; topics: string[]; materialUpdatedAt: string }
+export interface BriefingGenerationJob {
+  id: string; companyId: string; briefingId?: string | null; operation: "Create" | "Update";
+  status: "Queued" | "Generating" | "Saving" | "Completed" | "Failed";
+  resultBriefingId?: string | null; resultVersionNumber?: number | null; error?: string | null;
+  createdAt: string; updatedAt: string;
+}
 
 const base = (companyId: string) => `/api/companies/${encodeURIComponent(companyId)}/briefings`;
 const json = (body: unknown) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -40,8 +46,9 @@ export const getBriefingVersions = (companyId: string, id: string) => request<Br
 export const getBriefingVersion = (companyId: string, id: string, number: number) => request<BriefingVersion>(`${base(companyId)}/${encodeURIComponent(id)}/versions/${number}`);
 export const getBriefingChanges = (companyId: string, id: string, number: number) => request<BriefingChange>(`${base(companyId)}/${encodeURIComponent(id)}/versions/${number}/changes`);
 export const getNewerBriefingInvestigations = (companyId: string, id: string) => request<BriefingCandidate[]>(`${base(companyId)}/${encodeURIComponent(id)}/newer-investigations`);
-export const createBriefing = (companyId: string, body: { title: string; template: BriefingTemplate; objective: string; investigationIds: string[] }) => request<Briefing>(base(companyId), json(body));
-export const updateBriefing = (companyId: string, id: string, body: { newInvestigationIds: string[]; title?: string; template?: BriefingTemplate; objective?: string }) => request<Briefing>(`${base(companyId)}/${encodeURIComponent(id)}/versions`, json(body));
+export const getBriefingGenerationJob = (companyId: string, id: string) => request<BriefingGenerationJob>(`${base(companyId)}/generation-jobs/${encodeURIComponent(id)}`);
+export const createBriefing = (companyId: string, body: { title: string; template: BriefingTemplate; objective: string; investigationIds: string[] }) => request<BriefingGenerationJob>(base(companyId), json(body));
+export const updateBriefing = (companyId: string, id: string, body: { newInvestigationIds: string[]; title?: string; template?: BriefingTemplate; objective?: string }) => request<BriefingGenerationJob>(`${base(companyId)}/${encodeURIComponent(id)}/versions`, json(body));
 
 export function suggestedForTemplate(template: BriefingTemplate, investigations: Investigation[]) {
   const topics: Record<BriefingTemplate, string[]> = {

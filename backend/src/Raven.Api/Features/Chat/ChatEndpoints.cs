@@ -7,9 +7,12 @@ public static class ChatEndpoints
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/companies/{companyId:guid}/chat/conversations").WithTags("Chat");
-        group.MapGet("/", ListAsync).Produces<IReadOnlyList<ChatConversationSummary>>(StatusCodes.Status200OK);
+        group.MapGet("/", ListAsync).WithSummary("List recent conversations for a company")
+            .Produces<IReadOnlyList<ChatConversationSummary>>(StatusCodes.Status200OK);
         group.MapPost("/", CreateAsync).Produces<ChatConversationResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("/{conversationId:guid}", GetAsync).Produces<ChatConversationResponse>(StatusCodes.Status200OK).ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete("/{conversationId:guid}", DeleteAsync).WithSummary("Delete a company conversation")
+            .Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPatch("/{conversationId:guid}/capabilities", UpdateCapabilitiesAsync).Produces<ChatConversationResponse>(StatusCodes.Status200OK).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         group.MapPost("/{conversationId:guid}/messages", SendAsync).Produces<SendChatMessageResponse>(StatusCodes.Status200OK).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status502BadGateway);
         group.MapPost("/{conversationId:guid}/messages/stream", SendStreamAsync).Produces(StatusCodes.Status200OK, contentType: "text/event-stream");
@@ -25,6 +28,13 @@ public static class ChatEndpoints
     private static async Task<Ok<IReadOnlyList<ChatConversationSummary>>> ListAsync(Guid companyId, ICompanyChatService service, CancellationToken cancellationToken)
     {
         return TypedResults.Ok(await service.ListConversationsAsync(companyId, cancellationToken));
+    }
+
+    private static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid companyId, Guid conversationId, ICompanyChatService service, CancellationToken cancellationToken)
+    {
+        return await service.DeleteConversationAsync(companyId, conversationId, cancellationToken)
+            ? TypedResults.NoContent()
+            : TypedResults.NotFound();
     }
 
     private static async Task<Ok<ChatConversationResponse>> GetAsync(Guid companyId, Guid conversationId, ICompanyChatService service, CancellationToken cancellationToken)

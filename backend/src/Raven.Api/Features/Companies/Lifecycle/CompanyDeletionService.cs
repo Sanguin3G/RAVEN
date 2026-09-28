@@ -16,6 +16,7 @@ public sealed class CompanyDeletionService(RavenDbContext dbContext)
         var deleted = 0;
         deleted += await dbContext.InvestigationReviewStates.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ResearchContextAttachments.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
+        deleted += await dbContext.BriefingGenerationJobs.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ChatConversations.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);
         if (briefingIds.Length > 0) deleted += await dbContext.ResearchBriefingVersions.Where(item => briefingIds.Contains(item.BriefingId)).ExecuteDeleteAsync(cancellationToken);
         deleted += await dbContext.ResearchBriefings.Where(item => item.CompanyId == companyId).ExecuteDeleteAsync(cancellationToken);

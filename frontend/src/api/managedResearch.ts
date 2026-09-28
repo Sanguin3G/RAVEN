@@ -93,7 +93,7 @@ export function getManagedResearchJobs(companyId: string) {
 
 function contextAttachmentPath(companyId: string, investigationId?: string) {
   const base = investigationId
-    ? `${companyPath(companyId)}/${encodeURIComponent(investigationId)}/context-attachments`
+    ? `/api/companies/${encodeURIComponent(companyId)}/investigations/${encodeURIComponent(investigationId)}/context-attachments`
     : `/api/companies/${encodeURIComponent(companyId)}/research-context-attachments`;
   return base;
 }

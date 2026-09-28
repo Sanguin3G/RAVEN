@@ -15,7 +15,7 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
         db.ResearchContextAttachments.AsNoTracking().SingleOrDefaultAsync(
             item => item.CompanyId == companyId &&
                     item.ConversationId == conversationId &&
-                    item.InvestigationId == investigationId,
+                    (item.InvestigationId == investigationId || item.SavedResearchArtifactId == investigationId),
             cancellationToken);
 
     public Task<ResearchContextAttachment?> GetBriefingAsync(
@@ -50,7 +50,7 @@ public sealed class EfResearchContextAttachmentStore(RavenDbContext db) : IResea
         var attachment = await db.ResearchContextAttachments.SingleOrDefaultAsync(
             item => item.CompanyId == companyId &&
                     item.ConversationId == conversationId &&
-                    item.InvestigationId == investigationId,
+                    (item.InvestigationId == investigationId || item.SavedResearchArtifactId == investigationId),
             cancellationToken);
         if (attachment is null)
         {
@@ -120,6 +120,14 @@ public sealed class ResearchContextAttachmentService(
                 continue;
             }
 
+            if (db is not null && row.SavedResearchArtifactId is { } savedArtifactId)
+            {
+                var artifact = await db.SavedResearchArtifacts.AsNoTracking()
+                    .SingleOrDefaultAsync(item => item.CompanyId == companyId && item.Id == savedArtifactId, cancellationToken);
+                if (artifact is not null) responses.Add(ToResponse(row, artifact));
+                continue;
+            }
+
             if (db is not null && row.BriefingId is { } briefingId && row.BriefingVersionId is { } versionId)
             {
                 var briefing = await db.ResearchBriefings.AsNoTracking()
@@ -147,8 +155,13 @@ public sealed class ResearchContextAttachmentService(
             throw new ArgumentException("An investigation ID is required.", nameof(investigationId));
         }
 
-        var investigation = await investigations.GetAsync(companyId, investigationId, cancellationToken)
-            ?? throw new KeyNotFoundException("The investigation does not belong to this company.");
+        var investigation = await investigations.GetAsync(companyId, investigationId, cancellationToken);
+        var artifact = investigation is null && db is not null
+            ? await db.SavedResearchArtifacts.AsNoTracking().SingleOrDefaultAsync(
+                item => item.CompanyId == companyId && item.Id == investigationId, cancellationToken)
+            : null;
+        if (investigation is null && artifact is null)
+            throw new KeyNotFoundException("The investigation does not belong to this company.");
         var existing = await attachments.GetAsync(
             companyId,
             request.ConversationId,
@@ -156,7 +169,7 @@ public sealed class ResearchContextAttachmentService(
             cancellationToken);
         if (existing is not null)
         {
-            return ToResponse(existing, investigation);
+            return investigation is not null ? ToResponse(existing, investigation) : ToResponse(existing, artifact!);
         }
 
         await EnsureCapacityAsync(companyId, request.ConversationId, request, cancellationToken);
@@ -165,11 +178,12 @@ public sealed class ResearchContextAttachmentService(
         {
             CompanyId = companyId,
             ConversationId = request.ConversationId,
-            InvestigationId = investigationId,
+            InvestigationId = investigation?.Id,
+            SavedResearchArtifactId = artifact?.Id,
             AttachedAt = clock.UtcNow
         };
         await attachments.AddAsync(attachment, cancellationToken);
-        return ToResponse(attachment, investigation);
+        return investigation is not null ? ToResponse(attachment, investigation) : ToResponse(attachment, artifact!);
     }
 
     public async Task<ResearchContextAttachmentResponse> AttachBriefingAsync(
@@ -261,6 +275,26 @@ public sealed class ResearchContextAttachmentService(
             Objective: investigation.Objective,
             Summary: investigation.Summary,
             CompletedAt: investigation.CompletedAt);
+
+    private static ResearchContextAttachmentResponse ToResponse(
+        ResearchContextAttachment attachment,
+        Raven.Api.Features.Research.SavedArtifacts.SavedResearchArtifact artifact) =>
+        new(
+            attachment.Id,
+            attachment.CompanyId,
+            attachment.ConversationId,
+            "Investigation",
+            attachment.AttachedAt,
+            InvestigationId: artifact.Id,
+            Origin: artifact.Origin switch
+            {
+                Raven.Api.Features.Research.SavedArtifacts.SavedResearchOrigin.ExternalImport => "External AI Assist",
+                Raven.Api.Features.Research.SavedArtifacts.SavedResearchOrigin.ManagedAi => "Deep Research",
+                _ => "RAVEN Research"
+            },
+            Objective: artifact.Objective ?? artifact.Question,
+            Summary: artifact.Summary,
+            CompletedAt: artifact.CompletedAt ?? artifact.CreatedAt);
 
     private static ResearchContextAttachmentResponse ToResponse(
         ResearchContextAttachment attachment,

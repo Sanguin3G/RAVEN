@@ -1,8 +1,18 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
+import { useLocation } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { renderWithRouter } from "../test/test-utils";
+
+vi.mock("../api/companies", () => ({
+  getCompany: vi.fn(async (id: string) => ({ id, name: "70mai" })),
+}));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location-probe">{`${location.pathname}${location.search}${location.hash}`}</output>;
+}
 
 it("marks only the exact research route as active", () => {
   renderWithRouter(<AppShell><p>Research workspace</p></AppShell>, "/companies/new");
@@ -52,4 +62,34 @@ it("dismisses the mobile navigation with Escape", async () => {
 
   fireEvent.keyDown(document, { key: "Escape" });
   expect(document.querySelector(".app-shell")).toHaveAttribute("data-mobile-open", "false");
+});
+
+it("returns from Settings to the full company route while Companies always opens the list", async () => {
+  const user = userEvent.setup();
+  sessionStorage.clear();
+  renderWithRouter(<><AppShell><p>Workspace</p></AppShell><LocationProbe /></>, "/companies/company-a?tab=briefings&conversation=chat-a");
+
+  await user.click(screen.getByRole("link", { name: "Settings" }));
+  expect(await screen.findByRole("link", { name: /Back to 70mai/ })).toBeInTheDocument();
+  expect(sessionStorage.getItem("raven:return-company-route")).toContain("company-a?tab=briefings&conversation=chat-a");
+  await user.click(screen.getByRole("link", { name: "View operational status" }));
+  expect(await screen.findByRole("link", { name: /Back to 70mai/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: /Back to 70mai/ }));
+  expect(screen.getByTestId("location-probe")).toHaveTextContent("/companies/company-a?tab=briefings&conversation=chat-a");
+
+  await user.click(screen.getByRole("link", { name: "Settings" }));
+  await user.click(screen.getByRole("link", { name: "Companies" }));
+  await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/companies"));
+  expect(sessionStorage.getItem("raven:return-company-route")).toBeNull();
+});
+
+it("does not invent a company return action when Settings is opened from the list", async () => {
+  const user = userEvent.setup();
+  sessionStorage.clear();
+  renderWithRouter(<><AppShell><p>Workspace</p></AppShell><LocationProbe /></>, "/companies");
+
+  await user.click(screen.getByRole("link", { name: "Settings" }));
+  await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/settings"));
+  expect(screen.queryByRole("link", { name: /Back to/ })).not.toBeInTheDocument();
+  expect(sessionStorage.getItem("raven:return-company-route")).toBeNull();
 });

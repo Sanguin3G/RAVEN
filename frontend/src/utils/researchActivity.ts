@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type ResearchActivityOrigin = "Native" | "Deep" | "External";
+export type ResearchActivityOrigin = "Native" | "Deep" | "External" | "Briefing";
 export type ResearchActivityStatus = "running" | "ready" | "failed";
 
 export interface ResearchActivity {

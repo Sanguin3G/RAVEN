@@ -129,13 +129,17 @@ public sealed class ResearchContextAttachmentConfiguration : IEntityTypeConfigur
             entity.Property(item => item.ConversationId).IsRequired();
             entity.HasIndex(item => new { item.CompanyId, item.ConversationId, item.InvestigationId })
                 .IsUnique().HasFilter("\"InvestigationId\" IS NOT NULL");
+            entity.HasIndex(item => new { item.CompanyId, item.ConversationId, item.SavedResearchArtifactId })
+                .IsUnique().HasFilter("\"SavedResearchArtifactId\" IS NOT NULL");
             entity.HasIndex(item => new { item.CompanyId, item.ConversationId, item.BriefingId })
                 .IsUnique().HasFilter("\"BriefingId\" IS NOT NULL");
             entity.ToTable(table => table.HasCheckConstraint(
                 "CK_ResearchContextAttachments_ExactlyOneContext",
-                "(\"InvestigationId\" IS NOT NULL AND \"BriefingId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"InvestigationId\" IS NULL AND \"BriefingId\" IS NOT NULL AND \"BriefingVersionId\" IS NOT NULL)"));
+                "(\"InvestigationId\" IS NOT NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NOT NULL AND \"BriefingId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingId\" IS NOT NULL AND \"BriefingVersionId\" IS NOT NULL)"));
             entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ManagedResearchInvestigation>().WithMany().HasForeignKey(item => item.InvestigationId)
+                .IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<SavedResearchArtifact>().WithMany().HasForeignKey(item => item.SavedResearchArtifactId)
                 .IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<Raven.Api.Features.Research.Briefings.ResearchBriefing>().WithMany().HasForeignKey(item => item.BriefingId)
                 .IsRequired(false).OnDelete(DeleteBehavior.Restrict);
@@ -288,6 +292,22 @@ public sealed class ResearchBriefingVersionConfiguration : IEntityTypeConfigurat
         entity.HasIndex(item => new { item.BriefingId, item.VersionNumber }).IsUnique();
         entity.HasOne<Raven.Api.Features.Research.Briefings.ResearchBriefing>().WithMany()
             .HasForeignKey(item => item.BriefingId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class BriefingGenerationJobConfiguration : IEntityTypeConfiguration<Raven.Api.Features.Research.Briefings.BriefingGenerationJob>
+{
+    public void Configure(EntityTypeBuilder<Raven.Api.Features.Research.Briefings.BriefingGenerationJob> entity)
+    {
+        entity.HasKey(item => item.Id);
+        entity.Property(item => item.Operation).HasConversion<string>().HasMaxLength(16).IsRequired();
+        entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
+        entity.Property(item => item.RequestJson).HasMaxLength(100_000).IsRequired();
+        entity.Property(item => item.Error).HasMaxLength(2_000);
+        entity.HasIndex(item => new { item.CompanyId, item.CreatedAt });
+        entity.HasIndex(item => new { item.Status, item.CreatedAt });
+        entity.HasOne<Company>().WithMany().HasForeignKey(item => item.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        entity.HasOne<Raven.Api.Features.Research.Briefings.ResearchBriefing>().WithMany().HasForeignKey(item => item.BriefingId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 
@@ -603,10 +623,11 @@ public sealed class ChatCitationConfiguration : IEntityTypeConfiguration<ChatCit
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.SourceDocumentId }).IsUnique();
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.WebEvidenceSnapshotId }).IsUnique();
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.InvestigationId }).IsUnique();
+            entity.HasIndex(citation => new { citation.ChatMessageId, citation.SavedResearchArtifactId }).IsUnique();
             entity.HasIndex(citation => new { citation.ChatMessageId, citation.BriefingVersionId }).IsUnique();
             entity.ToTable(table => table.HasCheckConstraint(
                 "CK_ChatCitations_ExactlyOneEvidence",
-                "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL AND \"InvestigationId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NOT NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"BriefingVersionId\" IS NOT NULL)"));
+                "(\"SourceDocumentId\" IS NOT NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NOT NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NOT NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NOT NULL AND \"BriefingVersionId\" IS NULL) OR (\"SourceDocumentId\" IS NULL AND \"WebEvidenceSnapshotId\" IS NULL AND \"InvestigationId\" IS NULL AND \"SavedResearchArtifactId\" IS NULL AND \"BriefingVersionId\" IS NOT NULL)"));
             entity.HasOne(citation => citation.ChatMessage)
                 .WithMany(message => message.Citations)
                 .HasForeignKey(citation => citation.ChatMessageId)
@@ -624,6 +645,10 @@ public sealed class ChatCitationConfiguration : IEntityTypeConfiguration<ChatCit
             entity.HasOne(citation => citation.Investigation)
                 .WithMany()
                 .HasForeignKey(citation => citation.InvestigationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(citation => citation.SavedResearchArtifact)
+                .WithMany()
+                .HasForeignKey(citation => citation.SavedResearchArtifactId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(citation => citation.BriefingVersion)
                 .WithMany()

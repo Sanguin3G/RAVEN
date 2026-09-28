@@ -20,6 +20,7 @@ using Raven.Api.Features.ManagedResearch;
 using Raven.Api.Features.Research.ExternalImport;
 using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.Briefings;
+using Raven.Api.Features.Speech;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -75,6 +76,15 @@ builder.Services.AddScoped<ISavedResearchArtifactService, SavedResearchArtifactS
 builder.Services.AddScoped<InvestigationService>();
 builder.Services.AddScoped<BriefingGenerator>();
 builder.Services.AddScoped<BriefingService>();
+builder.Services.AddSingleton<BriefingGenerationQueue>();
+builder.Services.AddScoped<BriefingGenerationService>();
+builder.Services.AddHostedService<BriefingGenerationWorker>();
+builder.Services.AddHttpClient<GeminiSpeechService>((services, client) =>
+{
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<GeminiOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 30));
+});
 builder.Services.AddScoped<IInvestigationOrganizationService, InvestigationOrganizationService>();
 builder.Services.AddScoped<IExternalResearchAnalysisJobStore, EfExternalResearchAnalysisJobStore>();
 builder.Services.AddScoped<IExternalResearchAnalysisService, ExternalResearchAnalysisService>();
@@ -145,6 +155,7 @@ app.MapExternalResearchEndpoints();
 app.MapInvestigationOrganizationEndpoints();
 app.MapInvestigationEndpoints();
 app.MapBriefingEndpoints();
+app.MapSpeechEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
