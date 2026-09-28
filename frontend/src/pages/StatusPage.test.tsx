@@ -41,3 +41,13 @@ it("shows recent Gemini rate limiting separately from configured credentials", a
   expect(screen.getByText(/Company matching and source ranking · Company Profile · Ask RAVEN/)).toBeInTheDocument();
   expect(screen.getAllByText("Configured · not used recently").length).toBeGreaterThan(0);
 });
+
+it("does not leave provider checks running when the API is unavailable", async () => {
+  vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("API offline"));
+
+  renderWithRouter(<StatusPage />, "/status");
+
+  expect(await screen.findByRole("heading", { name: "Workspace unavailable" })).toBeInTheDocument();
+  expect((await screen.findAllByText("Status unavailable")).length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Activity unavailable").length).toBeGreaterThan(0);
+});

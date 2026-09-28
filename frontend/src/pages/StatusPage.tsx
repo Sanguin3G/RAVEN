@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowClockwise, WarningCircle } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/Button";
@@ -6,7 +6,7 @@ import { Panel } from "../components/Panel";
 import { getResearchSettings, type ResearchSettings } from "../api/settings";
 import { getApiHealth, getProviderHealth, getProviderStatus, type ProviderHealthResponse, type ProviderModelHealth, type ProviderStatus, type ProviderStatusResponse } from "../api/system";
 
-type ServiceState = "operational" | "recently-healthy" | "configured" | "attention" | "checking" | "unavailable" | "not-configured";
+type ServiceState = "operational" | "recently-healthy" | "configured" | "attention" | "checking" | "unknown" | "unavailable" | "not-configured";
 
 function providerFamily(provider: string) {
   const value = provider.toLowerCase();
@@ -21,8 +21,8 @@ function modelTelemetry(provider: string, health: ProviderHealthResponse | null,
   return health?.models.find(item => providerFamily(item.provider) === providerFamily(provider) && (!model || item.model === model));
 }
 
-function providerState(provider: ProviderStatus | undefined, health: ProviderHealthResponse | null): ServiceState {
-  if (!provider) return "checking";
+function providerState(provider: ProviderStatus | undefined, health: ProviderHealthResponse | null, missingState: "checking" | "unknown" = "checking"): ServiceState {
+  if (!provider) return missingState;
   if (!provider.configured) return "not-configured";
   if (provider.available === false) return "unavailable";
   if (provider.available === true) return "operational";
@@ -34,7 +34,7 @@ function providerState(provider: ProviderStatus | undefined, health: ProviderHea
 }
 
 function stateLabel(state: ServiceState) {
-  return ({ operational: "Operational", "recently-healthy": "Recently healthy", configured: "Configured · not used recently", attention: "Needs attention", checking: "Checking", unavailable: "Unavailable", "not-configured": "Not configured" })[state];
+  return ({ operational: "Operational", "recently-healthy": "Recently healthy", configured: "Configured · not used recently", attention: "Needs attention", checking: "Checking", unknown: "Status unavailable", unavailable: "Unavailable", "not-configured": "Not configured" })[state];
 }
 
 function lastActivity(item: ProviderModelHealth) {
@@ -89,6 +89,8 @@ function presetLabel(preset: ResearchSettings["providerPreset"]) {
 }
 
 export function StatusPage() {
+  const pageRef = useRef<HTMLDivElement>(null);
+  const jumpRef = useRef<HTMLElement>(null);
   const [providers, setProviders] = useState<ProviderStatusResponse | null>(null);
   const [health, setHealth] = useState<ProviderHealthResponse | null>(null);
   const [settings, setSettings] = useState<ResearchSettings | null>(null);
@@ -109,6 +111,19 @@ export function StatusPage() {
   };
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    const jump = jumpRef.current;
+    if (!jump) return;
+    const updateOffset = () => {
+      const height = jump.getBoundingClientRect().height;
+      if (height > 0) pageRef.current?.style.setProperty("--status-jump-height", `${height}px`);
+    };
+    updateOffset();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateOffset);
+    observer.observe(jump);
+    return () => observer.disconnect();
+  }, []);
 
   const attention = useMemo(() => (health?.models ?? []).filter(item => item.state === "Degraded")
     .sort((left, right) => Date.parse(lastActivity(right) ?? "") - Date.parse(lastActivity(left) ?? "")), [health]);
@@ -122,19 +137,31 @@ export function StatusPage() {
     ...(settings.deepResearchModel === geminiProblem.model ? ["Briefings and analysis"] : []),
   ] : [];
 
+  const missingProviderState = isRefreshing ? "checking" : "unknown";
   const providerRows = [
     { name: "Gemini", usedFor: "AI generation", status: providers?.gemini, family: "gemini" },
     { name: "Exa", usedFor: "Search · Contents · Managed Deep Research", status: providers?.exa, family: "exa" },
     { name: "Brave Search", usedFor: "Discovery fallback", status: providers?.brave, family: "brave" },
     { name: "Crawl4AI Local", usedFor: "Local page acquisition", status: providers?.crawl4Ai, family: "crawl4ai-local" },
-  ];
+  ].map((row) => {
+    const state = providerState(row.status, health, missingProviderState);
+    const latest = health?.models.filter(item => providerFamily(item.provider) === row.family)
+      .sort((left, right) => Date.parse(lastActivity(right) ?? "") - Date.parse(lastActivity(left) ?? ""))[0];
+    return {
+      ...row,
+      state,
+      tone: state === "attention" || state === "unavailable" || state === "not-configured" ? "warning"
+        : state === "operational" || state === "recently-healthy" ? "good" : "muted",
+      lastActivity: latest ? timeAgo(lastActivity(latest)) : !health ? "Activity unavailable" : state === "operational" ? "Checked just now" : "No request in the last 24 hours",
+    };
+  });
   const apiState: ServiceState = apiAvailable === null ? "checking" : apiAvailable ? "operational" : "unavailable";
   const serviceSummaries = [
     { name: "Workspace API & database", state: apiState },
-    { name: "Crawl4AI Local", state: providerState(providers?.crawl4Ai, health) },
-    { name: "Gemini", state: providerState(providers?.gemini, health) },
-    { name: "Exa", state: providerState(providers?.exa, health) },
-    { name: "Brave Search", state: providerState(providers?.brave, health) },
+    { name: "Crawl4AI Local", state: providerState(providers?.crawl4Ai, health, missingProviderState) },
+    { name: "Gemini", state: providerState(providers?.gemini, health, missingProviderState) },
+    { name: "Exa", state: providerState(providers?.exa, health, missingProviderState) },
+    { name: "Brave Search", state: providerState(providers?.brave, health, missingProviderState) },
   ];
 
   const modelRows = settings ? [
@@ -146,7 +173,7 @@ export function StatusPage() {
   const recentActivity = health?.recentActivity ?? [];
   const visibleActivity = failedActivityOnly ? recentActivity.filter(item => item.status === "Failed") : recentActivity;
 
-  return <div className="status-page page-stack">
+  return <div className="status-page page-stack" ref={pageRef}>
     <header className="status-page__hero">
       <div><p className="eyebrow">RAVEN OPERATIONS</p><h1>{apiAvailable === false ? "Workspace unavailable" : "System status"}</h1><p className="page-intro">{apiAvailable === false ? "RAVEN could not reach the local API and workspace database." : externalIssueCount ? `Workspace is operational · ${externalIssueCount} external provider${externalIssueCount === 1 ? "" : "s"} need attention.` : "Workspace is operational. External providers show health only after real RAVEN requests."}</p><small className="status-page__refreshed">{lastRefreshedAt ? `Last refreshed ${timeAgo(lastRefreshedAt)}` : "Status not yet refreshed"}</small></div>
       <div className="status-page__hero-actions"><Button tone="secondary" onClick={() => void refresh()} disabled={isRefreshing}><ArrowClockwise size={17} weight="bold" /> {isRefreshing ? "Refreshing…" : "Refresh"}</Button><Link className="button button--quiet" to="/settings">View settings</Link></div>
@@ -161,7 +188,7 @@ export function StatusPage() {
       <details><summary>Technical details</summary><p>{primaryIssue.lastFailureHttpStatus ? `HTTP ${primaryIssue.lastFailureHttpStatus}` : "No HTTP status recorded"}{primaryIssue.lastFailureCode ? ` · ${primaryIssue.lastFailureCode}` : ""}</p></details>
     </aside> : null}
 
-    <nav className="status-page__jump" aria-label="System status sections">
+    <nav className="status-page__jump" aria-label="System status sections" ref={jumpRef}>
       <a href="#status-overview">Overview</a><a href="#status-models">AI models</a><a href="#status-providers">Providers</a><a href="#status-activity">Recent activity</a>
     </nav>
 
@@ -187,7 +214,7 @@ export function StatusPage() {
     <Panel>
       {modelRows.length ? <div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">RAVEN task</th><th scope="col">Model</th><th scope="col">Recent health</th></tr></thead><tbody>{modelRows.map(row => {
         const model = modelTelemetry("gemini", health, row.model);
-        return <tr key={row.task}><th scope="row">{row.task}</th><td>{row.model}</td><td><span className={`status-inline status-inline--${model?.state === "Degraded" ? "warning" : model?.state === "RecentlyHealthy" ? "good" : "muted"}`}>{modelState(model)}</span>{model?.state === "Degraded" && model.lastFailureAt ? <small>Last failure {timeAgo(model.lastFailureAt)}</small> : model?.lastSuccessAt ? <small>Last success {timeAgo(model.lastSuccessAt)}</small> : null}</td></tr>;
+        return <tr key={row.task}><th scope="row">{row.task}</th><td>{row.model}</td><td><span className={`status-inline status-inline--${model?.state === "Degraded" ? "warning" : model?.state === "RecentlyHealthy" ? "good" : "muted"}`}>{health ? modelState(model) : "Health unavailable"}</span>{model?.state === "Degraded" && model.lastFailureAt ? <small>Last failure {timeAgo(model.lastFailureAt)}</small> : model?.lastSuccessAt ? <small>Last success {timeAgo(model.lastSuccessAt)}</small> : null}</td></tr>;
       })}</tbody></table></div> : <p className="status-page__note">AI task assignments are unavailable.</p>}
       <p className="status-page__note">Gemini limits are project- and model-specific. These counts reflect RAVEN telemetry, not all use of your Google project.</p>
     </Panel>
@@ -195,10 +222,12 @@ export function StatusPage() {
 
     <Panel title="External providers" eyebrow="CONFIGURATION · REAL REQUEST HEALTH" id="status-providers" className="status-page__providers">
       <div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">Provider</th><th scope="col">Used for</th><th scope="col">Status</th><th scope="col">Last activity</th></tr></thead><tbody>{providerRows.map(row => {
-        const state = providerState(row.status, health);
-        const latest = health?.models.filter(item => providerFamily(item.provider) === row.family).sort((left, right) => Date.parse(lastActivity(right) ?? "") - Date.parse(lastActivity(left) ?? ""))[0];
-        return <tr key={row.name}><th scope="row">{row.name}</th><td>{row.usedFor}</td><td><span className={`status-inline status-inline--${state === "attention" || state === "unavailable" || state === "not-configured" ? "warning" : state === "operational" || state === "recently-healthy" ? "good" : "muted"}`}>{stateLabel(state)}</span></td><td>{latest ? timeAgo(lastActivity(latest)) : state === "operational" ? "Checked just now" : "No request in the last 24 hours"}</td></tr>;
+        return <tr key={row.name}><th scope="row">{row.name}</th><td>{row.usedFor}</td><td><span className={`status-inline status-inline--${row.tone}`}>{stateLabel(row.state)}</span></td><td>{row.lastActivity}</td></tr>;
       })}</tbody></table></div>
+      <div className="status-provider-cards">{providerRows.map(row => <div className="status-provider-card" key={row.name}>
+        <div><strong>{row.name}</strong><span className={`status-inline status-inline--${row.tone}`}>{stateLabel(row.state)}</span></div>
+        <small>{row.usedFor}</small><small>{row.lastActivity}</small>
+      </div>)}</div>
       <p className="status-page__note">Remote providers are never called just to render this page. “Configured” means credentials are present, not that RAVEN has recently used them successfully.</p>
     </Panel>
 
