@@ -179,11 +179,14 @@ it("marks only Research Company as active on the research page", () => {
   expect(screen.getByRole("link", { name: "Companies" })).not.toHaveClass("active");
 });
 
-it("switches and persists the selected theme", async () => {
+it("saves and restores the selected theme", async () => {
   const user = userEvent.setup();
   const view = renderWithRouter(<App />, "/settings");
   await user.click(screen.getByRole("button", { name: "Appearance" }));
   await user.click(await screen.findByRole("radio", { name: /Dark/i }));
+
+  expect(localStorage.getItem("raven-theme-preference")).not.toBe("dark");
+  await user.click(screen.getByRole("button", { name: /Save changes/i }));
 
   expect(document.documentElement.dataset.theme).toBe("dark");
   expect(localStorage.getItem("raven-theme-preference")).toBe("dark");
