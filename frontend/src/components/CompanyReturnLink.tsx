@@ -1,25 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { getCompany } from "../api/companies";
 import { clearCompanyReturnRoute, readCompanyReturnRoute, type CompanyReturnRoute } from "../utils/companyReturnRoute";
 
-export function CompanyReturnLink({ active }: { active: boolean }) {
-  const [context, setContext] = useState<CompanyReturnRoute | null>(() => active ? readCompanyReturnRoute() : null);
+export function CompanyReturnLink({ onNavigate }: { onNavigate?: () => void }) {
+  const [context, setContext] = useState<CompanyReturnRoute | null>(readCompanyReturnRoute);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [invalid, setInvalid] = useState(false);
 
   useEffect(() => {
-    if (!active) {
-      clearCompanyReturnRoute();
-      setContext(null);
-      setCompanyName(null);
-      setInvalid(false);
-      return;
-    }
     const saved = readCompanyReturnRoute();
     setContext(saved);
     setCompanyName(null);
-    if (!saved) { setInvalid(true); return; }
+    if (!saved) {
+      setInvalid(true);
+      return;
+    }
+
     let current = true;
     void getCompany(saved.companyId).then((company) => {
       if (current) setCompanyName(company.name);
@@ -30,10 +28,14 @@ export function CompanyReturnLink({ active }: { active: boolean }) {
       setInvalid(true);
     });
     return () => { current = false; };
-  }, [active]);
+  }, []);
 
-  if (!active || (!context && !invalid)) return null;
-  if (invalid) return <Link className="context-topbar__return" to="/companies" state={null}>← Companies</Link>;
+  if (!context && !invalid) return null;
+  if (invalid) return <Link className="sidebar-nav__return" to="/companies" state={null} onClick={onNavigate} title="Browse companies">
+    <ArrowLeft size={14} weight="bold" aria-hidden="true" /><span>Companies</span>
+  </Link>;
   if (!context || !companyName) return null;
-  return <Link className="context-topbar__return" to={context.route} state={{ companyReturn: true }}>← Back to {companyName}</Link>;
+  return <Link className="sidebar-nav__return" to={context.route} state={{ companyReturn: true }} onClick={onNavigate} title={`Return to ${companyName}`} aria-label={`Return to ${companyName}`}>
+    <ArrowLeft size={14} weight="bold" aria-hidden="true" /><span>{companyName}</span>
+  </Link>;
 }

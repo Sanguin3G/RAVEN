@@ -52,7 +52,6 @@ export function AskRavenHeader({ companyName, sourceCount, lastResearchedAt, has
             {openOverflowId === chat.id ? <div className={styles.recentChatActions}><button type="button" onClick={() => { setOpenOverflowId(null); onDeleteChat(chat.id); }}>Delete chat</button></div> : null}
           </div>
         </div>) : <p>No previous chats for this company.</p>}
-        <button type="button" className={styles.recentNewChat} onClick={onNewChat}>+ New chat</button>
       </div> : null}
     </div>
   </header>;

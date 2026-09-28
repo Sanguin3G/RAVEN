@@ -430,9 +430,12 @@
 .pageHeader h1 { margin-bottom: .25rem; }
 .settingsLayout { align-items: start; display: grid; gap: 1rem; grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr); }
 .navigation { align-content: start; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; display: grid; gap: .2rem; padding: .4rem; }
-.navigation button { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; font: inherit; font-size: .82rem; min-height: 2.75rem; padding: .55rem .65rem; text-align: left; }
+.navigation button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; display: flex; font: inherit; font-size: .82rem; gap: .62rem; min-height: 2.75rem; padding: .55rem .7rem; text-align: left; }
+.navigation button svg { color: color-mix(in srgb, var(--text-muted) 82%, var(--primary)); flex: 0 0 auto; }
+.navigation button span { min-width: 0; }
 .navigation button:hover { background: var(--surface-muted); color: var(--text); }
 .navigation button[aria-current="page"] { background: color-mix(in srgb, var(--primary) 9%, var(--surface-raised)); border-color: color-mix(in srgb, var(--primary) 32%, var(--border)); color: var(--primary); font-weight: 850; }
+.navigation button[aria-current="page"] svg { color: var(--primary); }
 .navigation button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .sectionContent { min-width: 0; }
 .sectionContent > * { margin: 0; }
@@ -457,12 +460,16 @@
 .routePreview > strong { font-size: .78rem; }
 .routePreview > span { align-items: baseline; display: flex; flex-wrap: wrap; gap: .25rem .7rem; font-size: .78rem; font-weight: 750; }
 .routePreview small { color: var(--text-muted); font-size: .67rem; min-width: 5rem; }
-.customRoutingDisclosure { border-block: 1px solid var(--border); margin-top: .7rem; padding: .55rem 0; }
-.customRoutingDisclosure > summary { align-items: baseline; cursor: pointer; display: flex; flex-wrap: wrap; gap: .25rem .55rem; list-style-position: inside; }
-.customRoutingDisclosure > summary::marker { color: var(--primary); }
-.customRoutingDisclosure > summary strong { font-size: .77rem; }
+.customRoutingDisclosure { background: color-mix(in srgb, var(--primary) 5%, var(--surface-muted)); border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border)); border-left: 4px solid var(--primary); border-radius: 5px; margin-top: .7rem; padding: .35rem; }
+.customRoutingDisclosure > summary { align-items: center; background: var(--surface-raised); border-radius: 3px; cursor: pointer; display: flex; flex-wrap: wrap; gap: .3rem .6rem; list-style: none; min-height: 2.65rem; padding: .5rem .62rem; }
+.customRoutingDisclosure > summary::-webkit-details-marker { display: none; }
+.customRoutingDisclosure > summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.customRoutingDisclosure > summary > svg { color: var(--primary); flex: 0 0 auto; transition: transform 140ms ease; }
+.customRoutingDisclosure[open] > summary > svg { transform: rotate(90deg); }
+.customRoutingDisclosure > summary strong { font-size: .8rem; }
 .customRoutingDisclosure > summary small, .customRoutingDisclosure > small { color: var(--text-muted); font-size: .68rem; }
-.customRoutingDisclosure > small { display: block; margin-top: .45rem; }
+.customRoutingDisclosure > summary small { margin-inline-start: auto; }
+.customRoutingDisclosure > small { display: block; margin: .45rem .6rem .25rem; }
 .researchProvider { align-items: center; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 5px; display: flex; gap: .65rem; margin-bottom: 1rem; padding: .75rem; }
 .researchProvider > div { display: grid; gap: .12rem; }
 .researchProvider strong { font-size: .85rem; }

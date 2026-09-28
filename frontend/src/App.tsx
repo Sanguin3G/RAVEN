@@ -7,6 +7,8 @@ import { AddCompanyProfilePage } from "./pages/AddCompanyProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StatusPage } from "./pages/StatusPage";
+import { AboutPage } from "./pages/AboutPage";
+import { HelpPage } from "./pages/HelpPage";
 
 export function App() {
   return (
@@ -18,6 +20,8 @@ export function App() {
         <Route path="/companies/:id" element={<CompanyDetailPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/status" element={<StatusPage />} />
+        <Route path="/help" element={<HelpPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppShell>

@@ -95,6 +95,7 @@ export function StatusPage() {
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const [isRefreshing, setRefreshing] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+  const [failedActivityOnly, setFailedActivityOnly] = useState(false);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -127,6 +128,14 @@ export function StatusPage() {
     { name: "Brave Search", usedFor: "Discovery fallback", status: providers?.brave, family: "brave" },
     { name: "Crawl4AI Local", usedFor: "Local page acquisition", status: providers?.crawl4Ai, family: "crawl4ai-local" },
   ];
+  const apiState: ServiceState = apiAvailable === null ? "checking" : apiAvailable ? "operational" : "unavailable";
+  const serviceSummaries = [
+    { name: "Workspace API & database", state: apiState },
+    { name: "Crawl4AI Local", state: providerState(providers?.crawl4Ai, health) },
+    { name: "Gemini", state: providerState(providers?.gemini, health) },
+    { name: "Exa", state: providerState(providers?.exa, health) },
+    { name: "Brave Search", state: providerState(providers?.brave, health) },
+  ];
 
   const modelRows = settings ? [
     { task: "Company matching & source ranking", model: settings.groundingModel },
@@ -134,6 +143,8 @@ export function StatusPage() {
     { task: "Ask RAVEN", model: settings.chatModel },
     { task: "Briefings & analysis", model: settings.deepResearchModel },
   ] : [];
+  const recentActivity = health?.recentActivity ?? [];
+  const visibleActivity = failedActivityOnly ? recentActivity.filter(item => item.status === "Failed") : recentActivity;
 
   return <div className="status-page page-stack">
     <header className="status-page__hero">
@@ -150,13 +161,19 @@ export function StatusPage() {
       <details><summary>Technical details</summary><p>{primaryIssue.lastFailureHttpStatus ? `HTTP ${primaryIssue.lastFailureHttpStatus}` : "No HTTP status recorded"}{primaryIssue.lastFailureCode ? ` · ${primaryIssue.lastFailureCode}` : ""}</p></details>
     </aside> : null}
 
-    <Panel title="Core services" eyebrow="LOCAL WORKSPACE">
-      <div className="status-core-list">
-        <div><span><i className={`status-mark ${apiAvailable === true ? "status-mark--good" : apiAvailable === false ? "status-mark--bad" : ""}`} />Workspace API & database</span><strong>{apiAvailable === null ? "Checking" : apiAvailable ? "Operational" : "Unavailable"}</strong></div>
-        <div><span><i className={`status-mark ${providerState(providers?.crawl4Ai, health) === "operational" ? "status-mark--good" : providerState(providers?.crawl4Ai, health) === "unavailable" ? "status-mark--bad" : ""}`} />Crawl4AI Local</span><strong>{stateLabel(providerState(providers?.crawl4Ai, health))}</strong></div>
+    <nav className="status-page__jump" aria-label="System status sections">
+      <a href="#status-overview">Overview</a><a href="#status-models">AI models</a><a href="#status-providers">Providers</a><a href="#status-activity">Recent activity</a>
+    </nav>
+
+    <div id="status-overview">
+    <Panel title="Services at a glance" eyebrow="CURRENT HEALTH">
+      <div className="status-service-summary-grid">
+        {serviceSummaries.map(service => <div className={`status-service-summary status-service-summary--${service.state}`} key={service.name}>
+          <span><i aria-hidden="true" />{stateLabel(service.state)}</span><strong>{service.name}</strong>
+        </div>)}
       </div>
     </Panel>
-
+    </div>
     <Panel title="Active configuration" eyebrow="SAVED WORKSPACE SETTINGS">
       {settings ? <dl className="status-route-grid">
         <div><dt>Search</dt><dd>{settings.searchProviderPriority.map(providerLabel).join(" → ")}</dd></div>
@@ -165,15 +182,18 @@ export function StatusPage() {
       </dl> : <p className="status-page__note">Saved research settings are unavailable.</p>}
     </Panel>
 
-    <Panel title="AI task models" eyebrow="CONFIGURED MODEL · RECENT HEALTH">
+    <details className="status-page__disclosure" id="status-models">
+      <summary><span><small>CONFIGURED MODEL · RECENT HEALTH</small><strong>AI task models</strong></span><span className="status-page__summary-hint">View model assignments</span></summary>
+    <Panel>
       {modelRows.length ? <div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">RAVEN task</th><th scope="col">Model</th><th scope="col">Recent health</th></tr></thead><tbody>{modelRows.map(row => {
         const model = modelTelemetry("gemini", health, row.model);
         return <tr key={row.task}><th scope="row">{row.task}</th><td>{row.model}</td><td><span className={`status-inline status-inline--${model?.state === "Degraded" ? "warning" : model?.state === "RecentlyHealthy" ? "good" : "muted"}`}>{modelState(model)}</span>{model?.state === "Degraded" && model.lastFailureAt ? <small>Last failure {timeAgo(model.lastFailureAt)}</small> : model?.lastSuccessAt ? <small>Last success {timeAgo(model.lastSuccessAt)}</small> : null}</td></tr>;
       })}</tbody></table></div> : <p className="status-page__note">AI task assignments are unavailable.</p>}
       <p className="status-page__note">Gemini limits are project- and model-specific. These counts reflect RAVEN telemetry, not all use of your Google project.</p>
     </Panel>
+    </details>
 
-    <Panel title="External providers" eyebrow="CONFIGURATION · REAL REQUEST HEALTH">
+    <Panel title="External providers" eyebrow="CONFIGURATION · REAL REQUEST HEALTH" id="status-providers" className="status-page__providers">
       <div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">Provider</th><th scope="col">Used for</th><th scope="col">Status</th><th scope="col">Last activity</th></tr></thead><tbody>{providerRows.map(row => {
         const state = providerState(row.status, health);
         const latest = health?.models.filter(item => providerFamily(item.provider) === row.family).sort((left, right) => Date.parse(lastActivity(right) ?? "") - Date.parse(lastActivity(left) ?? ""))[0];
@@ -182,8 +202,11 @@ export function StatusPage() {
       <p className="status-page__note">Remote providers are never called just to render this page. “Configured” means credentials are present, not that RAVEN has recently used them successfully.</p>
     </Panel>
 
-    <Panel title="Recent provider activity" eyebrow="LAST 24 HOURS">
-      {health?.recentActivity.length ? <div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">When</th><th scope="col">Provider / model</th><th scope="col">RAVEN task</th><th scope="col">Result</th></tr></thead><tbody>{health.recentActivity.map((item, index) => <tr key={`${item.timestamp}-${item.provider}-${index}`}><td>{timeAgo(item.timestamp)}</td><td>{providerLabel(item.provider)}{item.model ? <small>{item.model}</small> : null}</td><td>{operationLabel(item.operation)}</td><td><span className={`status-inline status-inline--${item.status === "Failed" ? "warning" : item.status === "Completed" ? "good" : "muted"}`}>{item.failureKind === "RateLimited" ? "Rate limited" : item.failureKind === "ProviderBusy" ? "Provider busy" : item.status === "Completed" ? "Succeeded" : item.status === "Failed" ? "Failed" : item.status}</span></td></tr>)}</tbody></table></div> : <p className="status-page__note">No provider requests are recorded in the last 24 hours. Configured remote services have not been probed from this page.</p>}
+    <Panel title="Recent provider activity" eyebrow="LAST 24 HOURS" id="status-activity" className="status-page__activity">
+      {recentActivity.length ? <>
+        <div className="status-page__activity-tools"><span>{failedActivityOnly ? `Showing ${visibleActivity.length} failed request${visibleActivity.length === 1 ? "" : "s"}` : `${recentActivity.length} recent requests`}</span><button type="button" aria-pressed={failedActivityOnly} onClick={() => setFailedActivityOnly(value => !value)}>{failedActivityOnly ? "Show all activity" : "Show failures only"}</button></div>
+        {visibleActivity.length ? <div className="status-page__activity-scroll"><div className="status-table-wrap"><table className="status-table"><thead><tr><th scope="col">When</th><th scope="col">Provider / model</th><th scope="col">RAVEN task</th><th scope="col">Result</th></tr></thead><tbody>{visibleActivity.map((item, index) => <tr key={`${item.timestamp}-${item.provider}-${index}`}><td>{timeAgo(item.timestamp)}</td><td>{providerLabel(item.provider)}{item.model ? <small>{item.model}</small> : null}</td><td>{operationLabel(item.operation)}</td><td><span className={`status-inline status-inline--${item.status === "Failed" ? "warning" : item.status === "Completed" ? "good" : "muted"}`}>{item.failureKind === "RateLimited" ? "Rate limited" : item.failureKind === "ProviderBusy" ? "Provider busy" : item.status === "Completed" ? "Succeeded" : item.status === "Failed" ? "Failed" : item.status}</span></td></tr>)}</tbody></table></div></div> : <p className="status-page__note">No failed requests in the last 24 hours.</p>}
+      </> : <p className="status-page__note">No provider requests are recorded in the last 24 hours. Configured remote services have not been probed from this page.</p>}
     </Panel>
   </div>;
 }

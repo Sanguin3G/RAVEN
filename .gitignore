@@ -6,6 +6,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 .env
+.env.local
+.env.*.local
 *.db
 *.db.backup-*
 *.db-shm

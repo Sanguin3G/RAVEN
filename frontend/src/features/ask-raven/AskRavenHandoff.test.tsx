@@ -54,7 +54,7 @@ const briefPreview = {
   contextRevision: "preview-revision",
 };
 const completedInvestigation: Investigation = {
-  id: "investigation-1", companyId: "company-1", materialKind: "Managed" as const, materialId: "investigation-1",
+  id: "job-1", companyId: "company-1", materialKind: "Managed" as const, materialId: "investigation-1",
   title: "Recent expansion", objective: "Recent expansion", summary: "Research summary", origin: "Deep Research",
   purpose: "GeneralResearch" as const, topics: [], status: "Ready" as const, materialUpdatedAt: "2026-09-28T00:00:00Z",
   profileImprovementLocked: false, claims: [], sourceLeads: [], uncertainties: [], briefingIds: [],
@@ -234,9 +234,57 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(screen.getByText("FPT Smart Cloud operates in cloud services.")).toBeInTheDocument());
     expect(createChatConversation).toHaveBeenCalledWith("company-1");
-    expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "What does it do?" }, expect.any(Function));
+    expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "What does it do?" }, expect.any(Function), expect.any(AbortSignal));
     expect(screen.getByRole("button", { name: "Sources" })).toBeInTheDocument();
     expect(screen.queryByText("Mixed", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("stops an active normal response without showing a generic error", async () => {
+    vi.mocked(createChatConversation).mockResolvedValue({ id: "conversation-1", webSearchEnabled: false } as never);
+    let receivedSignal: AbortSignal | undefined;
+    vi.mocked(sendChatMessageStream).mockImplementation((_companyId, _conversationId, _payload, _onEvent, signal) => {
+      receivedSignal = signal;
+      return new Promise<void>((_resolve, reject) => signal?.addEventListener("abort", () => reject(new DOMException("Stopped", "AbortError")), { once: true }));
+    });
+    renderHandoff();
+
+    fireEvent.change(screen.getByLabelText("Ask about FPT Smart Cloud"), { target: { value: "What changed?" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Send question" }));
+    const stop = await screen.findByRole("button", { name: "Stop response" });
+    fireEvent.click(stop);
+
+    await waitFor(() => expect(receivedSignal?.aborted).toBe(true));
+    expect(await screen.findByText("Response stopped.")).toBeInTheDocument();
+    expect(screen.queryByText(/could not complete/i)).not.toBeInTheDocument();
+  });
+
+  it("edits a user message by appending a new turn without mutating history", async () => {
+    vi.mocked(getChatConversation).mockResolvedValue({
+      id: "conversation-1", profileVersionId: "profile-2", webSearchEnabled: false,
+      messages: [
+        { id: "user-1", role: "User", content: "Original question", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T08:00:00Z" },
+        { id: "assistant-1", role: "Assistant", content: "Original answer", status: "Completed", answerStatus: "Answered", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T08:00:01Z" },
+      ],
+    } as never);
+    vi.mocked(sendChatMessageStream).mockImplementation(async (_companyId, _conversationId, _payload, onEvent) => {
+      onEvent({ type: "completed", response: { messageId: "assistant-2", answer: "Updated answer", status: "Answered", citations: [], webEvidenceSnapshots: [], toolExecutions: [] } as never });
+    });
+    renderHandoff("/companies/company-1?conversation=conversation-1");
+
+    await screen.findByText("Original question");
+    fireEvent.click(screen.getByRole("button", { name: "Edit and send again" }));
+    const editor = screen.getByLabelText("Edit message and send again");
+    fireEvent.change(editor, { target: { value: "Edited question" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("Original question")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit and send again" }));
+    fireEvent.change(screen.getByLabelText("Edit message and send again"), { target: { value: "Edited question" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "Edited question" }, expect.any(Function), expect.any(AbortSignal)));
+    expect(screen.getAllByText("Original question")).toHaveLength(1);
+    expect(screen.getByText("Edited question")).toBeInTheDocument();
   });
 
   it("does not restore an empty conversation until the first streamed turn has completed", async () => {
@@ -435,6 +483,7 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Attached research context")).toBeInTheDocument());
     expect(attachResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1");
+    expect(screen.getByRole("button", { name: /Recent expansion.*Added/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Research ×1" }));
     expect(screen.getByLabelText("Attached research context")).toHaveTextContent("Recent expansion");
 
@@ -501,7 +550,7 @@ describe("AskRavenHandoff", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Follow-up question" }), { target: { value: "Find current hiring news in Japan." } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await waitFor(() => expect(updateChatCapabilities).toHaveBeenCalledWith("company-1", "conversation-1", { webSearchEnabled: true }));
-    await waitFor(() => expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "Find current hiring news in Japan." }, expect.any(Function)));
+    await waitFor(() => expect(sendChatMessageStream).toHaveBeenCalledWith("company-1", "conversation-1", { question: "Find current hiring news in Japan." }, expect.any(Function), expect.any(AbortSignal)));
   });
 
   it("requires explicit confirmation before Research further starts a job", async () => {

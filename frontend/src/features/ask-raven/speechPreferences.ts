@@ -1,6 +1,13 @@
 export type RecognitionProvider = "browser" | "geminiLive";
 export type SpeechOutputProvider = "browser" | "gemini";
 
+export const geminiVoiceNames = ["Kore", "Puck", "Charon", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"] as const;
+export const defaultGeminiVoice = "Kore";
+
+export function getGeminiVoice(voice: string) {
+  return geminiVoiceNames.some((name) => name === voice) ? voice : defaultGeminiVoice;
+}
+
 export interface SpeechPreferences {
   recognitionProvider: RecognitionProvider;
   language: string;

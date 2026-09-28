@@ -17,6 +17,10 @@ Tell one coherent story: a researcher turns an ambiguous company name into a tru
 
 ## Presenter flow
 
+### Optional opening: About RAVEN
+
+Open **About RAVEN** from the account menu for a quick visual overview of the product flow and trust boundary. It works as a short orientation, not a substitute for the live company dossier.
+
 ### 1. Establish the problem — 45 seconds
 
 > “Company research normally starts with a name, scattered sources, and a lot of uncertainty. RAVEN gives us a durable dossier, but it will not turn a guess into a fact.”
@@ -67,7 +71,7 @@ Optionally show archive/restore for the disposable record. Mention permanent del
 
 ### 6. Return to Ask RAVEN — 1 minute
 
-Leave the Company Workspace for Companies, then reopen the same Company. Open Ask RAVEN and show that the previous conversation restores. Use **Recent chats** to reopen an earlier one, open its overflow menu to delete a disposable chat, then use **New chat** to show that it starts empty without deleting other history. From a Company workspace, open Settings or System Status and demonstrate **Back to <company>**; the sidebar's **Companies** item always returns to the list.
+Leave the Company Workspace for Companies, then reopen the same Company. Open Ask RAVEN and show that the previous conversation restores. Use **Recent chats** to reopen an earlier one, open its overflow menu to delete a disposable chat, then use **New chat** to show that it starts empty without deleting other history. From a Company workspace, open Settings or System Status and demonstrate the nested **← <company>** return item under **Companies**; the sidebar's **Companies** item always returns to the list.
 
 Ask a profile-grounded question and open its **Sources** disclosure. In the compact **+** menu, choose **Research context**, attach a completed Investigation or Briefing, and point out that this is unaccepted research material alongside the accepted Profile. Turn on **Web search** for a freshness-sensitive question; the explicit permission does not require a provider call on every turn. Use **Search latest** to show its editable follow-up review and cancel it, then use **Research further** to show its editable objective; neither action starts work until the confirmation button is selected.
 

@@ -6,14 +6,22 @@ const choices: Array<{ value: ThemePreference; title: string; description: strin
   { value: "dark", title: "Dark", description: "Use the night scheme" },
 ];
 
-export function ThemeSelector() {
-  const { preference, resolvedTheme, setPreference } = useTheme();
+export function ThemeSelector({
+  preference,
+  disabled = false,
+  onChange,
+}: {
+  preference: ThemePreference;
+  disabled?: boolean;
+  onChange: (preference: ThemePreference) => void;
+}) {
+  const { resolvedTheme } = useTheme();
 
   return (
     <fieldset className="theme-selector">
       <legend>Choose your appearance</legend>
       <p className="theme-selector__hint">
-        System currently resolves to <strong>{resolvedTheme}</strong>.
+        System currently resolves to <strong>{resolvedTheme}</strong>. Save your selection to apply it.
       </p>
       <div className="theme-selector__choices">
         {choices.map((choice) => (
@@ -23,8 +31,10 @@ export function ThemeSelector() {
               name="theme-preference"
               value={choice.value}
               checked={preference === choice.value}
-              onChange={() => setPreference(choice.value)}
+              disabled={disabled}
+              onChange={() => onChange(choice.value)}
             />
+            <span className={`theme-choice__swatch theme-choice__swatch--${choice.value}`} aria-hidden="true"><i /><i /></span>
             <span>
               <strong>{choice.title}</strong>
               <small>{choice.description}</small>

@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CaretDown } from "@phosphor-icons/react";
+import { ArrowDown, CaretDown } from "@phosphor-icons/react";
 import { createChatConversation, deleteChatConversation, getChatConversation, listChatConversations, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import {
   attachBriefingContext,
@@ -25,7 +25,7 @@ import { AskRavenCapabilityMenu } from "./AskRavenCapabilityMenu";
 import { AskRavenNextActionReview, type AskRavenNextActionKind } from "./AskRavenNextActionReview";
 import { AskRavenComposer, type ComposerCapability } from "./AskRavenComposer";
 import { useSpeechInput } from "./useSpeechInput";
-import { AskRavenMessageActions } from "./AskRavenMessageActions";
+import { AskRavenMessageActions, AskRavenUserMessageActions } from "./AskRavenMessageActions";
 import styles from "./ask-raven.module.css";
 
 export interface AskRavenHandoffProps {
@@ -41,6 +41,10 @@ export interface AskRavenHandoffProps {
 
 function sourceDomain(url: string) {
   try { return new URL(url).hostname; } catch { return url; }
+}
+
+function isIntentionalAbort(error: unknown, signal: AbortSignal) {
+  return signal.aborted || (error instanceof DOMException && error.name === "AbortError");
 }
 const starterPrompts = [
   "What does this company do?",
@@ -119,11 +123,15 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [investigationSearch, setInvestigationSearch] = useState("");
   const [nextActionReview, setNextActionReview] = useState<{ kind: AskRavenNextActionKind; messageId: string; value: string } | null>(null);
   const [nextActionBusy, setNextActionBusy] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageText, setEditingMessageText] = useState("");
+  const [showLatest, setShowLatest] = useState(false);
   const capabilitiesId = useId();
   const capabilitiesRef = useRef<HTMLDivElement>(null);
   const capabilitiesTriggerRef = useRef<HTMLButtonElement>(null);
   const addResearchContextActionRef = useRef<HTMLButtonElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  const chatViewportRef = useRef<HTMLDivElement>(null);
   const activeCompanyIdRef = useRef(companyId);
   const hydratedConversationRef = useRef<string | null>(null);
   const skipFallbackRef = useRef(false);
@@ -132,6 +140,20 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const researchContextLoadVersionRef = useRef(0);
   const localAttachmentConversationRef = useRef<string | null>(null);
   const researchBriefVersionRef = useRef(0);
+  const activeChatAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeChatAbortRef.current?.abort(), []);
+
+  const updateLatestVisibility = () => {
+    const viewport = chatViewportRef.current;
+    if (!viewport) return;
+    setShowLatest(viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight > 32);
+  };
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(updateLatestVisibility);
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages, conversationId, pending]);
 
   const refreshResearchCatalog = useCallback(async () => {
     const [jobsResult, investigationsResult, briefingsResult] = await Promise.allSettled([
@@ -236,6 +258,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     if (!companyChanged && requestedConversationId && hydratedConversationRef.current === requestedConversationId) return () => { active = false; };
     if (!companyChanged && !requestedConversationId && (conversationId || skipFallbackRef.current)) return () => { active = false; };
     if (companyChanged) {
+      activeChatAbortRef.current?.abort();
       hydratedConversationRef.current = null;
       localAttachmentConversationRef.current = null;
       skipFallbackRef.current = false;
@@ -546,13 +569,13 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   };
 
   const attachInvestigation = async (investigation: Investigation) => {
-    if (!profileVersionId || attachingResearchId || researchContextAttachments.length >= 5) return;
+    if (!profileVersionId || attachingResearchId || researchContextAttachments.length >= 5 || !investigation.materialId) return;
 
     setAttachingResearchId(investigation.id);
     setError(null);
     try {
       const activeConversationId = await ensureConversation();
-      const attachment = await attachResearchContext(companyId, investigation.id, activeConversationId);
+      const attachment = await attachResearchContext(companyId, investigation.materialId, activeConversationId);
       researchContextLoadVersionRef.current += 1;
       localAttachmentConversationRef.current = activeConversationId;
       setResearchContextAttachments((current) => [
@@ -581,6 +604,8 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     if (clearComposer) setQuestion("");
 
     let activeConversationId = preferredConversationId ?? conversationId;
+    const abortController = new AbortController();
+    activeChatAbortRef.current = abortController;
     try {
       // Do not update the URL yet. Its restore effect can return an empty
       // conversation before this first streamed turn has been persisted.
@@ -611,20 +636,43 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         }
         setMessages((current) => current.map((message) => message.id === localAssistantId ? { ...message, content: streamEvent.message, status: "Failed", activity: null } : message));
         throw new Error(streamEvent.message);
-      });
+      }, abortController.signal);
       if (!completed) throw new Error("Ask RAVEN ended before returning a completed response.");
       if (clearComposer) {
         try { localStorage.removeItem(draftAtSend); } catch { /* Optional draft storage. */ }
       }
       void listChatConversations(companyId).then(setRecentChats).catch(() => undefined);
     } catch (submissionError) {
+      if (isIntentionalAbort(submissionError, abortController.signal)) {
+        setMessages((current) => current.map((message) => message.id === localAssistantId && message.status === "Pending" ? { ...message, content: "Response stopped.", status: "Failed", activity: null } : message));
+        return;
+      }
       setMessages((current) => current.map((message) => message.id === localAssistantId && message.status === "Pending" ? { ...message, content: "Ask RAVEN could not complete this response.", status: "Failed", activity: null } : message));
       setError(submissionError instanceof Error ? submissionError.message : "Ask RAVEN could not complete this request.");
       if (clearComposer) setQuestion(trimmed);
     } finally {
+      if (activeChatAbortRef.current === abortController) activeChatAbortRef.current = null;
       if (activeConversationId && !requestedConversationId) setConversationInUrl(activeConversationId);
       setPending(false);
     }
+  };
+
+  const retryMessage = (content: string) => {
+    if (!pending && content.trim()) void sendNormalQuestion(content.trim(), conversationId, false);
+  };
+
+  const beginEditingMessage = (message: ChatMessage) => {
+    if (pending) return;
+    setEditingMessageId(message.id);
+    setEditingMessageText(message.content);
+  };
+
+  const submitEditedMessage = () => {
+    const next = editingMessageText.trim();
+    if (!next || pending) return;
+    setEditingMessageId(null);
+    setEditingMessageText("");
+    void sendNormalQuestion(next, conversationId, false);
   };
 
   const submitQuestion = async (event: FormEvent<HTMLFormElement>) => {
@@ -703,7 +751,8 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         Newer Company Profile available. <button type="button" onClick={startNewConversation}>Start new chat with current profile</button>
       </div> : null}
 
-      <div className={styles.chatViewport} aria-live="polite" aria-label="Ask RAVEN conversation">
+      <div className={styles.chatViewportShell}>
+      <div ref={chatViewportRef} className={styles.chatViewport} aria-live="polite" aria-label="Ask RAVEN conversation" onScroll={updateLatestVisibility}>
         {messages.length === 0 && !deepResearchBrief && !deepResearchBriefLoading ? <div className={styles.chatEmptyState}>
           <span className={styles.chatEmptyMark} aria-hidden="true">✦</span>
           <strong>{profileVersionId ? "Ask about this company" : "Accept a profile first"}</strong>
@@ -712,9 +761,14 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
             {starterPrompts.map((prompt) => <button className={styles.starterPrompt} key={prompt} type="button" onClick={() => { setQuestion(prompt); questionInputRef.current?.focus(); }}>{prompt}</button>)}
           </div> : null}
         </div> : messages.map((message, messageIndex) => (
-          <article key={message.id} className={`${styles.chatMessage} ${message.role === "User" ? styles.chatMessageUser : styles.chatMessageAssistant}`}>
+          <article key={message.id} className={`${styles.chatMessage} ${message.role === "User" ? `${styles.chatMessageUser} chat-message-user${editingMessageId === message.id ? ` ${styles.chatMessageEditing}` : ""}` : styles.chatMessageAssistant}`}>
             <span className={styles.chatMessageRole}>{message.role === "User" ? "You" : "RAVEN"}</span>
-            {message.content ? <p>{message.content}</p> : null}
+            {message.role === "User" && editingMessageId === message.id ? <div className={styles.inlineMessageEdit}>
+              <label className="sr-only" htmlFor={`edit-${message.id}`}>Edit message and send again</label>
+              <textarea id={`edit-${message.id}`} autoFocus value={editingMessageText} onChange={(event) => setEditingMessageText(event.target.value)} rows={3} />
+              <small>Sends as a new message; the original remains in history.</small>
+              <div><button type="button" onClick={() => { setEditingMessageId(null); setEditingMessageText(""); }}>Cancel</button><button type="button" disabled={!editingMessageText.trim()} onClick={submitEditedMessage}>Send</button></div>
+            </div> : message.content ? <p>{message.content}</p> : null}
             {message.followUpQuestion ? <p className={styles.chatFollowUp}>{message.followUpQuestion}</p> : null}
             {message.citations.length > 0 ? <>
               <button className={styles.sourceToggle} type="button" aria-expanded={expandedSourceMessageId === message.id} onClick={() => setExpandedSourceMessageId((current) => current === message.id ? null : message.id)}>
@@ -729,7 +783,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
               </section> : null}
             </> : null}
             {message.role === "Assistant" && message.status === "Completed" ? <div className={styles.messageNextActions} aria-label="Continue this answer">
-              <AskRavenMessageActions messageId={message.id} content={message.content} />
               {message.citations.some((citation) => citation.origin === "Briefing") ? <a href={message.citations.find((citation) => citation.origin === "Briefing")?.url}>Open briefing</a> : null}
               {message.answerStatus === "InsufficientEvidence" || message.answerStatus === "ClarificationRequired" ? <button type="button" onClick={() => { setCapabilitiesOpen(true); setInvestigationPickerOpen(true); }}>Add research context</button> : null}
               {!webSearchEnabled && message.answerStatus === "InsufficientEvidence" ? <button type="button" onClick={() => {
@@ -751,6 +804,10 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
             {nextActionReview?.messageId === message.id ? <AskRavenNextActionReview kind={nextActionReview.kind} value={nextActionReview.value} busy={nextActionBusy}
               onChange={(value) => setNextActionReview((current) => current?.messageId === message.id ? { ...current, value } : current)}
               onCancel={() => setNextActionReview(null)} onConfirm={() => void confirmNextAction()} /> : null}
+            {message.role === "Assistant" && message.status === "Completed" ? <AskRavenMessageActions messageId={message.id} content={message.content} createdAt={message.createdAt} disabled={pending}
+              onRetry={() => retryMessage(messages.slice(0, messageIndex).reverse().find((item) => item.role === "User")?.content ?? "")} /> : null}
+            {message.role === "User" && editingMessageId !== message.id ? <AskRavenUserMessageActions content={message.content} createdAt={message.createdAt} disabled={pending}
+              onRetry={() => retryMessage(message.content)} onEdit={() => beginEditingMessage(message)} /> : null}
           </article>
         ))}
         {deepResearchBriefLoading ? <div className={styles.researchBriefPreparing} role="status">Preparing research question…</div> : null}
@@ -781,12 +838,15 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         {error ? <div className={styles.chatSystemMessage} role="alert">{error}</div> : null}
         {speech.error ? <div className={styles.chatSystemMessage} role="alert">{speech.error}</div> : null}
       </div>
+      {showLatest ? <button type="button" className={styles.latestButton} onClick={() => chatViewportRef.current?.scrollTo({ top: chatViewportRef.current.scrollHeight, behavior: "smooth" })}><ArrowDown size={14} aria-hidden="true" /> Latest</button> : null}
+      </div>
 
       <AskRavenComposer
         companyName={companyName}
         question={question}
         onQuestionChange={setQuestion}
         onSubmit={submitQuestion}
+        onStop={() => activeChatAbortRef.current?.abort()}
         questionInputRef={questionInputRef}
         profileVersionId={profileVersionId ?? null}
         pending={pending}

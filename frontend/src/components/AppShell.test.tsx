@@ -35,7 +35,7 @@ it("persists the desktop sidebar collapse preference", async () => {
   expect(document.querySelector('img[src="/raven-logo.svg"]')).toBeInTheDocument();
 });
 
-it("opens a compact account menu with appearance controls and future placeholders", async () => {
+it("opens a compact account menu with appearance controls and support links", async () => {
   const user = userEvent.setup();
   renderWithRouter(<AppShell><p>Workspace</p></AppShell>);
 
@@ -45,8 +45,8 @@ it("opens a compact account menu with appearance controls and future placeholder
   const panel = document.getElementById("account-menu-panel");
   expect(panel).not.toBeNull();
   expect(within(panel!).getByRole("link", { name: "Settings" })).toBeInTheDocument();
-  expect(within(panel!).getByRole("button", { name: /help coming soon/i })).toBeDisabled();
-  expect(within(panel!).getByRole("button", { name: /about raven coming soon/i })).toBeDisabled();
+  expect(within(panel!).getByRole("link", { name: "Help" })).toBeInTheDocument();
+  expect(within(panel!).getByRole("link", { name: "About RAVEN" })).toBeInTheDocument();
   expect(within(panel!).getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
 
   await user.keyboard("{Escape}");
@@ -70,11 +70,14 @@ it("returns from Settings to the full company route while Companies always opens
   renderWithRouter(<><AppShell><p>Workspace</p></AppShell><LocationProbe /></>, "/companies/company-a?tab=briefings&conversation=chat-a");
 
   await user.click(screen.getByRole("link", { name: "Settings" }));
-  expect(await screen.findByRole("link", { name: /Back to 70mai/ })).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "Return to 70mai" })).toBeInTheDocument();
   expect(sessionStorage.getItem("raven:return-company-route")).toContain("company-a?tab=briefings&conversation=chat-a");
-  await user.click(screen.getByRole("link", { name: "View operational status" }));
-  expect(await screen.findByRole("link", { name: /Back to 70mai/ })).toBeInTheDocument();
-  await user.click(screen.getByRole("link", { name: /Back to 70mai/ }));
+  await user.click(screen.getByRole("button", { name: "Open account and appearance menu" }));
+  await user.click(screen.getByRole("link", { name: "Help" }));
+  expect(await screen.findByRole("link", { name: "Return to 70mai" })).toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: "Dashboard" }));
+  expect(await screen.findByRole("link", { name: "Return to 70mai" })).toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: "Return to 70mai" }));
   expect(screen.getByTestId("location-probe")).toHaveTextContent("/companies/company-a?tab=briefings&conversation=chat-a");
 
   await user.click(screen.getByRole("link", { name: "Settings" }));
@@ -90,6 +93,6 @@ it("does not invent a company return action when Settings is opened from the lis
 
   await user.click(screen.getByRole("link", { name: "Settings" }));
   await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/settings"));
-  expect(screen.queryByRole("link", { name: /Back to/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /Return to/ })).not.toBeInTheDocument();
   expect(sessionStorage.getItem("raven:return-company-route")).toBeNull();
 });

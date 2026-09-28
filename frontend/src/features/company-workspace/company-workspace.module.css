@@ -1361,7 +1361,10 @@
   gap: 1rem;
 }
 
-@media (max-width: 760px) {
+/* Below this width the persistent sidebar and assistant would leave the dossier
+   too narrow for meaningful content. Keep the dossier fluid and let the
+   assistant use its existing overlay treatment instead of squeezing both. */
+@media (max-width: 1200px) {
   .workspaceShell,
   .workspaceShellCollapsed {
     display: grid;

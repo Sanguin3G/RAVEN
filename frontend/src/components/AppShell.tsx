@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Buildings,
@@ -79,7 +79,14 @@ function routeTitle(pathname: string) {
   if (pathname.startsWith("/companies/")) return "Company workspace";
   if (pathname === "/settings") return "Settings";
   if (pathname === "/status") return "System status";
+  if (pathname === "/help") return "Help";
+  if (pathname === "/about") return "About RAVEN";
   return "RAVEN workspace";
+}
+
+function supportsCompanyReturn(pathname: string) {
+  return pathname === "/" || pathname === "/companies/new" || pathname === "/settings" ||
+    pathname === "/status" || pathname === "/help" || pathname === "/about";
 }
 
 function isCompaniesRoute(pathname: string) {
@@ -120,18 +127,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigateGlobal = (event: MouseEvent<HTMLAnchorElement>, destination: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    const isContextualDestination = destination === "/settings" || destination === "/status";
+    const isContextualDestination = supportsCompanyReturn(destination);
     const hasCompanyReturnState = !!(location.state && typeof location.state === "object" &&
       "companyReturn" in location.state && location.state.companyReturn === true);
     const context = isContextualDestination
       ? rememberCompanyReturnRoute(location.pathname, location.search, location.hash) ??
         (hasCompanyReturnState ? readCompanyReturnRoute() : null)
       : null;
-    if (isContextualDestination && !context || !isContextualDestination) clearCompanyReturnRoute();
+    if ((isContextualDestination && !context) || !isContextualDestination) clearCompanyReturnRoute();
     navigate(destination, { state: context ? { companyReturn: true } : null });
     closeMobileNavigation();
     setAccountMenuOpen(false);
   };
+  const hasCompanyReturnState = !!(location.state && typeof location.state === "object" &&
+    "companyReturn" in location.state && location.state.companyReturn === true);
+  const showCompanyReturn = supportsCompanyReturn(location.pathname) && hasCompanyReturnState;
+
+  useEffect(() => {
+    if (supportsCompanyReturn(location.pathname) && !hasCompanyReturnState) clearCompanyReturnRoute();
+  }, [hasCompanyReturnState, location.pathname]);
   useEffect(() => {
     let active = true;
     const checkServices = async () => {
@@ -419,8 +433,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="sidebar-nav__heading">Workspace</span>
           {navigationItems.map((item) => {
             const ItemIcon = item.icon;
-            return <Link
-              key={item.to}
+            return <Fragment key={item.to}><Link
               aria-current={isNavigationItemActive(item, location.pathname) ? "page" : undefined}
               className={linkClass(isNavigationItemActive(item, location.pathname))}
               title={item.label}
@@ -431,6 +444,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <ItemIcon size={19} weight="bold" />
               <span className="sidebar-nav__label">{item.label}</span>
             </Link>
+            {item.to === "/companies" && showCompanyReturn ? <CompanyReturnLink onNavigate={() => closeMobileNavigation()} /> : null}
+            </Fragment>
           })}
         </nav>
 
@@ -466,8 +481,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <div className="account-menu__links">
                 <Link to="/settings" state={null} onClick={(event) => navigateGlobal(event, "/settings")}><GearSix size={17} weight="duotone" /> Settings</Link>
-                <button type="button" disabled><Question size={17} weight="duotone" /> Help <small>Coming soon</small></button>
-                <button type="button" disabled><Info size={17} weight="duotone" /> About RAVEN <small>Coming soon</small></button>
+                <Link to="/help" state={null} onClick={(event) => navigateGlobal(event, "/help")}><Question size={17} weight="duotone" /> Help</Link>
+                <Link to="/about" state={null} onClick={(event) => navigateGlobal(event, "/about")}><Info size={17} weight="duotone" /> About RAVEN</Link>
               </div>
             </div>
           )}
@@ -514,8 +529,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="status-indicator" aria-hidden="true" />
             <span>{workspaceServiceLabel}</span>
           </Link>
-          <CompanyReturnLink active={(location.pathname === "/settings" || location.pathname === "/status") &&
-            !!(location.state && typeof location.state === "object" && "companyReturn" in location.state && location.state.companyReturn === true)} />
         </header>
 
         {(activeResearch.length > 0 || sharedResearchActivities.length > 0) && <section className={`global-research-strip global-research-strip--${researchActivityOverallState}`} aria-label="Research activity">

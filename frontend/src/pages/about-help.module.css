@@ -1,0 +1,95 @@
+.page { display: grid; gap: clamp(2.4rem, 6vw, 5rem); margin: 0 auto; max-width: 74rem; padding: clamp(1.5rem, 4vw, 3.5rem); }
+.page h1 { font-size: clamp(2rem, 5vw, 4rem); letter-spacing: -0.045em; line-height: 1.02; margin: 0.4rem 0 1rem; max-width: 18ch; }
+.page h2 { font-size: clamp(1.35rem, 2.6vw, 2.1rem); letter-spacing: -0.03em; margin: 0.35rem 0 1rem; }
+.page p { margin: 0; }
+.eyebrow { color: var(--ai); font-size: 0.67rem; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; }
+.hero { align-items: center; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--surface-raised)), color-mix(in srgb, var(--ai) 8%, var(--surface-raised))); border: 1px solid var(--border); border-radius: 1rem; display: grid; gap: 1.5rem; grid-template-columns: auto minmax(0, 1fr); overflow: hidden; padding: clamp(1.4rem, 4vw, 3.2rem); position: relative; }
+.hero::after { background: radial-gradient(circle, color-mix(in srgb, var(--ai) 20%, transparent), transparent 68%); content: ""; height: 18rem; pointer-events: none; position: absolute; right: -7rem; top: -8rem; width: 18rem; }
+.hero > * { position: relative; z-index: 1; }
+.heroMark { align-items: center; background: var(--primary); border-radius: 1rem; box-shadow: 0 10px 30px color-mix(in srgb, var(--primary) 24%, transparent); display: flex; height: 6rem; justify-content: center; width: 6rem; }
+.heroMark img { filter: brightness(0) invert(1); height: 4.8rem; width: 4.8rem; }
+.hero p, .helpHeader > p { font-size: 1.05rem; max-width: 48rem; }
+.flow { align-items: stretch; display: grid; gap: 1.8rem; grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 0.7rem 0 0; padding: 0; }
+.flow li { align-items: center; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.55rem; color: var(--text); display: flex; font-size: 0.78rem; font-weight: 850; justify-content: center; min-height: 3.4rem; padding: 0.65rem; position: relative; text-align: center; }
+.flow li:not(:last-child)::after { color: var(--ai); content: "\2192"; font-size: 1.15rem; position: absolute; right: -1.35rem; }
+.cardGrid, .previewGrid { display: grid; gap: 0.85rem; }
+.cardGrid { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.capabilityCard { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.7rem; padding: 1.15rem; }
+.capabilityCard svg { color: var(--ai); }
+.capabilityCard h3 { margin: 0.75rem 0 0.4rem; }
+.capabilityCard p { font-size: 0.82rem; }
+.trustSection { background: color-mix(in srgb, var(--success) 6%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border)); border-radius: 0.9rem; display: grid; gap: 1.4rem; grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.55fr); padding: clamp(1.3rem, 3vw, 2.3rem); }
+.flowVertical { display: grid; gap: 1.2rem; grid-column: auto; grid-template-columns: 1fr; margin: 0; }
+.flowVertical li:not(:last-child)::after { bottom: -1.05rem; content: "\2193"; left: 50%; right: auto; transform: translateX(-50%); }
+.principles { display: grid; gap: 0.7rem; grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.principles article { background: var(--surface-raised); border-left: 3px solid var(--success); border-radius: 0.35rem; display: grid; gap: 0.25rem; padding: 0.8rem; }
+.principles span { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; }
+.previewGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.miniPreview { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 0.75rem; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; }
+.miniPreview header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 0.6rem; padding: 0.8rem; }
+.miniPreview header > span { font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.miniPreview header i { background: color-mix(in srgb, var(--success) 12%, var(--surface-raised)); border-radius: 99px; color: var(--success); font-size: 0.62rem; font-style: normal; margin-left: auto; padding: 0.2rem 0.4rem; }
+.miniPreview nav, .miniPreview footer { display: flex; flex-wrap: wrap; gap: 0.55rem; padding: 0.65rem 0.8rem; }
+.miniPreview nav { border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.68rem; }
+.miniPreview nav b { color: var(--primary); }
+.miniPreview > div { display: grid; gap: 0.25rem; padding: 1.3rem 1rem; }
+.miniPreview small { color: var(--text-muted); }
+.miniPreview footer span { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 99px; font-size: 0.63rem; padding: 0.25rem 0.42rem; }
+.technology { border-top: 1px solid var(--border); display: grid; gap: 0.8rem; padding-top: 1.5rem; }
+.technology > div { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.technology > div span { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 99px; font-size: 0.68rem; font-weight: 750; padding: 0.3rem 0.55rem; }
+.technology p { font-size: 0.78rem; }
+
+.helpHeader { display: grid; gap: 0.45rem; }
+.topicNav { backdrop-filter: blur(12px); background: color-mix(in srgb, var(--background) 88%, transparent); border: 1px solid var(--border); border-radius: 0.65rem; box-shadow: 0 0.35rem 1rem var(--shadow); display: flex; flex-wrap: wrap; gap: 0.35rem; margin-block: -1.5rem; max-width: 100%; padding: 0.45rem; position: sticky; top: calc(var(--topbar-height) + 0.5rem); z-index: 6; }
+.topicNav a { align-items: center; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.45rem; color: var(--text); display: flex; font-size: 0.7rem; font-weight: 800; gap: 0.35rem; min-height: 2.2rem; padding: 0.42rem 0.52rem; text-decoration: none; }
+.topicNav a:hover, .topicNav a:focus-visible { border-color: var(--primary); color: var(--primary); }
+.topicNav svg { color: var(--ai); flex: 0 0 auto; }
+.gettingStarted, .guideSection, .faq { scroll-margin-top: calc(var(--topbar-height) + var(--help-topic-height, 6rem) + 1rem); }
+.gettingStarted { background: color-mix(in srgb, var(--primary) 7%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border)); border-radius: 0.8rem; padding: clamp(1.2rem, 3vw, 2rem); }
+.guideSection { border-top: 1px solid var(--border); padding-top: 2rem; }
+.guideSection > p { max-width: 60rem; }
+.guideSection > svg { color: var(--ai); float: right; }
+.guideFlow { counter-reset: guide; display: grid; gap: 1.7rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); list-style: none; margin: 1.3rem 0 0; padding: 0; }
+.guideFlow li { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.55rem; display: grid; gap: 0.35rem; min-height: 7rem; padding: 1rem; position: relative; }
+.guideFlow li::before { align-items: center; background: var(--primary); border-radius: 50%; color: var(--surface-raised); content: counter(guide); counter-increment: guide; display: flex; font-size: 0.68rem; font-weight: 900; height: 1.55rem; justify-content: center; width: 1.55rem; }
+.guideFlow li:not(:last-child)::after { color: var(--ai); content: "\2192"; position: absolute; right: -1.25rem; top: 50%; }
+.guideFlow span { color: var(--text-muted); font-size: 0.76rem; line-height: 1.45; }
+.chatGuide { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 0.7rem; margin-top: 1.2rem; max-width: 42rem; overflow: hidden; }
+.chatGuide header { align-items: center; border-bottom: 1px solid var(--border); display: grid; gap: 0.15rem 0.55rem; grid-template-columns: auto 1fr; padding: 0.75rem; }
+.chatGuide header img { filter: var(--logo-filter, none); grid-row: 1 / 3; height: 2rem; width: 2rem; }
+.chatGuide header span { color: var(--success); font-size: 0.65rem; }
+.chatGuide blockquote { border-left: 3px solid var(--ai); margin: 1.1rem; padding: 0.45rem 0.8rem; }
+.chatGuide > div, .chatGuide footer { display: flex; flex-wrap: wrap; gap: 0.45rem; padding: 0 1.1rem 1rem; }
+.chatGuideAction, .chatGuide footer span { align-items: center; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 99px; color: var(--text); display: inline-flex; font-family: inherit; font-size: 0.68rem; font-style: normal; font-weight: 700; gap: 0.4rem; line-height: 1.2; padding: 0.3rem 0.52rem; }
+.chatGuide footer { border-top: 1px solid var(--border); padding-top: 0.8rem; }
+.definitionGrid { display: grid; gap: 0.65rem; grid-template-columns: repeat(2, 1fr); margin: 1rem 0 0; }
+.definitionGrid div { border-left: 2px solid var(--ai); padding: 0.35rem 0.7rem; }
+.definitionGrid dt { font-size: 0.78rem; font-weight: 850; }
+.definitionGrid dd { color: var(--text-muted); font-size: 0.74rem; line-height: 1.45; margin: 0.2rem 0 0; }
+.faq details { border-bottom: 1px solid var(--border); }
+.faq summary { color: var(--text); cursor: pointer; font-size: 0.84rem; font-weight: 800; padding: 0.9rem 0.15rem; }
+.faq details p { font-size: 0.78rem; padding: 0 0.15rem 0.9rem; }
+.troubleshooting { align-items: center; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 0.7rem; display: flex; gap: 0.7rem; padding: 1rem; }
+.troubleshooting > div { display: grid; gap: 0.2rem; margin-right: auto; }
+.troubleshooting span { color: var(--text-muted); font-size: 0.74rem; }
+.troubleshooting a { border: 1px solid var(--border); border-radius: 0.35rem; font-size: 0.74rem; font-weight: 800; padding: 0.5rem 0.65rem; text-decoration: none; }
+
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; }
+  .heroMark { height: 4.5rem; width: 4.5rem; }
+  .heroMark img { height: 3.6rem; width: 3.6rem; }
+  .flow { gap: 1.35rem; grid-template-columns: 1fr; }
+  .flow li:not(:last-child)::after { bottom: -1.15rem; content: "\2193"; left: 50%; right: auto; transform: translateX(-50%); }
+  .cardGrid, .previewGrid, .principles, .definitionGrid, .trustSection { grid-template-columns: 1fr; }
+  .guideFlow { grid-template-columns: 1fr; }
+  .guideFlow li:not(:last-child)::after { bottom: -1.3rem; content: "\2193"; left: 50%; right: auto; top: auto; transform: translateX(-50%); }
+  .troubleshooting { align-items: stretch; flex-direction: column; }
+  .troubleshooting > div { margin-right: 0; }
+  .troubleshooting a { text-align: center; }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .page *, .page *::before, .page *::after { scroll-behavior: auto !important; }
+}

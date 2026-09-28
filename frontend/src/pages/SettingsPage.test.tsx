@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { SettingsPage } from "./SettingsPage";
 import { jsonResponse, renderWithRouter } from "../test/test-utils";
+import { speechPreferencesKey } from "../features/ask-raven/speechPreferences";
 
 const settings = {
   groundingMode: "Auto",
@@ -58,7 +59,7 @@ it("loads persistent settings and saves the explicit model roles", async () => {
   expect(screen.getByText("You have unsaved changes.")).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Save changes" }));
-  await waitFor(() => expect(screen.getByText("Research settings saved.")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("Settings saved.")).toBeInTheDocument());
   expect(savedBody).toEqual({
     groundingMode: "Always",
     profileModel: settings.profileModel,
@@ -220,6 +221,43 @@ it("restores the saved custom route after named presets", async () => {
   expect(routePreview).toHaveTextContent(/Search\s*Exa Search & Contents\s*Read pages\s*Exa Search & Contents/);
   await user.click(screen.getByRole("radio", { name: /^Custom/ }));
   expect(screen.getByText("Exa Search & Contents → Brave Search")).toBeInTheDocument();
+});
+
+it("enables Save changes for Voice & speech and Appearance browser preferences", async () => {
+  localStorage.clear();
+  const user = userEvent.setup();
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("/api/settings/research")) return jsonResponse(settings);
+    if (url.endsWith("/api/system/provider-status")) return jsonResponse(providerStatus);
+    return jsonResponse({}, 404);
+  });
+
+  renderWithRouter(<SettingsPage />, "/settings");
+  await screen.findByRole("heading", { name: "Settings" });
+  const saveButton = screen.getByRole("button", { name: "Save changes" });
+  expect(saveButton).toBeDisabled();
+
+  await user.click(screen.getByRole("button", { name: "Voice & speech" }));
+  await user.click(screen.getByRole("radio", { name: /Gemini Transcribe Live/ }));
+  await user.click(screen.getByRole("radio", { name: /Gemini TTS/ }));
+  expect(saveButton).toBeEnabled();
+  expect(localStorage.getItem(speechPreferencesKey)).toBeNull();
+  await user.click(saveButton);
+  await waitFor(() => expect(screen.getByText("Settings saved.")).toBeInTheDocument());
+  expect(JSON.parse(localStorage.getItem(speechPreferencesKey) ?? "{}")).toMatchObject({
+    recognitionProvider: "geminiLive",
+    outputProvider: "gemini",
+  });
+
+  await user.click(screen.getByRole("button", { name: "Appearance" }));
+  await user.click(screen.getByRole("radio", { name: /^Dark/ }));
+  expect(saveButton).toBeEnabled();
+  expect(localStorage.getItem("raven-theme-preference")).toBeNull();
+  await user.click(saveButton);
+  await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
+  expect(localStorage.getItem("raven-theme-preference")).toBe("dark");
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
 });
 
 it("uses Resilient as the ordered fallback preset", async () => {

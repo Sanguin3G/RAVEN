@@ -1,5 +1,22 @@
-.actions { align-items: center; display: inline-flex; flex-wrap: wrap; gap: .25rem; }
-.actions button { background: transparent; border: 0; border-radius: .3rem; color: var(--text-muted); cursor: pointer; font: inherit; font-size: .66rem; padding: .15rem .28rem; }
-.actions button:hover, .actions button:focus-visible { color: var(--primary); text-decoration: underline; }
-.actions [role="status"], .actions [role="alert"] { color: var(--text-muted); font-size: .65rem; }
-.actions [role="alert"] { color: var(--warning); }
+.wrapper { display: grid; gap: 0.15rem; margin-top: 0.22rem; }
+.actions { align-items: center; color: var(--text-muted); display: flex; gap: 0.12rem; min-height: 1.8rem; }
+.actions button, .loading { align-items: center; background: transparent; border: 0; border-radius: 0.3rem; color: inherit; display: inline-flex; height: 1.8rem; justify-content: center; padding: 0; width: 1.8rem; }
+.actions button { cursor: pointer; }
+.actions button:hover:not(:disabled), .actions button:focus-visible { background: var(--surface-muted); color: var(--primary); }
+.actions button:disabled { cursor: not-allowed; opacity: 0.4; }
+.loading svg { animation: raven-message-spin 0.9s linear infinite; }
+.timestamp { font-size: 0.62rem; margin-left: auto; white-space: nowrap; }
+.error { color: var(--warning); font-size: 0.65rem; }
+.userActions { height: 0; min-height: 0; margin: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: opacity 120ms ease; }
+:global(.chat-message-user:hover) .userActions,
+:global(.chat-message-user:focus-within) .userActions { height: 1.8rem; min-height: 1.8rem; opacity: 1; overflow: visible; pointer-events: auto; }
+
+@media (hover: none) {
+  .userActions { height: 1.8rem; min-height: 1.8rem; opacity: 1; overflow: visible; pointer-events: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .userActions { transition: none; }
+}
+
+@keyframes raven-message-spin { to { transform: rotate(360deg); } }

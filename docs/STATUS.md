@@ -9,37 +9,36 @@
 - Company-scoped Ask RAVEN conversations persist messages, citations, Web snapshots, and Research Context. Recent Chats are restorable and deletable; the browser stores only per-company active IDs and unsent drafts.
 - Ask RAVEN restores by explicit URL ID, browser pointer, then recent server conversation. It preserves Profile-version pinning and does not create empty conversations on workspace open.
 - Research Context can attach completed saved or managed Investigations and pinned Briefing versions. These remain unaccepted research material.
-- Search latest and Research further open editable confirmation states. Web Search or Deep Research starts only after confirmation; source citations are exposed in the Sources disclosure without a duplicate source action.
+- Search latest and Research further open editable confirmation states. Web Search or Deep Research starts only after confirmation; citations appear in the Sources disclosure without a duplicate source action.
+- Completed Ask RAVEN messages have quiet copy, read-aloud, retry, and timestamp controls. User messages can be copied, edited and sent as a new turn, or asked again; Stop cancels a normal request-bound Chat turn.
 - Browser dictation, Gemini Transcribe Live, browser speech synthesis, and Gemini TTS are user-triggered options in Voice & speech. Dictation stays editable and is never auto-sent; Read aloud is never automatic.
-- Companies always opens `/companies`. Leaving a company for Settings or System Status can expose an explicit Back to <company> link that restores the full route from tab-scoped browser state.
+- Companies always opens `/companies`. Leaving a company for Dashboard, Research Company, System Status, Settings, Help, or About preserves the full route for a nested return item beneath Companies.
 - Settings includes Research providers and Voice & speech; Custom routing is disclosed only for the Custom preset. No standalone Advanced section remains.
+- About RAVEN and Help provide concise product/trust overviews, workflow guides, sticky topic navigation, and FAQ.
 - Provider-routed Brave/Exa Search, Crawl4AI Local/Exa Contents, Gemini inference, durable user activity, and best-effort developer execution telemetry.
 
 ## Current limitations
 
-- Normal Ask RAVEN streaming remains tied to its request; it is not a background Chat job.
+- Normal Ask RAVEN responses remain request-bound; they can be stopped but do not continue as background Chat jobs.
 - Briefing generation reuses saved material and does not search or independently verify sources. Background jobs use the API's in-process worker and provide no distributed-worker guarantee.
 - Browser recognition and speech synthesis depend on browser/device support. Browser recognition may use the browser's speech service; Gemini speech requires server configuration, quota, and connectivity.
-- Gemini Live/TTS paths were not live-provider tested in this validation. The Settings copy discloses that Gemini receives audio or text and that free-tier requests may be used to improve Google products.
+- Gemini Live/TTS paths were not live-provider tested in this validation. Gemini TTS preview was rate-limited during this pass; its Settings playback lifecycle is covered with deterministic tests.
 - Persistent vector retrieval, embeddings, MCP, Crawl4AI Cloud, and advanced analytics are not implemented.
+
+## Security follow-up
+
+- `frontend/.env.local` is no longer tracked and local env files are ignored. A Google Maps client key existed in repository history; rotate it and restrict it externally to the required Google API and intended origins/referrers.
 
 ## Validation baseline
 
-Release validation — 28 Sep 2026:
+Final completion pass — 28 Sep 2026:
 
-- Backend Release build: passed. Backend Release tests: 339/339 passed.
-- Frontend production build: passed. Frontend tests: 100/100 passed across 19 files. Vite reports the existing advisory that the main JavaScript chunk is larger than 500 kB.
-- EF Core: all migrations applied to an in-memory SQLite database; `has-pending-model-changes` reported no model changes. EF tooling 10.0.10 reported that runtime 10.0.11 is newer.
-- Edge smoke (fixture-backed): Ask RAVEN Search latest and Research further confirmation/cancel flows passed; no duplicate Show web sources action appeared; Research Context and Web state survived reload; company workspace tab changes preserved Chat; Settings/System Status return restored the full company route; Companies returned to the list. Browser microphone recognition and live speech providers were not manually exercised.
-- Live providers: no Gemini or external search provider calls were made.
-- GitHub Actions: backend and frontend passed on implementation/docs commit `d20c1a3` ([run 36397623478](https://github.com/Sanguin3G/RAVEN/actions/runs/36397623478)). The final status-only follow-up is also checked by this workflow before handoff.
-- `git diff --check`: passed.
-
-Current `feat/fix-web-search-chatbot` branch (not yet merged into `main`):
-
-- Ask RAVEN now hydrates pinned Profile collections, retrieves relevant passages from long profile sources, and answers short source-backed leader questions without Web Search.
-- Chat Web Search plans bounded facet queries and ranks merged candidates with a claim-aware source authority policy.
-- Backend Release build passed with no warnings or errors; backend tests passed 341/341. The new tests use fake providers; live Search/Crawl quality has not been verified.
+- Backend Chat/Web Search focused tests after integrating current `main`: 37/37 passed. The full backend suite will run in the final clean-environment CI.
+- Frontend focused tests: 43/43 passed across 5 files. Production build passed; Vite reports the main JavaScript chunk at 823.83 kB, above its 500 kB advisory threshold.
+- EF Core `has-pending-model-changes`: no changes since the last migration. EF tools 10.0.10 reported that runtime 10.0.11 is newer.
+- Edge smoke: Help topic navigation to Voice & speech left the section heading visible beneath the sticky navigation; About RAVEN and its first-viewport flow rendered. Earlier fixture-backed Chat restoration/action smoke remains recorded on the preceding baseline; Gemini playback was not live-tested.
+- Live providers: no Gemini or external search calls were made in this completion pass.
+- `git diff --check`: passed. Final GitHub Actions results will be recorded after the pushed branch run completes.
 
 ## Compatibility
 

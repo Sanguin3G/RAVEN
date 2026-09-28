@@ -24,7 +24,7 @@ function dateLabel(value?: string | null) {
 
 export function ResearchContextPicker({ search, investigations, briefings, attachments, attachingId, onSearch, onBack, onAttachInvestigation, onAttachBriefing, onRemove }: Props) {
   const query = search.trim().toLocaleLowerCase();
-  const matchingInvestigations = investigations.filter((item) => (item.status === "Ready" || item.status === "Done") &&
+  const matchingInvestigations = investigations.filter((item) => (item.status === "Ready" || item.status === "Done") && item.materialId &&
     `${item.title} ${item.objective} ${item.summary}`.toLocaleLowerCase().includes(query));
   const matchingBriefings = briefings.filter((briefing) => `${briefing.title} ${briefing.template}`.toLocaleLowerCase().includes(query));
 
@@ -55,7 +55,7 @@ export function ResearchContextPicker({ search, investigations, briefings, attac
       <section className={styles.recent} aria-label="Recent research">
         <strong>Recent</strong>
         {matchingInvestigations.map((investigation) => {
-          const attached = attachments.some((item) => item.investigationId === investigation.id);
+          const attached = attachments.some((item) => item.investigationId === investigation.materialId);
           return <button className={styles.result} key={investigation.id} type="button" onClick={() => onAttachInvestigation(investigation)} disabled={attachingId !== null || attached || attachments.length >= 5}>
             <span className={styles.resultTitle}><b>{investigation.title}</b><small>{investigation.origin} · {dateLabel(investigation.materialUpdatedAt)}</small></span>
             <em>{attached ? "✓ Added" : attachingId === investigation.id ? "Adding…" : "Add"}</em>

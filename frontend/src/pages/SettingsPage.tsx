@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type DragEvent } from "react";
-import { CaretDown, CaretUp, DotsSixVertical, Minus } from "@phosphor-icons/react";
+import { Binoculars, Brain, Buildings, CaretDown, CaretRight, CaretUp, DotsSixVertical, GlobeHemisphereWest, Microphone, Minus, Sun } from "@phosphor-icons/react";
+import { useTheme, type ThemePreference } from "../app/theme";
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
 import { ThemeSelector } from "../components/ThemeSelector";
 import { VoiceSpeechSettings } from "../features/ask-raven/VoiceSpeechSettings";
+import { defaultSpeechPreferences, readSpeechPreferences, saveSpeechPreferences, type SpeechPreferences } from "../features/ask-raven/speechPreferences";
 import { getProviderHealth, getProviderStatus, type ProviderHealthResponse, type ProviderStatus, type ProviderStatusResponse } from "../api/system";
 import {
   getGeminiModelCatalog,
@@ -65,6 +67,14 @@ const presetChoices: Array<{ value: ProviderPreset; title: string; description: 
 
 const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Voice & speech", "Appearance"] as const;
 type SettingsSection = typeof settingsSections[number];
+const settingsSectionIcons = {
+  "Research behavior": Buildings,
+  "AI & models": Brain,
+  "Research providers": GlobeHemisphereWest,
+  "Deep Research": Binoculars,
+  "Voice & speech": Microphone,
+  Appearance: Sun,
+} satisfies Record<SettingsSection, typeof Buildings>;
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
   Resilient: {
@@ -155,8 +165,13 @@ function displayProvider(value: string) {
 }
 
 export function SettingsPage() {
+  const { preference: currentThemePreference, setPreference: setThemePreference } = useTheme();
   const [savedSettings, setSavedSettings] = useState<ResearchSettings>(fallbackSettings);
   const [draft, setDraft] = useState<ResearchSettings>(fallbackSettings);
+  const [savedSpeechPreferences, setSavedSpeechPreferences] = useState<SpeechPreferences>(readSpeechPreferences);
+  const [speechDraft, setSpeechDraft] = useState<SpeechPreferences>(readSpeechPreferences);
+  const [savedThemePreference, setSavedThemePreference] = useState<ThemePreference>(currentThemePreference);
+  const [themeDraftPreference, setThemeDraftPreference] = useState<ThemePreference>(currentThemePreference);
   const [providers, setProviders] = useState<ProviderStatusResponse | null>(null);
   const [providerHealth, setProviderHealth] = useState<ProviderHealthResponse | null>(null);
   const [modelOptions, setModelOptions] = useState(fallbackModels);
@@ -206,7 +221,15 @@ export function SettingsPage() {
     return () => { active = false; };
   }, []);
 
-  const isDirty = useMemo(() => !sameSettings(draft, savedSettings), [draft, savedSettings]);
+  useEffect(() => {
+    setSavedThemePreference(currentThemePreference);
+    setThemeDraftPreference(currentThemePreference);
+  }, [currentThemePreference]);
+
+  const researchSettingsDirty = useMemo(() => !sameSettings(draft, savedSettings), [draft, savedSettings]);
+  const speechPreferencesDirty = useMemo(() => JSON.stringify(speechDraft) !== JSON.stringify(savedSpeechPreferences), [speechDraft, savedSpeechPreferences]);
+  const appearanceDirty = themeDraftPreference !== savedThemePreference;
+  const isDirty = researchSettingsDirty || speechPreferencesDirty || appearanceDirty;
 
   const updateDraft = (changes: Partial<ResearchSettings>) => {
     setDraft((current) => ({ ...current, ...changes }));
@@ -219,11 +242,21 @@ export function SettingsPage() {
     setError(null);
     setStatusMessage(null);
     try {
-      const { updatedAt: _updatedAt, ...settingsToSave } = draft;
-      const updated = await updateResearchSettings(settingsToSave);
-      setSavedSettings(updated);
-      setDraft(updated);
-      setStatusMessage("Research settings saved.");
+      if (researchSettingsDirty) {
+        const { updatedAt: _updatedAt, ...settingsToSave } = draft;
+        const updated = await updateResearchSettings(settingsToSave);
+        setSavedSettings(updated);
+        setDraft(updated);
+      }
+      if (speechPreferencesDirty) {
+        saveSpeechPreferences(speechDraft);
+        setSavedSpeechPreferences(speechDraft);
+      }
+      if (appearanceDirty) {
+        setThemePreference(themeDraftPreference);
+        setSavedThemePreference(themeDraftPreference);
+      }
+      setStatusMessage("Settings saved.");
     } catch {
       setError("RAVEN could not save these settings. Check that the API is running and try again.");
     } finally {
@@ -233,11 +266,25 @@ export function SettingsPage() {
 
   const discard = () => {
     setDraft(savedSettings);
+    setSpeechDraft(savedSpeechPreferences);
+    setThemeDraftPreference(savedThemePreference);
     setError(null);
     setStatusMessage("Unsaved changes discarded.");
   };
 
   const reset = async () => {
+    if (activeSection === "Voice & speech") {
+      setSpeechDraft({ ...defaultSpeechPreferences });
+      setError(null);
+      setStatusMessage("Default Voice & speech preferences selected. Save changes to apply them.");
+      return;
+    }
+    if (activeSection === "Appearance") {
+      setThemeDraftPreference("system");
+      setError(null);
+      setStatusMessage("System appearance selected. Save changes to apply it.");
+      return;
+    }
     setResetting(true);
     setError(null);
     setStatusMessage(null);
@@ -382,7 +429,10 @@ export function SettingsPage() {
 
       <div className={styles.settingsLayout}>
         <nav className={styles.navigation} aria-label="Settings sections">
-          {settingsSections.map(section => <button type="button" key={section} aria-current={activeSection === section ? "page" : undefined} onClick={() => setActiveSection(section)}>{section}</button>)}
+          {settingsSections.map(section => {
+            const Icon = settingsSectionIcons[section];
+            return <button type="button" key={section} aria-current={activeSection === section ? "page" : undefined} onClick={() => setActiveSection(section)}><Icon size={17} weight="bold" aria-hidden="true" /><span>{section}</span></button>;
+          })}
         </nav>
 
         <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
@@ -413,7 +463,7 @@ export function SettingsPage() {
             <fieldset className={styles.fieldSet} disabled={isLoading || isSaving || isResetting}><legend>Starting route</legend><div className={styles.presetGrid}>{presetChoices.map(choice => <label className={`${styles.preset} ${draft.providerPreset === choice.value ? styles["preset--active"] : ""}`} key={choice.value}><input className="sr-only" type="radio" name="provider-preset" value={choice.value} checked={draft.providerPreset === choice.value} onChange={() => selectPreset(choice.value)} /><strong>{choice.title}</strong><span>{choice.description}</span></label>)}</div></fieldset>
             <div className={styles.routePreview}><strong>Your route</strong><span><small>Search</small>{draft.searchProviderPriority.map(displayProvider).join(" → ")}</span><span><small>Read pages</small>{draft.crawlerProviderPriority.map(displayProvider).join(" → ")}</span></div>
             {draft.providerPreset === "Custom" ? <details className={styles.customRoutingDisclosure}>
-              <summary><strong>Custom routing</strong><small>Choose exact provider priority.</small></summary>
+              <summary><CaretRight size={16} weight="bold" aria-hidden="true" /><strong>Custom routing</strong><small>Choose exact provider priority.</small></summary>
               <div className={styles.customRoutingGrid}>
                 {customPriorityEditor("searchProviderPriority", "Search", customSearchProviders)}
                 {customPriorityEditor("crawlerProviderPriority", "Read pages", customCrawlerProviders)}
@@ -432,17 +482,17 @@ export function SettingsPage() {
 
           {activeSection === "Voice & speech" ? <Panel title="Voice & speech" eyebrow="PREFERENCES" className={styles.section}>
             <div className={styles.sectionIntro}><p>Choose how Ask RAVEN listens and reads responses aloud on this browser.</p></div>
-            <VoiceSpeechSettings geminiConfigured={!!providers?.gemini?.configured} />
+            <VoiceSpeechSettings preferences={speechDraft} onChange={setSpeechDraft} geminiConfigured={!!providers?.gemini?.configured} disabled={isSaving || isResetting} />
           </Panel> : null}
 
-          {activeSection === "Appearance" ? <Panel title="Appearance" eyebrow="PREFERENCES" className={styles.section}><ThemeSelector /></Panel> : null}
+          {activeSection === "Appearance" ? <Panel title="Appearance" eyebrow="PREFERENCES" className={styles.section}><ThemeSelector preference={themeDraftPreference} onChange={setThemeDraftPreference} disabled={isSaving || isResetting} /></Panel> : null}
 
         </div>
 
         {error && <p className={styles.error} role="alert">{error}</p>}
         {isLoading && <p className={styles.loading} role="status">Loading saved settings…</p>}
         {statusMessage && !isLoading && <p className={`${styles.state} ${styles["state--success"]}`} role="status" aria-live="polite">{statusMessage}</p>}
-        <div className={styles.actions}><p className={`${styles.state} ${isDirty ? styles["state--dirty"] : ""}`} aria-live="polite">{isDirty ? "You have unsaved changes." : "All settings saved."}</p><div className={styles.actionGroup}><Button type="button" tone="quiet" onClick={discard} disabled={!isDirty || isSaving || isResetting}>Discard</Button><Button type="button" tone="secondary" onClick={() => void reset()} loading={isResetting} disabled={isSaving}>Reset defaults</Button><Button type="submit" loading={isSaving} disabled={!isDirty || isResetting}>Save changes</Button></div></div>
+        <div className={styles.actions}><p className={`${styles.state} ${isDirty ? styles["state--dirty"] : ""}`} aria-live="polite">{isDirty ? "You have unsaved changes." : "All settings saved."}</p><div className={styles.actionGroup}><Button type="button" tone="quiet" onClick={discard} disabled={!isDirty || isSaving || isResetting}>Discard</Button><Button type="button" tone="secondary" onClick={() => void reset()} loading={isResetting} disabled={isSaving || isLoading}>Reset defaults</Button><Button type="submit" loading={isSaving} disabled={!isDirty || isResetting || isLoading}>Save changes</Button></div></div>
         </form>
       </div>
     </div>

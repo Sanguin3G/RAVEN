@@ -1,5 +1,5 @@
 import type { FormEvent, RefObject, ReactNode } from "react";
-import { ArrowUp, Plus } from "@phosphor-icons/react";
+import { ArrowUp, Plus, Stop } from "@phosphor-icons/react";
 import type { ResearchContextAttachment } from "../../api/managedResearch";
 import type { SpeechPreferences } from "./speechPreferences";
 import { SpeechDeviceMenu } from "./SpeechDeviceMenu";
@@ -21,6 +21,7 @@ interface Props {
   question: string;
   onQuestionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onStop: () => void;
   questionInputRef: RefObject<HTMLTextAreaElement | null>;
   profileVersionId: string | null;
   pending: boolean;
@@ -96,7 +97,9 @@ export function AskRavenComposer(props: Props) {
       {isDeepResearch ? <button className={styles.capabilityChip} type="button" onClick={props.onRemoveDeepResearch} aria-label="Remove Deep Research capability">✦ Deep Research ×</button> : null}
       {props.webSearchEnabled ? <span className={styles.capabilityChip}>Web</span> : null}
       <SpeechDeviceMenu supported={props.speech.supported} disabled={!props.profileVersionId || props.pending || props.conversationLoading || props.deepResearchBriefActive || props.speech.starting} onStart={props.onStartSpeech} />
-      {props.question.trim() ? <button className={styles.assistantSubmit} type="submit" disabled={!props.profileVersionId || props.pending || props.deepResearchBriefLoading || props.deepResearchStarting || props.deepResearchBriefActive || props.conversationLoading} aria-label={isDeepResearch ? "Review research question" : "Send question"}>
+      {props.pending ? <button className={`${styles.assistantSubmit} ${styles.assistantStop}`} type="button" onClick={props.onStop} aria-label="Stop response" title="Stop response">
+        <Stop size={15} weight="fill" aria-hidden="true" />
+      </button> : props.question.trim() ? <button className={styles.assistantSubmit} type="submit" disabled={!props.profileVersionId || props.deepResearchBriefLoading || props.deepResearchStarting || props.deepResearchBriefActive || props.conversationLoading} aria-label={isDeepResearch ? "Review research question" : "Send question"}>
         <ArrowUp size={17} weight="bold" aria-hidden="true" />
       </button> : null}
     </div>
