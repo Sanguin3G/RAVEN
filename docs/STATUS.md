@@ -2,35 +2,39 @@
 
 ## Integrated
 
-- Native company research: identity resolution, source discovery and review, acquisition, evidence persistence, profile generation, and explicit profile confirmation.
-- Company Workspace: overview, sources, investigations, Briefings, profile changes, monitoring, lifecycle safety, and workspace review.
-- Evidence-backed immutable Company Profile versions, targeted improvement, and deterministic change tracking.
-- Managed AI Research through Exa Agent, bounded Gemini/MAF Deep Research, and provider-neutral External Research Assist. All produce reviewable investigation material and never accept profile facts automatically.
-- Explicit Investigation origin, purpose, topics, and server-owned Done/Reopen and applied-profile state. Profile Improvement is readiness-gated; General Research is available without a usable accepted Profile.
-- Research Briefings from hand-picked Investigations with controlled templates, immutable versions, source snapshots, newer-research suggestions, version comparison, and explicit research handoff.
-- Company-scoped Ask RAVEN conversations with persisted messages, citations, research attachments, Web Search state, and web-evidence snapshots. Recent Chats and browser-local active pointers restore the last viewed conversation without copying messages into local storage.
-- Browser dictation with an editable transcript, explicit accept/cancel, and a compact microphone test. Speech support and microphone access depend on the browser and device.
-- Provider-routed Brave/Exa Search, Crawl4AI Local/Exa Contents crawling, Gemini inference, durable user activity, and best-effort developer execution telemetry.
+- Company Workspace for identity, sources, Investigations, Briefings, profile history, changes, monitoring, lifecycle safety, and workspace review.
+- Evidence-backed immutable Company Profile versions, targeted improvement, and deterministic change tracking. Only explicit profile confirmation changes accepted Company truth.
+- Managed Deep Research and External AI Assist produce reviewable Investigation material; they do not accept Profile facts automatically.
+- Briefings synthesize selected Investigations into immutable versions. Create and Update run as persisted background jobs and appear in global Research Activity; failed updates leave the prior version intact.
+- Company-scoped Ask RAVEN conversations persist messages, citations, Web snapshots, and Research Context. Recent Chats are restorable and deletable; the browser stores only per-company active IDs and unsent drafts.
+- Ask RAVEN restores by explicit URL ID, browser pointer, then recent server conversation. It preserves Profile-version pinning and does not create empty conversations on workspace open.
+- Research Context can attach completed saved or managed Investigations and pinned Briefing versions. These remain unaccepted research material.
+- Search latest and Research further open editable confirmation states. Web Search or Deep Research starts only after confirmation; source citations are exposed in the Sources disclosure without a duplicate source action.
+- Browser dictation, Gemini Transcribe Live, browser speech synthesis, and Gemini TTS are user-triggered options in Voice & speech. Dictation stays editable and is never auto-sent; Read aloud is never automatic.
+- Companies always opens `/companies`. Leaving a company for Settings or System Status can expose an explicit Back to <company> link that restores the full route from tab-scoped browser state.
+- Settings includes Research providers and Voice & speech; Custom routing is disclosed only for the Custom preset. No standalone Advanced section remains.
+- Provider-routed Brave/Exa Search, Crawl4AI Local/Exa Contents, Gemini inference, durable user activity, and best-effort developer execution telemetry.
 
 ## Current limitations
 
-- Source chunks, embeddings, RAG, MCP, Crawl4AI Cloud, notifications, and advanced analytics are not implemented.
-- Monitoring and in-process research workers run only while the API is running; queued background work is not durable across restart.
-- Ask RAVEN can attach completed managed Investigations and Briefings as research context; other saved or external Investigation origins are not attachable through the current Chat contract. Attachments are persisted but do not create accepted profile truth.
-- Briefing generation is an explicit, synchronous AI synthesis of persisted material; it does not search or verify sources. Research latest/gaps uses existing Deep Research or External Assist entry points.
-- Gemini live transcription and read-aloud are not included. Browser dictation is the only speech provider in this release.
+- Normal Ask RAVEN streaming remains tied to its request; it is not a background Chat job.
+- Briefing generation reuses saved material and does not search or independently verify sources. Background jobs use the API's in-process worker and provide no distributed-worker guarantee.
+- Browser recognition and speech synthesis depend on browser/device support. Browser recognition may use the browser's speech service; Gemini speech requires server configuration, quota, and connectivity.
+- Gemini Live/TTS paths were not live-provider tested in this validation. The Settings copy discloses that Gemini receives audio or text and that free-tier requests may be used to improve Google products.
+- Persistent vector retrieval, embeddings, MCP, Crawl4AI Cloud, and advanced analytics are not implemented.
 
 ## Validation baseline
 
-Release validation (28 September 2026):
+Release validation — 28 Sep 2026:
 
-- Backend Release build: passed; 336/336 tests passed.
-- Frontend production build: passed; 95/95 tests passed. Existing React test fixtures emit non-failing `act(...)` warnings, and the production bundle reports a size advisory.
-- EF migrations: applied to in-memory scratch SQLite; no pending model changes.
-- Edge smoke: Company A/B chat restoration, navigation, reload, Recent Chats, Research Context attachment, Web state restoration, and API restart recovery passed. Investigations and Briefings tabs opened without resetting Chat. The test environment denied microphone access, so live dictation was not verified.
-- GitHub Actions: backend and frontend passed on code commit `d8674cf` ([run 36377798696](https://github.com/Sanguin3G/RAVEN/actions/runs/36377798696)).
-- No live AI-provider calls were required or performed for this validation.
+- Backend Release build: passed. Backend Release tests: 339/339 passed.
+- Frontend production build: passed. Frontend tests: 100/100 passed across 19 files. Vite reports the existing advisory that the main JavaScript chunk is larger than 500 kB.
+- EF Core: all migrations applied to an in-memory SQLite database; `has-pending-model-changes` reported no model changes. EF tooling 10.0.10 reported that runtime 10.0.11 is newer.
+- Edge smoke (fixture-backed): Ask RAVEN Search latest and Research further confirmation/cancel flows passed; no duplicate Show web sources action appeared; Research Context and Web state survived reload; company workspace tab changes preserved Chat; Settings/System Status return restored the full company route; Companies returned to the list. Browser microphone recognition and live speech providers were not manually exercised.
+- Live providers: no Gemini or external search provider calls were made.
+- GitHub Actions: the existing workflow covers backend/frontend on push to this branch; final pushed-commit result is pending.
+- `git diff --check`: passed.
 
 ## Compatibility
 
-Historical migrations remain unchanged. Legacy persisted provider identifiers are normalized to supported provider priorities when settings are read. Historical research and profile records remain readable; profile confirmation remains the sole accepted-profile mutation boundary.
+Historical migrations remain unchanged. Legacy persisted provider identifiers are normalized to supported provider priorities when settings are read. Historical research and profile records remain readable; explicit profile confirmation remains the accepted-profile mutation boundary.

@@ -9,7 +9,7 @@ RAVEN is an AI-assisted Company Intelligence Platform. It turns public-source re
 - Evidence-backed, immutable Company Profile versions with field-level provenance.
 - Investigations with explicit origin, purpose, topics, and durable review state across saved and managed research.
 - Research Briefings built from selected Investigations, with controlled templates, immutable versions, source snapshots, and reviewable updates.
-- Ask RAVEN: persistent Company-scoped conversations with citations, Research Context from Investigations and Briefings, optional Web Search, explicit Deep Research, and browser dictation where supported.
+- Ask RAVEN: persistent Company-scoped conversations with citations, Research Context from Investigations and Briefings, optional Web Search, confirmed Deep Research follow-ups, and optional speech input/read-aloud.
 - Monitoring and targeted profile improvement, both review and confirmation gated.
 
 ## Quick start

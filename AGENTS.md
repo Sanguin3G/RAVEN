@@ -17,6 +17,8 @@ RAVEN turns public-source research into reviewable, evidence-backed Company Prof
 - Prefer focused vertical slices and current service seams. Add an abstraction only when current code has more than one real responsibility for it. Avoid speculative infrastructure.
 - Split orchestration and page files by cohesive responsibility before they become difficult to review. Generated EF migrations and snapshots are exempt from source-size guidance.
 - Persist durable business state in SQLite. Browser storage may hold convenience state such as active conversation IDs, drafts, and device preferences, but not full Chat history or provider secrets.
+- Keep conversation restoration Company-scoped and server-backed. Contextual Settings/Status return routes belong in tab session state; the global Companies link always opens `/companies`.
+- Briefing generation uses persisted request/status rows and the existing generator. Do not generalize it into a job framework; ordinary Ask RAVEN turns remain tied to the request lifecycle.
 - User-visible Research Activity is durable product state. Execution telemetry is bounded, sanitized, buffered, and best effort; telemetry failure must not fail research.
 - RAVEN Resilient means ordered fallback after eligible failure, never provider racing.
 - Keep secrets server-side and out of commits, logs, telemetry payloads, and CI.

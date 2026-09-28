@@ -89,10 +89,14 @@ POST /api/companies/{companyId}/managed-research
 GET  /api/companies/{companyId}/managed-research/{jobId}
 GET  /api/companies/{companyId}/managed-research
 GET  /api/companies/{companyId}/research-context-attachments
-POST /api/companies/{companyId}/managed-research/{investigationId}/context-attachments
-DELETE /api/companies/{companyId}/managed-research/{investigationId}/context-attachments
 POST /api/companies/{companyId}/managed-research/{jobId}/cancel
+POST /api/companies/{companyId}/investigations/{investigationId}/context-attachments
+DELETE /api/companies/{companyId}/investigations/{investigationId}/context-attachments
 ```
+
+Briefing create and update return `202 Accepted` with a persisted generation-job ID. Poll `GET /api/companies/{companyId}/briefings/generation-jobs/{jobId}` for status. Ask RAVEN conversation discovery and scoped deletion are `GET /api/companies/{companyId}/chat/conversations` and `DELETE /api/companies/{companyId}/chat/conversations/{conversationId}`.
+
+Speech endpoints are `POST /api/speech/live-token` and `POST /api/speech/synthesize`. Both use the server's `GEMINI_API_KEY`; neither endpoint returns permanent credentials. Gemini Live uses the official one-use, restricted ephemeral-token flow. Browser SpeechRecognition and `speechSynthesis` require browser support; microphone access requires a secure context (localhost is treated as secure by modern browsers).
 
 Profile endpoints:
 
@@ -165,7 +169,7 @@ dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Ap
 
 `.github/workflows/ci.yml` runs the backend Release restore/build/test and frontend `npm ci`/test/build on pull requests to `main`, pushes to `main` or the release branch, and manual dispatch. No provider keys are required.
 
-Browser dictation uses feature-detected Web Speech recognition and a secure-context microphone permission. The composer keeps transcripts editable and requires manual Send. The optional microphone test uses `getUserMedia` and `AnalyserNode`; its selected test device and language are stored in `raven:speech-preferences`. Browser recognition uses the system default microphone. Gemini speech and read aloud are not configured.
+Browser dictation uses feature-detected Web Speech recognition and a secure-context microphone permission. The composer keeps transcripts editable and requires manual Send. The optional microphone test uses `getUserMedia` and `AnalyserNode`; its selected test/Gemini device, recognition provider, language, speech provider, voice, and Read aloud preference are stored locally in `raven:speech-preferences`. Browser recognition uses the system default microphone. Gemini Transcribe Live uses the explicit selected device; the server issues its short-lived token, while audio goes from browser to Gemini. Gemini TTS is user-triggered and bounded to 4,000 characters. No live speech-provider check is part of normal CI.
 
 ```powershell
 # from backend
@@ -226,7 +230,7 @@ Ask RAVEN Web Search is enabled per conversation through the Chat capability end
 
 Only the explicit profile-confirmation action creates a Company Profile version. Deep Research, normal workers, profile generation, navigation restore, and failed/in-progress run recovery never auto-confirm a candidate. A completed ProfileImprovement investigation without a usable Profile v1 is visible as preserved but locked material, is not clickable from the global ready card, and is excluded from Workspace Review.
 
-The Investigation lifecycle and Research Briefings use the `InvestigationLifecycleAndBriefings` EF migration. API startup applies pending migrations. Briefing create/update calls the configured AI provider to synthesize selected persisted Investigations; it does not call Search or Crawl, and tests use a fake provider.
+The Investigation lifecycle and Research Briefings use EF migrations. API startup applies pending migrations. Briefing Create/Update stores a request snapshot and status in SQLite, then the focused in-process worker calls the configured AI provider to synthesize selected persisted Investigations; it does not call Search or Crawl, and tests use a fake provider. Active Briefing jobs are requeued at API startup. This is not a distributed queue. Normal Chat streaming remains request-bound and is not backgroundable.
 
 Workspace Review acknowledgement is persisted in SQLite through `WorkspaceResearchReviewState`. The queue groups terminal Native, Deep, and External results by company, method, and normalized topic; acknowledgement is timestamped so newer results reappear. The bulk and smart-cleanup actions only clear review visibility and never delete research history, investigations, sources, or evidence.
 
