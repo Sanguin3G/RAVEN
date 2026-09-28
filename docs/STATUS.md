@@ -32,7 +32,7 @@ Release validation — 28 Sep 2026:
 - EF Core: all migrations applied to an in-memory SQLite database; `has-pending-model-changes` reported no model changes. EF tooling 10.0.10 reported that runtime 10.0.11 is newer.
 - Edge smoke (fixture-backed): Ask RAVEN Search latest and Research further confirmation/cancel flows passed; no duplicate Show web sources action appeared; Research Context and Web state survived reload; company workspace tab changes preserved Chat; Settings/System Status return restored the full company route; Companies returned to the list. Browser microphone recognition and live speech providers were not manually exercised.
 - Live providers: no Gemini or external search provider calls were made.
-- GitHub Actions: the existing workflow covers backend/frontend on push to this branch; final pushed-commit result is pending.
+- GitHub Actions: backend and frontend passed on implementation/docs commit `d20c1a3` ([run 36397623478](https://github.com/Sanguin3G/RAVEN/actions/runs/36397623478)). The final status-only follow-up is also checked by this workflow before handoff.
 - `git diff --check`: passed.
 
 ## Compatibility
