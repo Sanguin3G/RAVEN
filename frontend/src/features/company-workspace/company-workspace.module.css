@@ -378,7 +378,14 @@
 .plainList li,
 .linkList li {
   border-left: 3px solid var(--info);
+  min-width: 0;
   padding: 0.35rem 0.65rem;
+}
+
+.linkList a {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .plainList strong,
