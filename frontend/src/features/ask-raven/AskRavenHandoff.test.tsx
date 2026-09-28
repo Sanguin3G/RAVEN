@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatConversation, getChatConversation, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
+import { createChatConversation, getChatConversation, listChatConversations, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import { ApiError } from "../../api/client";
 import {
   attachBriefingContext,
@@ -19,6 +19,7 @@ import { AskRavenHandoff } from "./AskRavenHandoff";
 vi.mock("../../api/chat", () => ({
   createChatConversation: vi.fn(),
   getChatConversation: vi.fn(),
+  listChatConversations: vi.fn(),
   sendChatMessageStream: vi.fn(),
   updateChatCapabilities: vi.fn(),
 }));
@@ -75,18 +76,22 @@ function renderHandoffWithInvestigationNavigation(path: string) {
 describe("AskRavenHandoff", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(listChatConversations).mockResolvedValue([]);
     vi.mocked(getManagedResearchJobs).mockResolvedValue([]);
     vi.mocked(getResearchContextAttachments).mockResolvedValue([]);
     vi.mocked(getBriefings).mockResolvedValue([]);
     vi.mocked(previewManagedResearchBrief).mockResolvedValue(briefPreview as never);
   });
 
-  it("renders the profile-only boundary", () => {
+  it("shows profile grounding in the header and hides empty Send", () => {
     renderHandoff();
 
     expect(screen.getByRole("heading", { name: "Ask RAVEN" })).toBeInTheDocument();
-    expect(screen.getByText(/FPT Smart Cloud.*v2.*17 sources/)).toBeInTheDocument();
-    expect(screen.getByText("Profile only")).toBeInTheDocument();
+    expect(screen.getByText("FPT Smart Cloud")).toBeInTheDocument();
+    expect(screen.getByText("● Profile grounded")).toBeInTheDocument();
+    expect(screen.getByText("17 sources")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send question" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Additional capabilities" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("What does this company do?")).toBeInTheDocument();
   });
@@ -96,9 +101,10 @@ describe("AskRavenHandoff", () => {
     vi.mocked(updateChatCapabilities).mockResolvedValue({ id: "conversation-1", webSearchEnabled: true, messages: [] } as never);
     vi.mocked(getChatConversation).mockResolvedValue({ id: "conversation-1", webSearchEnabled: true, messages: [] } as never);
     renderHandoff();
+    await waitFor(() => expect(screen.getByRole("button", { name: "New conversation" })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
-    expect(screen.getByRole("button", { name: "Attach evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add research context" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Open Investigations/ })).not.toBeInTheDocument();
     const webSearch = screen.getByRole("checkbox", { name: "Web search" });
     expect(webSearch).not.toBeChecked();
@@ -138,7 +144,7 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(getChatConversation).toHaveBeenCalledWith("company-1", "conversation-restore"));
     expect(screen.getByText("Restored answer.")).toBeInTheDocument();
-    expect(screen.getByText("Web permitted")).toBeInTheDocument();
+    expect(screen.getByText("Web")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company update/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Nguồn" }));
     expect(screen.getByRole("link", { name: /Company update/ })).toHaveAttribute("href", "https://example.com/update");
@@ -168,7 +174,7 @@ describe("AskRavenHandoff", () => {
     expect(screen.queryByText("Earlier answer.")).not.toBeInTheDocument();
     expect(screen.getByText("Ask about this company")).toBeInTheDocument();
     expect(createChatConversation).not.toHaveBeenCalled();
-    expect(screen.getByText("Profile only")).toBeInTheDocument();
+    expect(screen.queryByText("Profile only")).not.toBeInTheDocument();
   });
 
   it("keeps the current chat history when opening a running investigation", async () => {
@@ -213,6 +219,7 @@ describe("AskRavenHandoff", () => {
     renderHandoff();
 
     fireEvent.change(screen.getByLabelText("Ask about FPT Smart Cloud"), { target: { value: "What does it do?" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send question" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Send question" }));
 
     await waitFor(() => expect(screen.getByText("FPT Smart Cloud operates in cloud services.")).toBeInTheDocument());
@@ -242,6 +249,7 @@ describe("AskRavenHandoff", () => {
     renderHandoff();
 
     fireEvent.change(screen.getByLabelText("Ask about FPT Smart Cloud"), { target: { value: "First question" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send question" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Send question" }));
     await waitFor(() => expect(sendChatMessageStream).toHaveBeenCalled());
     expect(getChatConversation).not.toHaveBeenCalled();
@@ -308,7 +316,7 @@ describe("AskRavenHandoff", () => {
     expect(createChatConversation).toHaveBeenCalledWith("company-1");
     expect(sendChatMessageStream).not.toHaveBeenCalled();
     expect(screen.getByText("Which customers and expansion activities of FPT Smart Cloud in Japan are publicly documented?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send question" })).not.toBeInTheDocument();
   });
 
   it("shows the provider outage and does not start research when question preview fails", async () => {
@@ -330,6 +338,7 @@ describe("AskRavenHandoff", () => {
 
   it("does not start research when the edited question is empty", async () => {
     renderHandoff();
+    await waitFor(() => expect(screen.getByRole("button", { name: "New conversation" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
     fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
     fireEvent.change(screen.getByPlaceholderText(/investigate about FPT Smart Cloud/i), { target: { value: "Expansion in Japan" } });
@@ -346,6 +355,7 @@ describe("AskRavenHandoff", () => {
 
   it("cancels an investigation brief without creating a conversation or job", async () => {
     renderHandoff();
+    await waitFor(() => expect(screen.getByRole("button", { name: "New conversation" })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
     fireEvent.click(screen.getByRole("button", { name: /Deep Research/ }));
@@ -376,10 +386,10 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Additional capabilities" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add research context" }));
     expect(screen.getByText("Recent expansion")).toBeInTheDocument();
     expect(screen.queryByTestId("managed-research-completion")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send question" })).not.toBeInTheDocument();
   });
 
   it("attaches and removes an investigation context without changing the Chat contract", async () => {
@@ -410,11 +420,12 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Additional capabilities" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach evidence" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add research context" }));
+    fireEvent.click(screen.getByRole("button", { name: /Recent expansion.*Add/ }));
 
     await waitFor(() => expect(screen.getByLabelText("Attached research context")).toBeInTheDocument());
     expect(attachResearchContext).toHaveBeenCalledWith("company-1", "investigation-1", "conversation-1");
+    fireEvent.click(screen.getByRole("button", { name: "Research ×1" }));
     expect(screen.getByLabelText("Attached research context")).toHaveTextContent("Recent expansion");
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Recent expansion context" }));
@@ -446,13 +457,66 @@ describe("AskRavenHandoff", () => {
 
     await waitFor(() => expect(getBriefings).toHaveBeenCalledWith("company-1"));
     fireEvent.click(screen.getByRole("button", { name: "Additional capabilities" }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach evidence" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add research context" }));
+    fireEvent.click(screen.getByRole("button", { name: /Japan market briefing.*Add/ }));
 
     await waitFor(() => expect(attachBriefingContext).toHaveBeenCalledWith("company-1", "briefing-1", 2, "conversation-1"));
+    fireEvent.click(screen.getByRole("button", { name: "Research ×1" }));
     expect(screen.getByLabelText("Attached research context")).toHaveTextContent("Briefing · Japan market briefing · v2");
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Japan market briefing context" }));
     await waitFor(() => expect(removeBriefingContext).toHaveBeenCalledWith("company-1", "briefing-1", "conversation-1"));
+  });
+
+  it("restores a remembered company conversation without a URL parameter", async () => {
+    localStorage.setItem("raven:active-chat-by-company", JSON.stringify({ "company-1": "chat-a", "company-2": "chat-b" }));
+    vi.mocked(getChatConversation).mockResolvedValue({ id: "chat-a", profileVersionId: "profile-2", webSearchEnabled: true,
+      messages: [{ id: "message-a", role: "Assistant", content: "Saved for company A.", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:00Z" }] } as never);
+    renderHandoff();
+
+    expect(await screen.findByText("Saved for company A.")).toBeInTheDocument();
+    expect(getChatConversation).toHaveBeenCalledWith("company-1", "chat-a");
+    expect(screen.getByText("Web")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("raven:active-chat-by-company") ?? "{}")["company-2"]).toBe("chat-b");
+  });
+
+  it("recovers from a stale pointer using the most recent server conversation", async () => {
+    localStorage.setItem("raven:active-chat-by-company", JSON.stringify({ "company-1": "stale" }));
+    vi.mocked(listChatConversations).mockResolvedValue([{ id: "recent", title: "Latest question", profileVersionId: "profile-2", profileVersion: 2,
+      messageCount: 2, webSearchEnabled: false, createdAt: "2026-09-27T00:00:00Z", updatedAt: "2026-09-28T00:00:00Z" }]);
+    vi.mocked(getChatConversation).mockImplementation(async (_companyId, id) => {
+      if (id === "stale") throw new ApiError(404);
+      return { id: "recent", profileVersionId: "profile-2", webSearchEnabled: false,
+        messages: [{ id: "message-recent", role: "Assistant", content: "Recovered answer.", status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:00Z" }] } as never;
+    });
+    renderHandoff();
+
+    expect(await screen.findByText("Recovered answer.")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("raven:active-chat-by-company") ?? "{}")["company-1"]).toBe("recent");
+    fireEvent.click(screen.getByRole("button", { name: "Recent chats" }));
+    expect(screen.getByText("Latest question")).toBeInTheDocument();
+  });
+
+  it("keeps separate active conversations for two companies", async () => {
+    localStorage.setItem("raven:active-chat-by-company", JSON.stringify({ "company-1": "chat-a", "company-2": "chat-b" }));
+    vi.mocked(getChatConversation).mockImplementation(async (_companyId, id) => ({ id, profileVersionId: "profile-2", webSearchEnabled: false,
+      messages: [{ id: `message-${id}`, role: "Assistant", content: `Answer ${id}`, status: "Completed", citations: [], webEvidenceSnapshots: [], toolExecutions: [], createdAt: "2026-09-28T00:00:00Z" }] } as never));
+    const first = renderHandoff();
+    expect(await screen.findByText("Answer chat-a")).toBeInTheDocument();
+    first.unmount();
+    const second = render(<MemoryRouter><AskRavenHandoff {...props} companyId="company-2" companyName="Other company" /></MemoryRouter>);
+    expect(await screen.findByText("Answer chat-b")).toBeInTheDocument();
+    second.unmount();
+    renderHandoff();
+    expect(await screen.findByText("Answer chat-a")).toBeInTheDocument();
+  });
+
+  it("restores an unsent conversation draft from browser storage", async () => {
+    localStorage.setItem("raven:active-chat-by-company", JSON.stringify({ "company-1": "chat-a" }));
+    localStorage.setItem("raven:chat-draft:company-1:chat-a", "Unsent question");
+    vi.mocked(getChatConversation).mockResolvedValue({ id: "chat-a", profileVersionId: "profile-2", webSearchEnabled: false, messages: [] } as never);
+    renderHandoff();
+    expect(await screen.findByDisplayValue("Unsent question")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send question" })).toBeEnabled();
   });
 });

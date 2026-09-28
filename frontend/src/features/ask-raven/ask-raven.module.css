@@ -66,6 +66,23 @@
   min-inline-size: 0;
 }
 
+.assistantCompactHeader .headerIdentity { display: grid; gap: 0.08rem; }
+.headerCompany { font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.headerGrounding { color: var(--text-muted); display: flex; flex-wrap: wrap; font-size: 0.65rem; gap: 0.2rem 0.55rem; }
+.headerGrounding span:first-child { color: var(--primary); }
+.assistantCompactHeader .headerActions { display: flex; flex: 0 0 auto; gap: 0.3rem; position: relative; }
+.recentChatsButton { background: transparent; border: 0; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 0.68rem; padding: 0.25rem; }
+.recentChatsButton:hover, .recentChatsButton:focus-visible { color: var(--primary); }
+.recentChatsPanel { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 0.55rem; box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--shadow) 80%, transparent); display: grid; gap: 0.15rem; max-block-size: 18rem; overflow-y: auto; padding: 0.55rem; position: absolute; right: 0; top: calc(100% + 0.35rem); width: min(17rem, calc(100vw - 2rem)); z-index: 7; }
+.recentChatsPanel > strong { font-size: 0.72rem; padding: 0.2rem 0.35rem; }
+.recentChatsPanel > button { background: transparent; border: 0; border-radius: 0.35rem; color: var(--text); cursor: pointer; display: grid; font: inherit; gap: 0.1rem; padding: 0.35rem; text-align: start; }
+.recentChatsPanel > button:hover, .recentChatsPanel > button[aria-current="true"] { background: var(--surface-muted); }
+.recentChatsPanel button span { font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recentChatsPanel button small, .recentChatsPanel p { color: var(--text-muted); font-size: 0.65rem; margin: 0; }
+.recentChatsPanel .recentNewChat { border-top: 1px solid var(--border); color: var(--primary); font-size: 0.7rem; }
+.newerProfileNotice { color: var(--text-muted); font-size: 0.68rem; padding: 0.25rem 0; }
+.newerProfileNotice button { background: transparent; border: 0; color: var(--primary); cursor: pointer; font: inherit; padding: 0; }
+
 .assistantCompactHeader h2 {
   font-size: 0.94rem;
 }
@@ -355,6 +372,10 @@
   padding-left: 0.45rem;
 }
 
+.messageNextActions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.messageNextActions button, .messageNextActions a { background: transparent; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 0.66rem; padding: 0.2rem 0.45rem; text-decoration: none; }
+.messageNextActions button:hover, .messageNextActions a:hover { border-color: var(--primary); color: var(--primary); }
+
 .sourceToggle {
   align-self: start;
   background: transparent;
@@ -461,6 +482,26 @@
   min-inline-size: 0;
 }
 
+.speechMenuAnchor { display: inline-flex; margin-left: auto; position: relative; }
+.speechButton, .speechMenuTrigger { align-items: center; background: transparent; border: 0; color: var(--text-muted); cursor: pointer; display: inline-flex; justify-content: center; padding: 0.25rem; }
+.speechButton:disabled { cursor: not-allowed; opacity: 0.4; }
+.speechButton:hover:not(:disabled), .speechMenuTrigger:hover { color: var(--primary); }
+.speechDevicePanel { background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 0.55rem; bottom: calc(100% + 0.45rem); box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--shadow) 80%, transparent); display: grid; gap: 0.45rem; padding: 0.7rem; position: absolute; right: 0; width: min(17rem, calc(100vw - 1.5rem)); z-index: 8; }
+.speechDevicePanel strong { font-size: 0.76rem; }
+.speechDevicePanel small { color: var(--text-muted); font-size: 0.66rem; }
+.speechDevicePanel label { color: var(--text-muted); display: grid; font-size: 0.67rem; gap: 0.15rem; }
+.speechDevicePanel select { background: var(--surface); border: 1px solid var(--border); border-radius: 0.3rem; color: var(--text); font: inherit; padding: 0.25rem; }
+.speechDevicePanel > button { background: transparent; border: 0; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.68rem; justify-self: start; padding: 0; }
+.speechLevel { background: var(--surface-muted); block-size: 0.45rem; border-radius: 999px; overflow: hidden; }
+.speechLevel span { background: var(--primary); border-radius: inherit; display: block; height: 100%; transition: width 100ms linear; }
+.assistantComposerListening > :not(.listeningPanel) { display: none; }
+.listeningPanel { display: grid; gap: 0.6rem; min-block-size: 6rem; }
+.listeningPanel strong { color: var(--text); font-size: 0.8rem; }
+.listeningPanel small { color: var(--text-muted); font-size: 0.68rem; }
+.listeningPanel > div:last-child { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.listeningPanel button { background: transparent; border: 1px solid var(--border); border-radius: 0.35rem; color: var(--text); cursor: pointer; font: inherit; font-size: 0.7rem; padding: 0.3rem 0.55rem; }
+.listeningPanel button:last-child { background: var(--primary); border-color: var(--primary); color: var(--surface-raised); }
+
 .capabilityControls {
   flex: 0 0 auto;
   position: relative;
@@ -524,7 +565,7 @@
 
 .capabilityList {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.1rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -532,9 +573,9 @@
 
 .capabilityAction {
   align-items: start;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.45rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0.35rem;
   color: var(--text);
   display: grid;
   gap: 0.12rem;
@@ -551,7 +592,7 @@ a.capabilityAction {
 
 .capabilityAction:hover,
 .capabilityAction:focus-visible {
-  border-color: var(--primary);
+  background: var(--surface-muted);
   color: var(--text);
 }
 
@@ -562,6 +603,8 @@ a.capabilityAction {
   gap: 0.35rem;
   min-inline-size: 0;
 }
+.researchContextSummary, .clearContextButton { background: transparent; border: 1px solid var(--border); border-radius: 999px; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.67rem; padding: 0.2rem 0.45rem; }
+.clearContextButton { border: 0; }
 
 .researchContextLabel {
   color: var(--text-muted);
@@ -629,9 +672,9 @@ a.capabilityAction {
 
 .capabilityToggle {
   align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.45rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0.35rem;
   color: var(--text);
   cursor: pointer;
   display: flex;
@@ -639,6 +682,8 @@ a.capabilityAction {
   justify-content: space-between;
   padding: 0.52rem 0.55rem;
 }
+
+.capabilityToggle:hover { background: var(--surface-muted); }
 
 .capabilityToggle:has(input:focus-visible) {
   border-color: var(--primary);
@@ -781,10 +826,13 @@ a.capabilityAction {
 .evidencePickerList { max-block-size: 9rem; overflow-y: auto; }
 .evidencePickerList p,
 .evidencePickerPanel small { color: var(--text-muted); font-size: 0.7rem; margin: 0.5rem 0.25rem; }
-.evidencePickerRow { align-items: center; border-block-end: 1px solid var(--border); display: flex; gap: 0.5rem; padding: 0.45rem 0.2rem; }
-.evidencePickerRow span { flex: 1; font-size: 0.72rem; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.evidencePickerRow button { background: transparent; border: 0; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.7rem; font-weight: 700; }
-.evidencePickerRow button:disabled { color: var(--text-muted); cursor: default; }
+.evidencePickerRow { align-items: center; background: transparent; border: 0; border-block-end: 1px solid var(--border); color: var(--text); cursor: pointer; display: flex; font: inherit; gap: 0.5rem; padding: 0.45rem 0.2rem; text-align: start; width: 100%; }
+.evidencePickerRow:hover, .evidencePickerRow:focus-visible { background: var(--surface-muted); }
+.evidencePickerRow:disabled { cursor: default; }
+.evidencePickerRow span { display: grid; flex: 1; font-size: 0.72rem; min-inline-size: 0; overflow: hidden; }
+.evidencePickerRow b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evidencePickerRow span small { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evidencePickerRow em { color: var(--primary); flex: 0 0 auto; font-size: 0.68rem; font-style: normal; font-weight: 700; }
 
 @media (max-width: 360px) {
   .assistantProfileBoundary {

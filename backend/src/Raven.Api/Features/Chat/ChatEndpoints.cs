@@ -7,6 +7,7 @@ public static class ChatEndpoints
     public static IEndpointRouteBuilder MapChatEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/companies/{companyId:guid}/chat/conversations").WithTags("Chat");
+        group.MapGet("/", ListAsync).Produces<IReadOnlyList<ChatConversationSummary>>(StatusCodes.Status200OK);
         group.MapPost("/", CreateAsync).Produces<ChatConversationResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("/{conversationId:guid}", GetAsync).Produces<ChatConversationResponse>(StatusCodes.Status200OK).ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPatch("/{conversationId:guid}/capabilities", UpdateCapabilitiesAsync).Produces<ChatConversationResponse>(StatusCodes.Status200OK).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
@@ -19,6 +20,11 @@ public static class ChatEndpoints
     {
         var response = await service.CreateConversationAsync(companyId, cancellationToken);
         return TypedResults.Created($"{httpContext.Request.Path}/{response.Id}", response);
+    }
+
+    private static async Task<Ok<IReadOnlyList<ChatConversationSummary>>> ListAsync(Guid companyId, ICompanyChatService service, CancellationToken cancellationToken)
+    {
+        return TypedResults.Ok(await service.ListConversationsAsync(companyId, cancellationToken));
     }
 
     private static async Task<Ok<ChatConversationResponse>> GetAsync(Guid companyId, Guid conversationId, ICompanyChatService service, CancellationToken cancellationToken)

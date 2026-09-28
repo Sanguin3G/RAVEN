@@ -23,7 +23,7 @@ export type SourceKind =
   | "OfficialDocument"
   | "OfficialBusinessRegistry"
   | "BusinessDirectory"
-  /** @deprecated Retained for documents created before Day 5 taxonomy. */
+  /** @deprecated Retained for documents created under the earlier taxonomy. */
   | "BusinessRegistry"
   | "TopCv"
   | "LinkedIn"

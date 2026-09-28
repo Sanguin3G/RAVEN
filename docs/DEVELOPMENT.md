@@ -115,9 +115,11 @@ GET /api/system/provider-status
 PUT /api/system/model-preferences
 ```
 
-The model-preference endpoint permits only `gemini-3.5-flash-lite` and `gemini-3.8-flash`. It holds the local runtime choice until the API restarts; it does not write configuration or accept credentials.
+The runtime model-preference endpoint is a local compatibility surface. Current persistent model roles are configured through `/api/settings/research` and selected from the compatibility-tested catalog returned by `/api/settings/ai-models`. Neither endpoint accepts provider credentials.
 
 ## Configuration and secrets
+
+Ask RAVEN stores Chat rows in SQLite across API restarts and pins each conversation to its accepted Profile version. `GET /api/companies/{companyId}/chat/conversations` returns 20 lightweight Company-scoped summaries; `GET /api/companies/{companyId}/chat/conversations/{conversationId}` hydrates messages and citations. The browser uses `raven:active-chat-by-company` only to choose which persisted conversation to reopen and `raven:chat-draft:<companyId>:<conversationId-or-new>` for optional unsent text.
 
 Never commit a populated `.env` file. RAVEN does not load `.env` automatically; export values into the API process or use user secrets.
 
@@ -161,6 +163,10 @@ dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Ap
 
 ## Tests and checks
 
+`.github/workflows/ci.yml` runs the backend Release restore/build/test and frontend `npm ci`/test/build on pull requests to `main`, pushes to `main` or the release branch, and manual dispatch. No provider keys are required.
+
+Browser dictation uses feature-detected Web Speech recognition and a secure-context microphone permission. The composer keeps transcripts editable and requires manual Send. The optional microphone test uses `getUserMedia` and `AnalyserNode`; its selected test device and language are stored in `raven:speech-preferences`. Browser recognition uses the system default microphone. Gemini speech and read aloud are not configured.
+
 ```powershell
 # from backend
 dotnet build Raven.sln
@@ -188,7 +194,7 @@ Execution telemetry is diagnostic rather than product state. Search, crawl, and 
 
 ## Controlled identity-model probe
 
-`backend/tools/IdentityProbe` is a non-production Day-6 preparation tool. It exercises the configured `IAiModelProvider`/Gemini path with identity hints only: it creates no Company or ResearchRun and makes no Search, Crawl, or evidence calls. It is a controlled live smoke, not an automated test.
+`backend/tools/IdentityProbe` is a non-production identity-model diagnostic tool. It exercises the configured `IAiModelProvider`/Gemini path with identity hints only: it creates no Company or ResearchRun and makes no Search, Crawl, or evidence calls. It is a controlled live smoke, not an automated test.
 
 ```powershell
 # from repository root; avoid rebuilding Raven.Api if a local API process holds its executable

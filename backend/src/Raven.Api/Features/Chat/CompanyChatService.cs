@@ -25,6 +25,17 @@ public sealed class CompanyChatService(
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
+    public async Task<IReadOnlyList<ChatConversationSummary>> ListConversationsAsync(Guid companyId, CancellationToken cancellationToken)
+    {
+        var summaries = await dbContext.ChatConversations.AsNoTracking()
+            .Where(item => item.CompanyId == companyId)
+            .Select(item => new ChatConversationSummary(item.Id, item.Title, item.ProfileVersionId,
+                item.ProfileVersion.Version, item.Messages.Count, item.WebSearchEnabled, item.CreatedAt, item.UpdatedAt))
+            .ToListAsync(cancellationToken);
+        // SQLite cannot order DateTimeOffset values server-side. Only summaries are materialized.
+        return summaries.OrderByDescending(item => item.UpdatedAt).ThenByDescending(item => item.Id).Take(20).ToArray();
+    }
+
     public async Task<ChatConversationResponse> CreateConversationAsync(Guid companyId, CancellationToken cancellationToken)
     {
         var companyExists = await dbContext.Companies.AnyAsync(company => company.Id == companyId, cancellationToken);
@@ -44,7 +55,7 @@ public sealed class CompanyChatService(
         {
             CompanyId = companyId,
             ProfileVersionId = profile.Id,
-            Title = ChatText.Bound($"Ask RAVEN — {profile.DisplayName ?? "Company"}", 200),
+            Title = null,
             WebSearchEnabled = false,
             CreatedAt = now,
             UpdatedAt = now
@@ -306,6 +317,10 @@ public sealed class CompanyChatService(
         };
         dbContext.ChatMessages.Add(userMessage);
         dbContext.ChatMessages.Add(assistant);
+        if (conversation.Title is null)
+        {
+            conversation.Title = question.Length <= 72 ? question : $"{question[..71].TrimEnd()}…";
+        }
         conversation.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 

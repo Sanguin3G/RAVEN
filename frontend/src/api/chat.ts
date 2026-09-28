@@ -1,5 +1,5 @@
 import { ApiError, getApiUrl, request, type ProblemDetails } from "./client";
-import type { ChatConversationResponse, SendChatMessageRequest, SendChatMessageResponse, UpdateChatCapabilitiesRequest } from "../types/chat";
+import type { ChatConversationResponse, ChatConversationSummary, SendChatMessageRequest, SendChatMessageResponse, UpdateChatCapabilitiesRequest } from "../types/chat";
 
 function companyPath(companyId: string) {
   return `/api/companies/${encodeURIComponent(companyId)}/chat/conversations`;
@@ -75,4 +75,8 @@ export async function sendChatMessageStream(
     frames.forEach(dispatch);
     if (done) break;
   }
+}
+
+export function listChatConversations(companyId: string) {
+  return request<ChatConversationSummary[]>(companyPath(companyId));
 }

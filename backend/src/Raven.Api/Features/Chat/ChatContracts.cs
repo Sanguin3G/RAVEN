@@ -77,6 +77,16 @@ public sealed record ChatConversationResponse(
     DateTimeOffset UpdatedAt,
     IReadOnlyList<ChatHistoryMessage> Messages);
 
+public sealed record ChatConversationSummary(
+    Guid Id,
+    string? Title,
+    Guid ProfileVersionId,
+    int ProfileVersion,
+    int MessageCount,
+    bool WebSearchEnabled,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public sealed record SendChatMessageResponse(
     Guid ConversationId,
     Guid MessageId,
@@ -140,6 +150,7 @@ public interface ICompanyChatAgentFactory
 
 public interface ICompanyChatService
 {
+    Task<IReadOnlyList<ChatConversationSummary>> ListConversationsAsync(Guid companyId, CancellationToken cancellationToken);
     Task<ChatConversationResponse> CreateConversationAsync(Guid companyId, CancellationToken cancellationToken);
     Task<ChatConversationResponse> GetConversationAsync(Guid companyId, Guid conversationId, CancellationToken cancellationToken);
     Task<ChatConversationResponse> UpdateCapabilitiesAsync(Guid companyId, Guid conversationId, UpdateChatCapabilitiesRequest request, CancellationToken cancellationToken);

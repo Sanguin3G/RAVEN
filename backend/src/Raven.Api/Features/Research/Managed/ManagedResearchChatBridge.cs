@@ -35,6 +35,8 @@ public sealed class ManagedResearchChatBridge(
             Status = ChatMessageStatus.Completed
         };
         db.ChatMessages.Add(user);
+        if (conversation.Title is null)
+            conversation.Title = question.Length <= 72 ? question : $"{question[..71].TrimEnd()}…";
         conversation.UpdatedAt = DateTimeOffset.UtcNow;
         // The job store uses this same scoped DbContext, saving both rows together.
         return user.Id;

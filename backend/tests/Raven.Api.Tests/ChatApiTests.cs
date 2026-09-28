@@ -89,6 +89,43 @@ public sealed class ChatApiTests(RavenApiFactory factory) : IClassFixture<RavenA
     }
 
     [Fact]
+    public async Task Conversation_list_is_company_scoped_bounded_and_lightweight()
+    {
+        var client = factory.CreateClient();
+        var company = await CreateCompanyAsync(client);
+        var otherCompany = await CreateCompanyAsync(client);
+        var profile = await SeedProfileAsync(company.Id, 1, "Company profile");
+        await SeedProfileAsync(otherCompany.Id, 1, "Other profile");
+        var older = await CreateConversationAsync(client, company.Id);
+        var newer = await CreateConversationAsync(client, company.Id);
+        await CreateConversationAsync(client, otherCompany.Id);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
+            var first = await db.ChatConversations.SingleAsync(item => item.Id == older.Id);
+            first.Title = "Earlier question";
+            first.UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+            var second = await db.ChatConversations.SingleAsync(item => item.Id == newer.Id);
+            second.Title = "Recent question";
+            second.UpdatedAt = DateTimeOffset.UtcNow;
+            db.ChatMessages.Add(new ChatMessage { ConversationId = newer.Id, Role = ChatMessageRole.User,
+                Content = "Recent question", Status = ChatMessageStatus.Completed });
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync($"/api/companies/{company.Id}/chat/conversations");
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var summaries = await response.Content.ReadFromJsonAsync<ChatConversationSummary[]>(JsonOptions);
+        Assert.NotNull(summaries);
+        Assert.Equal(new[] { newer.Id, older.Id }, summaries.Select(item => item.Id));
+        Assert.Equal("Recent question", summaries[0].Title);
+        Assert.Equal(profile.Id, summaries[0].ProfileVersionId);
+        Assert.Equal(1, summaries[0].MessageCount);
+        Assert.DoesNotContain("Messages", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task Web_search_capability_is_persisted_per_conversation()
     {
         var client = factory.CreateClient();

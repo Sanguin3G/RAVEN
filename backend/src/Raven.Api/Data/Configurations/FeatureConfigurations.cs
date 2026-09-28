@@ -327,7 +327,7 @@ public sealed class ResearchSettingsEntityConfiguration : IEntityTypeConfigurati
             entity.Property(settings => settings.ChatModel).HasMaxLength(200).IsRequired();
             entity.Property(settings => settings.ManagedResearchProvider).HasMaxLength(64).IsRequired();
             entity.Property(settings => settings.ManagedResearchDepth).HasConversion<string>().HasMaxLength(32).IsRequired();
-            // The Day-5.5 migration rewrites the persisted legacy value, but
+            // The compatibility migration rewrites the persisted legacy value, but
             // accepting it at the model boundary keeps an interrupted upgrade
             // readable instead of resetting a user's provider priorities.
             entity.Property(settings => settings.ProviderPreset)
@@ -505,7 +505,7 @@ public sealed class SourceDocumentConfiguration : IEntityTypeConfiguration<Sourc
             entity.Property(sourceDocument => sourceDocument.NormalizedUrl).HasMaxLength(2_048).IsRequired();
             entity.Property(sourceDocument => sourceDocument.Title).HasMaxLength(500);
             entity.Property(sourceDocument => sourceDocument.SourceDomain).HasMaxLength(253);
-            // The migration supplies a one-time default for pre-Day-3 rows; all
+            // The migration supplies a one-time default for older rows; all
             // new documents must persist their classifier-selected kind.
             entity.Property(sourceDocument => sourceDocument.SourceKind).HasConversion<string>().HasMaxLength(32).ValueGeneratedNever().IsRequired();
             entity.Property(sourceDocument => sourceDocument.IconUrl).HasMaxLength(2_048);

@@ -65,17 +65,15 @@ Confirm the prepared merge. The application opens the canonical dossier immediat
 
 Optionally show archive/restore for the disposable record. Mention permanent deletion only as an explicit, confirmed administrative action.
 
-### 6. Close on boundaries and next step — 1 minute
+### 6. Return to Ask RAVEN — 1 minute
 
-Open the Ask RAVEN dock.
+Leave the Company Workspace for Companies, then reopen the same Company. Open Ask RAVEN and show that the previous conversation restores. Use **Recent chats** to reopen an earlier one, then **New chat** to show that it starts empty without deleting history.
 
-> “Ask RAVEN is normal Chat over the accepted profile and stored evidence. A greeting or product-navigation question can be answered naturally; a factual company claim still needs a citation. Deep Research remains a separate, explicit workflow.”
+Ask a profile-grounded question and open **Show sources**. In the compact **+** menu, choose **Research context**, attach a completed Investigation or Briefing, and point out that this is unaccepted research material alongside the accepted Profile. Turn on **Web search** for a freshness-sensitive question; the explicit permission does not require a provider call on every turn. Use one quiet action beneath the answer to show a sensible next step.
 
-Toggle **Search the web** for the current conversation and ask a freshness-sensitive company question. Explain that permission does not force a search on every turn: RAVEN still prefers accepted profile evidence, streams bounded lookup progress when needed, and labels persisted Profile/Web sources separately.
+If browser recognition is available and permissions are reliable, dictate one question, edit the resulting text, and send it manually. Voice is optional polish; the core story remains source-backed Company intelligence.
 
-Send `hi`, then ask a profile-supported factual question and open its citation. Ask whether RAVEN can research further, then use **Open Investigations** from the plus menu. Point out that **Search the web** is visibly unavailable rather than pretending to work.
-
-Close with: “The value is not merely a generated company description. It is a reviewable, versioned company knowledge record whose claims can be traced back to preserved public evidence.”
+Close with: “The value is a reviewable, versioned company knowledge record whose claims can be traced back to preserved public evidence.”
 
 ## Recovery paths to demonstrate only if asked
 
@@ -89,7 +87,7 @@ For **Strengthen Dossier**, point out the method distinction: Native RAVEN is th
 
 Open **External research**, prepare and copy a focused brief, paste fixture Markdown, analyze it asynchronously, review the AI-assisted comparison, and save it. Emphasize that imported claims and provider citations remain reviewable material; External Assist does not re-search or re-crawl the supplied links. From a ready Investigation, use **Improve profile** to prepare the existing server-owned profile patch from that material, then confirm only after human review. On Overview, show the optional headquarters map adapter and its normal external-map fallback.
 
-From the Company List, open **Workspace Review** to show the grouped research queue. Repeated terminal outcomes appear as one compact company/method/topic group; opening or marking a group done acknowledges only the review state. **Smart clean-up** requires confirmation and clears only repeated issue groups while preserving the underlying runs, investigations, sources, and evidence.
+From the Company List, open **Workspace Review** to show the grouped research queue. Individual items offer **Review** and **Mark done**. Under **More**, **Mark all research reviewed** requires confirmation and only acknowledges the current results; newer research can resurface. **Smart clean-up** separately clears repeated issue groups with confirmation. Neither action deletes research history or evidence.
 
 - Cancel an in-progress research run. RAVEN returns to the blank research form and clears the saved run, ready for a new search.
 - Navigate away from a known in-progress run and return. If a related restore request fails, RAVEN preserves the run and shows a targeted restore error with **Retry restore** rather than the generic API-unavailable message. A stale/missing run is the only case that resets to a blank form.

@@ -62,6 +62,17 @@ export interface ChatConversationResponse {
   messages: ChatMessage[];
 }
 
+export interface ChatConversationSummary {
+  id: string;
+  title: string | null;
+  profileVersionId: string;
+  profileVersion: number;
+  messageCount: number;
+  webSearchEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UpdateChatCapabilitiesRequest {
   webSearchEnabled: boolean;
 }
