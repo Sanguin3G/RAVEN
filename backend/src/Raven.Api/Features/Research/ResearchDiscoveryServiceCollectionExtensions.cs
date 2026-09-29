@@ -38,6 +38,9 @@ public static class ResearchDiscoveryServiceCollectionExtensions
             options.ApiKey ??= configuration[ExaCrawlerOptions.ApiKeyEnvironmentVariable];
         });
 
+        services.AddHttpClient("CloudRunMetadata", client => client.Timeout = TimeSpan.FromSeconds(5));
+        services.AddTransient<CloudRunCrawlerIdentityHandler>();
+
         services.AddHttpClient<BraveSearchProvider>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<BraveSearchOptions>>().Value;
@@ -61,7 +64,7 @@ public static class ResearchDiscoveryServiceCollectionExtensions
             var options = serviceProvider.GetRequiredService<IOptions<Crawl4AiLocalOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 300));
-        });
+        }).AddHttpMessageHandler<CloudRunCrawlerIdentityHandler>();
         services.AddScoped<IProviderCatalog<ISearchProvider>>(serviceProvider => new ProviderCatalog<ISearchProvider>([
             serviceProvider.GetRequiredService<BraveSearchProvider>(),
             serviceProvider.GetRequiredService<ExaSearchProvider>()

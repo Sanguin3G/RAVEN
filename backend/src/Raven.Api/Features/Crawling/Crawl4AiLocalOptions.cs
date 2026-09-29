@@ -12,5 +12,7 @@ public sealed class Crawl4AiLocalOptions
 
     public string? ApiToken { get; set; }
 
+    public string? CloudRunAudience { get; set; }
+
     public int TimeoutSeconds { get; set; } = 60;
 }

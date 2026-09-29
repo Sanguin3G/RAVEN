@@ -9,6 +9,7 @@ dist/
 .env.local
 .env.*.local
 *.db
+!backend/src/Raven.Api/seed/raven.seed.db
 *.db.backup-*
 *.db-shm
 *.db-wal

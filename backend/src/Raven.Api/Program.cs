@@ -124,13 +124,14 @@ builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
 {
     options.BaseUrl = builder.Configuration["CRAWL4AI_LOCAL_BASE_URL"] ?? options.BaseUrl;
     options.ApiToken = builder.Configuration["CRAWL4AI_API_TOKEN"] ?? options.ApiToken;
+    options.CloudRunAudience = builder.Configuration["CRAWL4AI_CLOUD_RUN_AUDIENCE"] ?? options.CloudRunAudience;
 });
 builder.Services.AddHttpClient<ICrawlerStatusProbe, Crawl4AiLocalStatusProbe>((services, client) =>
 {
     var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Crawl4AiLocalOptions>>().Value;
     client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-    client.Timeout = TimeSpan.FromSeconds(3);
-});
+    client.Timeout = TimeSpan.FromSeconds(string.IsNullOrWhiteSpace(options.CloudRunAudience) ? 3 : 45);
+}).AddHttpMessageHandler<CloudRunCrawlerIdentityHandler>();
 builder.Services.AddResearchDiscovery(builder.Configuration);
 builder.Services.AddGeminiAi(builder.Configuration);
 builder.Services.AddCompanyProfiles(builder.Configuration);
@@ -173,6 +174,13 @@ app.MapSpeechEndpoints();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+}
+
+if (app.Environment.IsProduction())
+{
+    SqliteSeedDatabase.CopyIfMissing(
+        builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db",
+        Path.Combine(app.Environment.ContentRootPath, "seed", "raven.seed.db"));
 }
 
 await using (var scope = app.Services.CreateAsyncScope())
