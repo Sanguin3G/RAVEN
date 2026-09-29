@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -6,6 +6,8 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raven.Api", "src\Raven.Api\Raven.Api.csproj", "{D4155F50-22CF-4B35-8E18-A5DA8746B5DE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raven.Api.Tests", "tests\Raven.Api.Tests\Raven.Api.Tests.csproj", "{81D8A61A-8B68-4B76-8A32-75D578E4D812}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DemoSeed", "DemoSeed\DemoSeed.csproj", "{800C4EB0-8796-4968-BE5E-A39450389A41}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,5 +23,9 @@ Global
 		{81D8A61A-8B68-4B76-8A32-75D578E4D812}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{81D8A61A-8B68-4B76-8A32-75D578E4D812}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{81D8A61A-8B68-4B76-8A32-75D578E4D812}.Release|Any CPU.Build.0 = Release|Any CPU
+		{800C4EB0-8796-4968-BE5E-A39450389A41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{800C4EB0-8796-4968-BE5E-A39450389A41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{800C4EB0-8796-4968-BE5E-A39450389A41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{800C4EB0-8796-4968-BE5E-A39450389A41}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
