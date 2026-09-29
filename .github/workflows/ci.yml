@@ -18,6 +18,7 @@ jobs:
       - run: dotnet restore backend/Raven.sln
       - run: dotnet build backend/Raven.sln -c Release --no-restore
       - run: dotnet test backend/Raven.sln -c Release --no-build
+      - run: docker build -f backend/Dockerfile -t raven-api-ci backend
 
   frontend:
     runs-on: ubuntu-latest
@@ -34,3 +35,4 @@ jobs:
       - run: npm ci
       - run: npm test -- --run
       - run: npm run build
+      - run: docker build -f Dockerfile -t raven-frontend-ci .
