@@ -25,8 +25,8 @@
 - Briefing generation reuses saved material and does not search or independently verify sources. Background jobs use the API's in-process worker and provide no distributed-worker guarantee.
 - Browser recognition and speech synthesis depend on browser/device support. Browser recognition may use the browser's speech service; Gemini speech requires server configuration, quota, and connectivity.
 - Gemini Live/TTS paths were not live-provider tested in this validation. Gemini TTS preview was rate-limited during this pass; its Settings playback lifecycle is covered with deterministic tests.
-- Persistent vector retrieval, embeddings, MCP, Crawl4AI Cloud, and advanced analytics are not implemented.
-- Cloud Run packaging, the private Cloud Run crawler identity handler, curated demo-seed tooling/data, and hosted deployment smoke remain pending. Crawl4AI Cloud remains future work in the current source branch until the deployment port is completed.
+- Persistent vector retrieval, embeddings, MCP, and advanced analytics are not implemented. Cloud Run crawler invocation is implemented as a deployment seam but has not yet been validated against the private deployed service.
+- Cloud Run packaging, private crawler identity propagation, production same-origin `/api` proxy, curated demo-seed tooling/data, and hosted deployment smoke are being integrated. The deployment uses the existing private Cloud Run crawler design; it does not introduce another crawler host.
 - Google Maps connection checks must be verified from a browser origin because the key is referrer-restricted; the Admin server test reports this limitation rather than claiming a server-side probe proves browser authorization.
 
 ## Security follow-up
@@ -50,14 +50,21 @@ Authentication checkpoint — 29 Sep 2026, branch `refactor/deployment-readiness
 - Backend Release build passed with no warnings; full backend suite passed (350/350), including six focused Identity/authorization tests.
 - EF Core `has-pending-model-changes`: no model changes after the Identity migration.
 - Frontend production build passed. The full suite initially reported 108/109 because one new permission test used a singular query for two same-name companies; that query was corrected and its file passed (6/6). Initial-research workflow tests passed (11/11) after cancellation cleanup changed to archive. The full frontend suite was not rerun after those targeted corrections.
-- No deployed or live-provider smoke was performed. Cloud Run packaging and the same-origin production proxy remain pending.
+- No deployed or live-provider smoke was performed. Cloud Run packaging and the same-origin production proxy are being ported after the structural checkpoint.
 
 Provider credential checkpoint in progress — 29 Sep 2026, branch `refactor/deployment-readiness`:
 
 - Added the `AddProviderCredentials` migration; EF Core reports no pending model changes.
 - Release test build succeeded. Focused credential API/security tests passed (3/3): encrypted persistence and live precedence/removal, Admin-only authorization and Crawl4AI URL validation, Maps-only runtime config, and missing-master-key storage disablement.
 - Focused Maps runtime-config frontend tests passed (3/3); frontend production build passed. Full backend/frontend suites are deferred to the planned final release-readiness validation.
-- No live-provider or deployed Cloud Run smoke has been performed. Google Maps browser-origin restrictions and all Cloud Run packaging/seed work remain to be validated.
+- No live-provider or deployed Cloud Run smoke has been performed. Google Maps browser-origin restrictions and Cloud Run packaging/seed work remain to be validated.
+
+## Cloud Run/demo tooling validation — 29 Sep 2026
+
+- Selectively ported Cloud Run API/frontend packaging from the stale demo branch. The frontend Nginx container proxies same-origin `/api` requests to the runtime-configured API origin with buffering disabled for Chat streaming. Private Crawl4AI invocation uses a Google identity token in `X-Serverless-Authorization` and retains Crawl4AI's separate Bearer token.
+- Added read-only SQLite inventory and explicit-allowlist demo export tooling. Export operates on a copy, removes non-allowlisted Companies through the existing lifecycle service, strips Identity users/provider credentials/transient work, and validates migrations, model state, integrity, foreign keys, and obvious sensitive storage. No curated `raven.demo.db` or public `raven.seed.db` has been generated or committed; company selection awaits owner approval and content review.
+- Backend Release suite passed (356/356); focused Cloud Run/demo-seed tests passed (3/3); EF reports no pending model changes. Frontend production build passed. The full frontend Vitest run was attempted twice (default and single-worker), but neither produced a result after several minutes, so both were stopped; frontend tests are not green for this checkpoint.
+- Docker and `gcloud` CLIs are unavailable on this machine. Container builds, fresh seeded API startup, private crawler invocation, proxy/SSE smoke, deployed authentication, and GitHub CI remain unverified. This branch is not release-ready and must not be merged solely on these local results.
 
 ## Compatibility
 

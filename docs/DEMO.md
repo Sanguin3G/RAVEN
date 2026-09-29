@@ -8,9 +8,15 @@ Tell one coherent story: a researcher turns an ambiguous company name into a tru
 **Audience:** customer, mentor, or evaluator.
 **Presenter posture:** show what RAVEN knows, what it does not know, and why the researcher remains in control.
 
+## Demo environments
+
+Use the local presentation environment as the primary live demonstration: local frontend/API, local Crawl4AI, live provider configuration, and a separate persistent curated `raven.demo.db`. The hosted Cloud Run environment is for the mentor to explore afterward; it starts from a curated seed and can reset when an API instance is replaced. Do not claim its SQLite workspace is durable. A small `Demo workspace · changes may reset` notice is expected there. Long-running in-process workflows should be demonstrated locally, where the API remains warm.
+
+The curated set must come from explicitly approved real Company IDs in the team's database. Do not create fictional dossiers to fill a feature checklist. Use one researcher login for the mentor; keep bootstrap Admin and provider deployment secrets private. The concrete company flow below remains a rehearsal outline until it is reconciled with the approved curated inventory.
+
 ## Before the meeting
 
-- Start the API and frontend. Use fixture-backed data for lifecycle, merge, and enrichment unless a controlled live-provider run has been prepared.
+- Start the local API and frontend against the frozen, curated presentation database. Use a prepared duplicate pair for merge and a controlled live-provider run only when those workflows have been rehearsed.
 - Keep one well-supported company dossier and one intentionally sparse/disposable company available. Keep a known duplicate pair available for workspace review.
 - If live Gemini is enabled, confirm it is a controlled smoke: label it as live and do not expose provider credentials or raw responses. The rest of the demo works with fixtures.
 - Do not demo permanent deletion against a record the audience may want later. It is deliberate and irreversible.

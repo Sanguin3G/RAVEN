@@ -193,6 +193,51 @@ dotnet ef migrations add <MigrationName> --project src/Raven.Api --startup-proje
 dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Api
 ```
 
+## Local presentation and hosted evaluator modes
+
+The local presentation database is a separate frozen `raven.demo.db`. Point the API at it without renaming or replacing the developer `raven.db`:
+
+```powershell
+# from the repository root; use an absolute path to the prepared demo artifact
+$env:ConnectionStrings__Raven = 'Data Source=D:\RAVEN-DATA\raven.demo.db'
+dotnet run --project backend/src/Raven.Api
+```
+
+In another shell, start the frontend with `npm run dev` from `frontend`. It uses the local Vite `/api` proxy. Start local Crawl4AI separately and verify the provider status before choosing to run any live provider-backed workflow. Clear the environment override when finished. Provider credentials are not copied from the developer database by demo preparation.
+
+The hosted evaluator is intentionally a resettable Cloud Run demo, not durable production hosting. The API container stores SQLite under `/app/data/raven.db` and copies the bundled curated seed only when that runtime file is absent, then applies current EF migrations and bootstraps deployment users. Cloud Run's instance filesystem is disposable; keep the API at one instance. In-process background workers are not guaranteed CPU after a request finishes or while the service scales to zero, so use hosted mode mainly to browse curated dossiers and try short request-bound interactions. Long-running workflow presentation belongs in the local environment.
+
+The frontend Docker image serves the Vite build and reverse-proxies `/api` to `RAVEN_API_ORIGIN`, supplied as a Cloud Run service environment value. This keeps cookie auth same-origin. Nginx disables buffering and uses extended read/send timeouts for Chat SSE. Do not build the API URL into React or commit a deployment endpoint. Build from the repository root's service directories:
+
+```powershell
+gcloud builds submit backend --tag $env:API_IMAGE
+gcloud builds submit frontend --config=frontend/cloudbuild.yaml --substitutions=_IMAGE=$env:FRONTEND_IMAGE
+```
+
+At deployment time configure the frontend service's `RAVEN_API_ORIGIN` to the API service origin. Configure the API's SQLite connection, Admin bootstrap email/password, `RAVEN_CREDENTIAL_MASTER_KEY`, optional provider fallbacks, and `RAVEN_DEMO_MODE=true` through Cloud Run environment bindings and Secret Manager. The mentor uses a Researcher account created by the private Admin; do not share the deployment Admin credentials.
+
+For private Cloud Run Crawl4AI, configure `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_CLOUD_RUN_AUDIENCE`, and the separate Crawl4AI API token. Grant the API runtime service account Cloud Run Invoker on the crawler. The API sends the Google identity token in `X-Serverless-Authorization` and keeps Crawl4AI's own Bearer token in `Authorization`. The crawler remains private, with the intended deployment resource profile documented separately (4 GiB RAM, 2 CPU, min 0/max 1); changing that profile is an operator action, not inferred from Git.
+
+`backend/src/Raven.Api/seed/raven.seed.db` is a public, presentation-safe hosted starter artifact; it must be produced only by the DemoSeed allowlist/export workflow after schema changes settle. `raven.demo.db` is a local persistent presentation copy and should remain outside Git. Neither seed may contain Identity users or provider credential rows. The source `raven.db` is opened read-only by the export tool and never sanitized in place.
+
+The repeatable curation workflow first emits metadata only; it does not print SourceDocument bodies or Chat messages:
+
+```powershell
+dotnet run --project backend/DemoSeed -- --inventory D:\RAVEN-DATA\raven.db
+```
+
+After reviewing the inventory and each candidate's dossier in RAVEN, create a private manifest with explicit approved Company IDs. Optional `excludeChatConversationIds`, `excludeInvestigationIds`, and `excludeBriefingIds` let the reviewer omit distracting children; excluding an Investigation also removes Briefing snapshots that embed it and Chats that cite/attach it. Company names matching common test, joke, adult, or debug markers are rejected as a final guard, not treated as a substitute for explicit review.
+
+```powershell
+dotnet run --project backend/DemoSeed -- `
+  --source D:\RAVEN-DATA\raven.db `
+  --manifest D:\RAVEN-DATA\demo-selection.json `
+  --output D:\RAVEN-DATA\raven.demo.db `
+  --public-seed backend/src/Raven.Api/seed/raven.seed.db
+```
+
+The command refuses to overwrite outputs, snapshots the source through SQLite's online backup API in read-only mode, migrates and curates only the copy, removes non-allowlisted Companies through the existing deletion service, strips credentials and Identity users, clears transient work/telemetry, and validates model/migration state, settings, allowlist, sensitive columns, integrity, and foreign keys before publishing either output. Keep the local selection manifest and `raven.demo.db` outside Git; review the public seed with the same Company-ID manifest before committing it.
+
 ## Tests and checks
 
 `.github/workflows/ci.yml` runs the backend Release restore/build/test and frontend `npm ci`/test/build on pull requests to `main`, pushes to `main` or the release branch, and manual dispatch. No provider keys are required.

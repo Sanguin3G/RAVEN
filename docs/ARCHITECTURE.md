@@ -102,6 +102,14 @@ Backend orchestration contracts remain in the existing service classes. Large se
 
 Credential override durability follows the SQLite database's durability. A resettable hosted demo should therefore use environment/Google Secret Manager bindings for durable baseline credentials; a workspace override can disappear when its database is reseeded.
 
+## Demo deployment profiles
+
+The primary presentation environment is local: local React/Vite, local API, a separate persistent `raven.demo.db`, local Crawl4AI Docker, and the team's secured provider configuration. It does not replace the developer's `raven.db`. The hosted evaluator environment is a resettable Cloud Run sandbox: frontend container, API container, and private Cloud Run Crawl4AI. Its SQLite file lives on the instance filesystem and can disappear on instance replacement; when absent, the API copies the curated `seed/raven.seed.db` and applies current EF migrations. This is not durable or horizontally scalable hosting, so the API remains at one instance.
+
+The frontend Nginx container proxies `/api` to the API origin supplied at deployment runtime. The browser therefore uses one origin for SPA pages, HttpOnly Identity cookies, antiforgery, and SSE Chat streaming; Nginx disables proxy buffering and uses a long stream timeout. The proxy origin is deployment configuration, never a source constant. Cloud Run's private crawler uses two distinct credentials: `CloudRunCrawlerIdentityHandler` fetches a Google identity token from the instance metadata service and sends it in `X-Serverless-Authorization`, while the configured Crawl4AI token remains in `Authorization: Bearer ...`.
+
+`RAVEN_DEMO_MODE=true` only controls a safe browser-readable notice that hosted workspace changes may reset. Deployment Admin/provider secrets are injected from Cloud Run configuration or Google Secret Manager, not from either seed database. Seed curation is an explicit Company-ID allowlist over a read-only SQLite backup; developer accounts and all provider credential rows are removed before validation.
+
 ## Investigations, Briefings, and Chat
 
 Ask RAVEN stores conversations, messages, citations, Web snapshots, tool records, and attached Research Context in SQLite. `GET /api/companies/{companyId}/chat/conversations` returns 20 lightweight recent summaries; the conversation GET hydrates full history; scoped DELETE removes one conversation and its dependent Chat rows without deleting its Investigation or Briefing material. Conversations pin their accepted Profile version when created. The browser stores only an active conversation ID per Company and an optional unsent draft. Restoration tries an explicit URL ID, the browser pointer, then recent server conversations. Conversations are created only when an action requires one. A newer accepted Profile prompts a new conversation instead of changing historical grounding. Completed saved or managed Investigations and immutable Briefing versions can be attached as bounded context; both remain unaccepted research material.
@@ -130,4 +138,4 @@ The client has one global research activity surface. Native runs retain their ex
 
 Workspace Review groups terminal research by company, method, and normalized topic. The latest occurrence is shown once, repeated failures are summarized, and an acknowledgement hides the group only through the recorded result timestamp; a newer result reappears automatically. Completed ProfileImprovement Deep results without a usable accepted profile are preserved in Investigations but excluded from the review queue.
 
-RAG, MCP, and Crawl4AI Cloud remain future work. They must preserve the same source provenance and deterministic Fast Research path.
+RAG and MCP remain future work. The supported hosted crawler option is the private Cloud Run service invoked with Cloud Run IAM identity plus its separate Crawl4AI API token; it preserves the same provider boundary and deterministic Fast Research path.
