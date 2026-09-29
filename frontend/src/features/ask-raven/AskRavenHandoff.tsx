@@ -11,13 +11,11 @@ import {
   removeResearchContext,
   startManagedResearch,
   type ManagedResearchBriefPreview,
-  type ManagedResearchJob,
   type ResearchContextAttachment,
 } from "../../api/managedResearch";
 import { getBriefings, type BriefingListItem } from "../../api/briefings";
 import { getInvestigations, type Investigation } from "../../api/investigations";
 import type { ChatConversationResponse, ChatConversationSummary, ChatMessage } from "../../types/chat";
-import { hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
 import { chatDraftKey, getActiveChat, setActiveChat } from "./chatBrowserState";
 import { AskRavenHeader } from "./AskRavenHeader";
 import { AskRavenCapabilityMenu } from "./AskRavenCapabilityMenu";
@@ -25,6 +23,9 @@ import { AskRavenNextActionReview, type AskRavenNextActionKind } from "./AskRave
 import { AskRavenComposer, type ComposerCapability } from "./AskRavenComposer";
 import { useSpeechInput } from "./useSpeechInput";
 import { AskRavenConversation } from "./AskRavenConversation";
+import { syncManagedResearchActivity, useAskRavenManagedResearch } from "./useAskRavenManagedResearch";
+import { useAskRavenResearchContext } from "./useAskRavenResearchContext";
+import { useAskRavenConversation } from "./useAskRavenConversation";
 import styles from "./ask-raven.module.css";
 
 export interface AskRavenHandoffProps {
@@ -41,53 +42,23 @@ export interface AskRavenHandoffProps {
 function isIntentionalAbort(error: unknown, signal: AbortSignal) {
   return signal.aborted || (error instanceof DOMException && error.name === "AbortError");
 }
-function researchInvestigationHref(companyId: string, job: ManagedResearchJob) {
-  const id = job.investigationId ?? job.id;
-  const params = new URLSearchParams({ tab: "investigations", research: id });
-  if (job.answerInChat && job.conversationId) params.set("conversation", job.conversationId);
-  return `/companies/${encodeURIComponent(companyId)}?${params.toString()}`;
-}
-
-function syncManagedResearchActivity(companyName: string, job: ManagedResearchJob) {
-  const activityId = `deep-${job.id}`;
-  if ((job.status === "Completed" || job.status === "Failed" || job.status === "Cancelled") && !hasResearchActivity(activityId)) return;
-  const terminalStatus = job.status === "Completed" ? "ready" : job.status === "Failed" || job.status === "Cancelled" ? "failed" : "running";
-  const detail = job.status === "Queued"
-    ? "Starting investigation"
-    : job.status === "Researching"
-      ? "Researching across sources"
-      : job.status === "Completed"
-        ? "Ready for review"
-        : job.status === "Cancelled"
-          ? "Research cancelled"
-          : "Deep Research could not complete";
-  upsertResearchActivity({
-    id: activityId,
-    jobId: job.id,
-    origin: "Deep",
-    companyId: job.companyId,
-    companyName,
-    objective: job.objective,
-    detail,
-    status: terminalStatus,
-    href: researchInvestigationHref(job.companyId, job),
-    updatedAt: job.completedAt || job.createdAt,
-  });
-}
 
 export function AskRavenHandoff({ companyId, companyName, profileVersion, profileVersionId, sourceCount, lastResearchedAt, initialCapability, initialQuestion }: AskRavenHandoffProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedConversationId = searchParams.get("conversation");
-  const [conversationId, setConversationId] = useState<string | null>(requestedConversationId);
-  const [conversationProfileVersionId, setConversationProfileVersionId] = useState<string | null>(null);
-  const [recentChats, setRecentChats] = useState<ChatConversationSummary[]>([]);
-  const [recentChatsOpen, setRecentChatsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { conversationId, setConversationId, conversationProfileVersionId, setConversationProfileVersionId,
+    recentChats, setRecentChats, recentChatsOpen, setRecentChatsOpen, messages, setMessages,
+    webSearchEnabled, setWebSearchEnabled, conversationLoading, setConversationLoading,
+    activeCompanyIdRef, hydratedConversationRef, skipFallbackRef, setConversationInUrl } = useAskRavenConversation({
+    companyId, requestedConversationId, searchParams, setSearchParams,
+    onCompanyChanged: () => { activeChatAbortRef.current?.abort(); localAttachmentConversationRef.current = null; setResearchContextAttachments([]); },
+    onConversationSwitch: () => { localAttachmentConversationRef.current = null; },
+    onRestoreStart: () => setError(null),
+  });
   const [question, setQuestion] = useState(() => {
     try { return localStorage.getItem(chatDraftKey(companyId, requestedConversationId)) ?? ""; } catch { return ""; }
   });
   const speech = useSpeechInput(question, setQuestion);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const [activeCapability, setActiveCapability] = useState<ComposerCapability | null>(null);
   const [deepResearchBrief, setDeepResearchBrief] = useState<ManagedResearchBriefPreview | null>(null);
@@ -95,19 +66,15 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [deepResearchBriefEditing, setDeepResearchBriefEditing] = useState(false);
   const [deepResearchBriefLoading, setDeepResearchBriefLoading] = useState(false);
   const [deepResearchStarting, setDeepResearchStarting] = useState(false);
-  const [conversationLoading, setConversationLoading] = useState(false);
   const [capabilitySaving, setCapabilitySaving] = useState(false);
   const [pending, setPending] = useState(false);
   const [expandedSourceMessageId, setExpandedSourceMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [managedResearchJobs, setManagedResearchJobs] = useState<ManagedResearchJob[]>([]);
-  const [investigations, setInvestigations] = useState<Investigation[]>([]);
-  const [briefings, setBriefings] = useState<BriefingListItem[]>([]);
-  const [researchContextAttachments, setResearchContextAttachments] = useState<ResearchContextAttachment[]>([]);
-  const [attachingResearchId, setAttachingResearchId] = useState<string | null>(null);
-  const [investigationPickerOpen, setInvestigationPickerOpen] = useState(false);
-  const [contextDetailsOpen, setContextDetailsOpen] = useState(false);
-  const [investigationSearch, setInvestigationSearch] = useState("");
+  const { managedResearchJobs, setManagedResearchJobs, addManagedResearchJob } = useAskRavenManagedResearch(companyId, companyName);
+  const { investigations, setInvestigations, briefings, setBriefings, researchContextAttachments, setResearchContextAttachments,
+    attachingResearchId, setAttachingResearchId, investigationPickerOpen, setInvestigationPickerOpen,
+    contextDetailsOpen, setContextDetailsOpen, investigationSearch, setInvestigationSearch,
+    researchContextLoadVersionRef, localAttachmentConversationRef } = useAskRavenResearchContext(companyId, conversationId);
   const [nextActionReview, setNextActionReview] = useState<{ kind: AskRavenNextActionKind; messageId: string; value: string } | null>(null);
   const [nextActionBusy, setNextActionBusy] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -119,13 +86,8 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const addResearchContextActionRef = useRef<HTMLButtonElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const chatViewportRef = useRef<HTMLDivElement>(null);
-  const activeCompanyIdRef = useRef(companyId);
-  const hydratedConversationRef = useRef<string | null>(null);
-  const skipFallbackRef = useRef(false);
   const draftScopeRef = useRef(chatDraftKey(companyId, requestedConversationId));
   const skipDraftWriteRef = useRef(false);
-  const researchContextLoadVersionRef = useRef(0);
-  const localAttachmentConversationRef = useRef<string | null>(null);
   const researchBriefVersionRef = useRef(0);
   const activeChatAbortRef = useRef<AbortController | null>(null);
 
@@ -158,12 +120,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     jobs.forEach((job) => syncManagedResearchActivity(companyName, job));
   }, [companyId, companyName]);
 
-  const setConversationInUrl = (nextConversationId: string | null) => {
-    const next = new URLSearchParams(searchParams);
-    if (nextConversationId) next.set("conversation", nextConversationId);
-    else next.delete("conversation");
-    setSearchParams(next, { replace: true });
-  };
 
   const startNewConversation = () => {
     if (pending || conversationLoading) return;
@@ -238,62 +194,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     }
   };
 
-  useEffect(() => {
-    let active = true;
-    const companyChanged = activeCompanyIdRef.current !== companyId;
-    activeCompanyIdRef.current = companyId;
-    if (!companyChanged && requestedConversationId && hydratedConversationRef.current === requestedConversationId) return () => { active = false; };
-    if (!companyChanged && !requestedConversationId && (conversationId || skipFallbackRef.current)) return () => { active = false; };
-    if (companyChanged) {
-      activeChatAbortRef.current?.abort();
-      hydratedConversationRef.current = null;
-      localAttachmentConversationRef.current = null;
-      skipFallbackRef.current = false;
-      setConversationId(null);
-      setMessages([]);
-      setWebSearchEnabled(false);
-      setResearchContextAttachments([]);
-    }
-    setConversationLoading(true);
-    setError(null);
-    const restore = async () => {
-      let summaries: ChatConversationSummary[] = [];
-      try {
-        const response = await listChatConversations(companyId);
-        summaries = Array.isArray(response) ? response : [];
-        if (active) setRecentChats(summaries);
-      } catch { /* An explicit or remembered conversation can still be restored. */ }
-      const rememberedId = getActiveChat(companyId);
-      const candidates = [requestedConversationId, rememberedId, ...summaries.map((item) => item.id)]
-        .filter((id, index, ids): id is string => !!id && ids.indexOf(id) === index);
-      for (const id of candidates) {
-        try {
-          const conversation: ChatConversationResponse = await getChatConversation(companyId, id);
-          if (!active) return;
-          setConversationId(conversation.id);
-          hydratedConversationRef.current = conversation.id;
-          localAttachmentConversationRef.current = null;
-          setConversationProfileVersionId(conversation.profileVersionId);
-          setMessages(conversation.messages);
-          setWebSearchEnabled(conversation.webSearchEnabled);
-          setActiveChat(companyId, conversation.id);
-          if (requestedConversationId && requestedConversationId !== conversation.id) setConversationInUrl(conversation.id);
-          return;
-        } catch {
-          if (id === rememberedId) setActiveChat(companyId, null);
-        }
-      }
-      if (!active) return;
-      setConversationId(null);
-      hydratedConversationRef.current = null;
-      setConversationProfileVersionId(null);
-      setMessages([]);
-      setWebSearchEnabled(false);
-      if (requestedConversationId) setConversationInUrl(null);
-    };
-    void restore().finally(() => { if (active) setConversationLoading(false); });
-    return () => { active = false; };
-  }, [companyId, requestedConversationId]);
 
   useEffect(() => {
     const scope = chatDraftKey(companyId, conversationId);
@@ -380,28 +280,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     };
   }, [capabilitiesOpen]);
 
-  useEffect(() => {
-    let active = true;
-    const refreshManagedResearch = async () => {
-      try {
-        const result = await getManagedResearchJobs(companyId);
-        const jobs = Array.isArray(result) ? result : [];
-        if (!active) return;
-
-        setManagedResearchJobs(jobs);
-        jobs.forEach((job) => syncManagedResearchActivity(companyName, job));
-      } catch {
-        // Chat remains usable when the optional managed-research status endpoint
-        // is unavailable. The durable job can be discovered on a later poll.
-      }
-    };
-
-    const intervalId = window.setInterval(() => { void refreshManagedResearch(); }, 10_000);
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [companyId]);
 
   useEffect(() => {
     void refreshResearchCatalog();
@@ -411,28 +289,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     if (investigationPickerOpen) void refreshResearchCatalog();
   }, [investigationPickerOpen, refreshResearchCatalog]);
 
-  useEffect(() => {
-    if (!conversationId) {
-      researchContextLoadVersionRef.current += 1;
-      setResearchContextAttachments([]);
-      return;
-    }
-
-    let active = true;
-    const loadVersion = ++researchContextLoadVersionRef.current;
-    void getResearchContextAttachments(companyId, conversationId)
-      .then((attachments) => {
-        if (active && loadVersion === researchContextLoadVersionRef.current && localAttachmentConversationRef.current !== conversationId) {
-          setResearchContextAttachments(attachments);
-        }
-      })
-      .catch(() => {
-        // The Chat conversation remains usable when the optional context
-        // endpoint is unavailable. Existing attachments remain local until a
-        // later conversation reload.
-      });
-    return () => { active = false; };
-  }, [companyId, conversationId]);
 
   useEffect(() => {
     const input = questionInputRef.current;
@@ -442,10 +298,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
       : profileVersionId ? `Ask about ${companyName}…` : "Accept a profile to ask questions…";
   }, [activeCapability, companyName, profileVersionId]);
 
-  const addManagedResearchJob = (job: ManagedResearchJob) => {
-    setManagedResearchJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
-    syncManagedResearchActivity(companyName, job);
-  };
 
   const cancelDeepResearchBrief = () => {
     if (!deepResearchBrief || deepResearchStarting) return;
