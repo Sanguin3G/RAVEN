@@ -12,7 +12,7 @@ Tell one coherent story: a researcher turns an ambiguous company name into a tru
 
 Use the local presentation environment as the primary live demonstration: local frontend/API, local Crawl4AI, live provider configuration, and a separate persistent curated `raven.demo.db`. The hosted Cloud Run environment is for the mentor to explore afterward; it starts from a curated seed and can reset when an API instance is replaced. Do not claim its SQLite workspace is durable. A small `Demo workspace · changes may reset` notice is expected there. Long-running in-process workflows should be demonstrated locally, where the API remains warm.
 
-The curated set must come from explicitly approved real Company IDs in the team's database. Do not create fictional dossiers to fill a feature checklist. Use one researcher login for the mentor; keep bootstrap Admin and provider deployment secrets private. The concrete company flow below remains a rehearsal outline until it is reconciled with the approved curated inventory.
+The curated set comes from the reviewed IDs in `backend/DemoSeed/demo-selection.json`: 70mai, Sun Property, Alphabet, FPT Information System, FPT, Zepp Health, and CMC Telecom. Do not create fictional dossiers to fill a feature checklist. Use one researcher login for the mentor; keep bootstrap Admin and provider deployment secrets private. The seed has no saved Briefing because the source workspace's only Briefing belongs to an excluded company. A Briefing demo needs a genuine new Briefing generated from an approved Investigation, not copied from that excluded record.
 
 ## Before the meeting
 
