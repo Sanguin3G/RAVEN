@@ -5,6 +5,10 @@ import { SettingsPage } from "./SettingsPage";
 import { jsonResponse, renderWithRouter } from "../test/test-utils";
 import { speechPreferencesKey } from "../features/ask-raven/speechPreferences";
 
+vi.mock("../features/auth/AuthProvider", () => ({
+  useAuth: () => ({ status: "authenticated", user: { id: "test-admin", displayName: "Test Admin", email: "admin@example.invalid", roles: ["Admin"] }, isAdmin: true, error: null, refresh: vi.fn(), login: vi.fn(), logout: vi.fn() }),
+}));
+
 const settings = {
   groundingMode: "Auto",
   profileModel: "gemini-3.5-flash-lite",

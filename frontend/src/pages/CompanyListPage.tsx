@@ -32,6 +32,7 @@ import "./company-list-review.css";
 import { WorkspaceDialog } from "../features/company-list/WorkspaceDialog";
 import { MergePreviewDialog } from "../features/company-list/MergePreviewDialog";
 import { CompanyActionsMenu } from "../features/company-list/CompanyActionsMenu";
+import { useAuth } from "../features/auth/AuthProvider";
 
 function getInitials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
@@ -79,6 +80,7 @@ function defaultHealth(company: Company): CompanyHealthStatus {
 
 
 export function CompanyListPage() {
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reviewRequested = searchParams.get("review") === "true";
@@ -110,12 +112,16 @@ export function CompanyListPage() {
   const [bulkReviewDialogOpen, setBulkReviewDialogOpen] = useState(false);
   const [cleanupError, setCleanupError] = useState<string | null>(null);
 
+  function applyVisibleWorkspacePermissions(workspace: WorkspaceReviewResponse) {
+    return isAdmin ? workspace : { ...workspace, duplicateGroups: [] };
+  }
+
   async function loadWorkspace(includeArchived = showArchived) {
     setReviewLoading(true);
     setReviewError(null);
     try {
       const workspace = await getWorkspaceReview(includeArchived);
-      setReview(Array.isArray(workspace?.companies) ? workspace : null);
+      setReview(Array.isArray(workspace?.companies) ? applyVisibleWorkspacePermissions(workspace) : null);
       const legacyIds = getLegacyAcknowledgedResearchReviewIds();
       const migratable = [...(workspace.researchReady ?? []), ...(workspace.researchIssues ?? [])]
         .filter((item) => item.reviewKey && legacyIds.includes(`${item.method}:${item.itemId}`))
@@ -124,7 +130,7 @@ export function CompanyListPage() {
         await acknowledgeWorkspaceResearch(migratable);
         clearLegacyAcknowledgedResearchReviewIds();
         const refreshed = await getWorkspaceReview(includeArchived);
-        setReview(Array.isArray(refreshed?.companies) ? refreshed : null);
+        setReview(Array.isArray(refreshed?.companies) ? applyVisibleWorkspacePermissions(refreshed) : null);
       }
     } catch (reason) {
       setReviewError(getApiErrorMessage(reason, "Could not review the workspace."));
@@ -141,12 +147,12 @@ export function CompanyListPage() {
         setCompanies(result);
         // Keep the list usable with older fixture adapters that only implement
         // the companies endpoint while the optional health review is unavailable.
-        if (Array.isArray(workspace?.companies)) setReview(workspace);
+        if (Array.isArray(workspace?.companies)) setReview(applyVisibleWorkspacePermissions(workspace));
       })
       .catch((reason: unknown) => { if (active) setError(getApiErrorMessage(reason, "Could not load companies.")); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [showArchived]);
+  }, [isAdmin, showArchived]);
 
   const countries = useMemo(() => [...new Set(companies.map((company) => company.country).filter(Boolean))] as string[], [companies]);
   const filteredCompanies = useMemo(() => companies.filter((company) => {
@@ -188,7 +194,7 @@ export function CompanyListPage() {
   }
 
   async function permanentlyDelete() {
-    if (!deleteTarget) return;
+    if (!isAdmin || !deleteTarget) return;
     setDeleteBusy(true); setActionError(null);
     try {
       await deleteCompany(deleteTarget.id);
@@ -201,6 +207,7 @@ export function CompanyListPage() {
   }
 
   function beginMerge(canonicalId: string, duplicateId: string) {
+    if (!isAdmin) return;
     setMergePair({ canonicalId, duplicateId }); setMergePreview(null); setMergeError(null);
   }
 
@@ -216,7 +223,7 @@ export function CompanyListPage() {
   }, [mergePair]);
 
   async function confirmMerge() {
-    if (!mergePair) return;
+    if (!isAdmin || !mergePair) return;
     setMergeBusy(true); setMergeError(null);
     try {
       const result = await confirmCompanyMerge(mergePair.canonicalId, mergePair.duplicateId);
@@ -234,7 +241,7 @@ export function CompanyListPage() {
   const researchReady = review?.researchReady ?? [];
   const researchIssues = review?.researchIssues ?? [];
   const attentionRecommendations = review?.recommendations?.filter((item) => item.kind !== "PossibleDuplicate") ?? [];
-  const workspaceAttentionCount = attentionRecommendations.length + (review?.duplicateGroups?.length ?? 0);
+  const workspaceAttentionCount = attentionRecommendations.length + (isAdmin ? review?.duplicateGroups?.length ?? 0 : 0);
   async function acknowledgeItems(items: WorkspaceResearchReviewItem[]) {
     const payload = items.filter((item): item is WorkspaceResearchReviewItem & { reviewKey: string } => Boolean(item.reviewKey)).map((item) => ({ reviewKey: item.reviewKey, acknowledgedThrough: item.updatedAt }));
     if (payload.length === 0) return false;
@@ -274,9 +281,9 @@ export function CompanyListPage() {
       setReviewActionBusy(false);
     }
   };
-  function reviewGroup(group: CompanyDuplicateGroup) { if (group.members.length >= 2) beginMerge(group.members[0].companyId, group.members[1].companyId); }
+  function reviewGroup(group: CompanyDuplicateGroup) { if (isAdmin && group.members.length >= 2) beginMerge(group.members[0].companyId, group.members[1].companyId); }
   function reviewRecommendation(recommendation: WorkspaceReviewRecommendation) {
-    if (recommendation.relatedCompanyIds.length > 0) beginMerge(recommendation.companyId, recommendation.relatedCompanyIds[0]);
+    if (isAdmin && recommendation.relatedCompanyIds.length > 0) beginMerge(recommendation.companyId, recommendation.relatedCompanyIds[0]);
     else if (recommendation.kind === "SparseProfile" || recommendation.kind === "Stale") navigate(`/companies/new?refreshCompanyId=${encodeURIComponent(recommendation.companyId)}`);
     else navigate(`/companies/${encodeURIComponent(recommendation.companyId)}?review=true`);
   }

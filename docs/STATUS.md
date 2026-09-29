@@ -16,6 +16,7 @@
 - Settings includes Research providers and Voice & speech; Custom routing is disclosed only for the Custom preset. No standalone Advanced section remains.
 - About RAVEN and Help provide concise product/trust overviews, workflow guides, sticky topic navigation, and FAQ.
 - Provider-routed Brave/Exa Search, Crawl4AI Local/Exa Contents, Gemini inference, durable user activity, and best-effort developer execution telemetry.
+- Private ASP.NET Core Identity workspace with Admin/Researcher roles, cookie login/logout, password change, bootstrap Admin, member enable/role operations, default authenticated API authorization, and Admin-only merge/permanent delete. Researchers retain normal workspace access; cancelling a just-created initial research row archives it instead of invoking permanent deletion.
 
 ## Current limitations
 
@@ -39,6 +40,13 @@ Structural modularization checkpoint — 29 Sep 2026, branch `refactor/deploymen
 - Edge manual smoke used an isolated SQLite backup of the local database: Companies list, a company Overview with restored Ask RAVEN history, Settings load, and the contextual company return link rendered. Desktop and 390 px mobile shell layouts rendered after the stylesheet move. No research/provider operation was started.
 - Live providers were not called. The local crawler/provider status was unavailable during the smoke.
 - `git diff --check`: passed. Current branch has not yet had a GitHub Actions run.
+
+Authentication checkpoint — 29 Sep 2026, branch `refactor/deployment-readiness`:
+
+- Backend Release build passed with no warnings; full backend suite passed (350/350), including six focused Identity/authorization tests.
+- EF Core `has-pending-model-changes`: no model changes after the Identity migration.
+- Frontend production build passed. The full suite initially reported 108/109 because one new permission test used a singular query for two same-name companies; that query was corrected and its file passed (6/6). Initial-research workflow tests passed (11/11) after cancellation cleanup changed to archive. The full frontend suite was not rerun after those targeted corrections.
+- No deployed or live-provider smoke was performed. Cloud Run packaging and the same-origin production proxy remain pending.
 
 ## Compatibility
 

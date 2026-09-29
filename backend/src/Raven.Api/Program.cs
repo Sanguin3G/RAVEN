@@ -21,6 +21,7 @@ using Raven.Api.Features.Research.ExternalImport;
 using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.Briefings;
 using Raven.Api.Features.Speech;
+using Raven.Api.Features.Auth;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +37,7 @@ if (OperatingSystem.IsWindows())
 builder.Services.AddDbContext<RavenDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db"));
 builder.Services.AddHealthChecks().AddDbContextCheck<RavenDbContext>();
+builder.Services.AddRavenIdentity(builder.Environment);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<ChatExceptionHandler>();
@@ -133,11 +135,16 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseCors("DevelopmentFrontend");
-app.MapHealthChecks("/health");
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseApiAntiforgery(builder.Configuration.GetValue("Security:ValidateApiAntiforgery", true));
+app.MapHealthChecks("/health").AllowAnonymous();
 // Keep the API health probe on the same /api surface used by the frontend
 // dev proxy. The root route remains available for infrastructure probes.
-app.MapHealthChecks("/api/health");
+app.MapHealthChecks("/api/health").AllowAnonymous();
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
+app.MapAuthEndpoints();
+app.MapWorkspaceAccessEndpoints();
 app.MapCompanyEndpoints();
 app.MapCompanyLifecycleEndpoints();
 app.MapCompanyWorkspaceEndpoints();
@@ -166,6 +173,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
     await db.Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>().InitializeAsync();
 }
 
 app.Run();

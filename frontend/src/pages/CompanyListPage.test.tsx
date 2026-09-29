@@ -4,6 +4,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { CompanyListPage } from "./CompanyListPage";
 import { jsonResponse, renderWithRouter } from "../test/test-utils";
 
+const authMock = vi.hoisted(() => ({ isAdmin: true }));
+vi.mock("../features/auth/AuthProvider", () => ({
+  useAuth: () => ({ status: "authenticated", user: { id: "test-user", displayName: "Test User", email: "user@example.invalid", roles: authMock.isAdmin ? ["Admin"] : ["Researcher"] }, isAdmin: authMock.isAdmin, error: null, refresh: vi.fn(), login: vi.fn(), logout: vi.fn() }),
+}));
+
 const firstId = "11111111-1111-1111-1111-111111111111";
 const duplicateId = "22222222-2222-2222-2222-222222222222";
 const sparseId = "33333333-3333-3333-3333-333333333333";
@@ -71,7 +76,22 @@ function installApi(overrides: (url: string, init?: RequestInit) => Response | u
 }
 
 beforeEach(() => {
+  authMock.isAdmin = true;
   installApi();
+});
+
+it("hides merge and permanent-delete controls from Researchers", async () => {
+  authMock.isAdmin = false;
+  const user = userEvent.setup();
+  renderWithRouter(<CompanyListPage />, "/companies");
+
+  await screen.findAllByRole("link", { name: "FPT Software" });
+  await user.click(screen.getAllByRole("button", { name: "Actions for FPT Software" })[0]);
+  expect(screen.queryByRole("menuitem", { name: "Delete permanently" })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /Review workspace/i }));
+  await waitFor(() => expect(screen.queryByText("Possible duplicates")).not.toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Review merge" })).not.toBeInTheDocument();
 });
 
 it("shows profile health and filters records by health", async () => {

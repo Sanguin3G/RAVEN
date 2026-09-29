@@ -127,6 +127,16 @@ Ask RAVEN stores Chat rows in SQLite across API restarts and pins each conversat
 
 Never commit a populated `.env` file. RAVEN does not load `.env` automatically; export values into the API process or use user secrets.
 
+The private workspace uses ASP.NET Core Identity with `Admin` and `Researcher` roles. There is no public registration. Configure the initial Admin before the first API start against an empty user database; bootstrap only runs while the Identity user store is empty and never overwrites an existing account:
+
+```powershell
+# from backend; replace the placeholders locally and never commit the values
+dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_EMAIL "admin@example.com" --project src/Raven.Api
+dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_PASSWORD "<strong temporary password>" --project src/Raven.Api
+```
+
+The API migrates SQLite and creates the Admin on startup. Sign in at `/login`, then use **Settings → Workspace access** to create Researcher accounts. Use **Settings → Account** to change the current password. Health checks, login, and the CSRF-token bootstrap route are the only anonymous API surfaces; all other API routes require authentication, with merge, permanent deletion, and user administration restricted to Admin. Local Vite and production same-origin API requests use an HttpOnly cookie plus an antiforgery request token.
+
 | Capability | Environment variables |
 | --- | --- |
 | Brave | `BRAVE_SEARCH_API_KEY` |
@@ -136,6 +146,7 @@ Never commit a populated `.env` file. RAVEN does not load `.env` automatically; 
 | Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
 | Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
 | SQLite | `ConnectionStrings__Raven` |
+| Initial workspace Admin | `RAVEN_BOOTSTRAP_ADMIN_EMAIL`, `RAVEN_BOOTSTRAP_ADMIN_PASSWORD` |
 
 The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
 

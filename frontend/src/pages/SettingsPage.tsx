@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type DragEvent } from "react";
-import { Binoculars, Brain, Buildings, CaretDown, CaretRight, CaretUp, DotsSixVertical, GlobeHemisphereWest, Microphone, Minus, Sun } from "@phosphor-icons/react";
+import { Binoculars, Brain, Buildings, CaretDown, CaretRight, CaretUp, DotsSixVertical, GlobeHemisphereWest, Microphone, Minus, Sun, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { useTheme, type ThemePreference } from "../app/theme";
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
@@ -22,6 +22,9 @@ import { ResearchBehaviorSettings } from "./settings/ResearchBehaviorSettings";
 import { ModelSettings } from "./settings/ModelSettings";
 import { ResearchProviderSettings, displayProvider } from "./settings/ResearchProviderSettings";
 import { ManagedResearchSettings } from "./settings/ManagedResearchSettings";
+import { AccountSettings } from "../features/auth/AccountSettings";
+import { WorkspaceAccessSettings } from "../features/auth/WorkspaceAccessSettings";
+import { useAuth } from "../features/auth/AuthProvider";
 
 const fallbackSettings: ResearchSettings = {
   groundingMode: "Auto",
@@ -48,7 +51,7 @@ const fallbackModels: Array<{ value: string; label: string; description: string;
 ];
 
 
-const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Voice & speech", "Appearance"] as const;
+const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Voice & speech", "Appearance", "Account", "Workspace access"] as const;
 type SettingsSection = typeof settingsSections[number];
 const settingsSectionIcons = {
   "Research behavior": Buildings,
@@ -57,6 +60,8 @@ const settingsSectionIcons = {
   "Deep Research": Binoculars,
   "Voice & speech": Microphone,
   Appearance: Sun,
+  Account: UserCircle,
+  "Workspace access": UsersThree,
 } satisfies Record<SettingsSection, typeof Buildings>;
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
@@ -122,6 +127,7 @@ function parseResearchSettings(value: unknown): ResearchSettings | null {
 
 
 export function SettingsPage() {
+  const { isAdmin } = useAuth();
   const { preference: currentThemePreference, setPreference: setThemePreference } = useTheme();
   const [savedSettings, setSavedSettings] = useState<ResearchSettings>(fallbackSettings);
   const [draft, setDraft] = useState<ResearchSettings>(fallbackSettings);
@@ -386,13 +392,18 @@ export function SettingsPage() {
 
       <div className={styles.settingsLayout}>
         <nav className={styles.navigation} aria-label="Settings sections">
-          {settingsSections.map(section => {
+          {settingsSections.filter(section => section !== "Workspace access" || isAdmin).map(section => {
             const Icon = settingsSectionIcons[section];
             return <button type="button" key={section} aria-current={activeSection === section ? "page" : undefined} onClick={() => setActiveSection(section)}><Icon size={17} weight="bold" aria-hidden="true" /><span>{section}</span></button>;
           })}
         </nav>
 
-        <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
+        {(activeSection === "Account" || activeSection === "Workspace access") && isDirty ? <aside className={styles.pendingDraft} role="status">
+          <span>Research or appearance settings have unsaved changes.</span>
+          <div><Button type="button" tone="quiet" onClick={discard} disabled={isSaving || isResetting}>Discard draft</Button><Button type="button" onClick={() => void save()} loading={isSaving} disabled={isResetting}>Save draft</Button></div>
+        </aside> : null}
+
+        {activeSection === "Account" ? <AccountSettings /> : activeSection === "Workspace access" ? <WorkspaceAccessSettings /> : <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <div className={styles.sectionContent}>
 {activeSection === "Research behavior" ? <ResearchBehaviorSettings draft={draft} disabled={isLoading || isSaving || isResetting} updateDraft={updateDraft} /> : null}
 
@@ -415,7 +426,7 @@ export function SettingsPage() {
         {isLoading && <p className={styles.loading} role="status">Loading saved settings…</p>}
         {statusMessage && !isLoading && <p className={`${styles.state} ${styles["state--success"]}`} role="status" aria-live="polite">{statusMessage}</p>}
         <div className={styles.actions}><p className={`${styles.state} ${isDirty ? styles["state--dirty"] : ""}`} aria-live="polite">{isDirty ? "You have unsaved changes." : "All settings saved."}</p><div className={styles.actionGroup}><Button type="button" tone="quiet" onClick={discard} disabled={!isDirty || isSaving || isResetting}>Discard</Button><Button type="button" tone="secondary" onClick={() => void reset()} loading={isResetting} disabled={isSaving || isLoading}>Reset defaults</Button><Button type="submit" loading={isSaving} disabled={!isDirty || isResetting || isLoading}>Save changes</Button></div></div>
-        </form>
+        </form>}
       </div>
     </div>
   );

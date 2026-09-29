@@ -4,6 +4,7 @@ import { ArrowUUpLeft } from "@phosphor-icons/react/dist/csr/ArrowUUpLeft";
 import { DotsThreeVertical } from "@phosphor-icons/react/dist/csr/DotsThreeVertical";
 import { Trash } from "@phosphor-icons/react/dist/csr/Trash";
 import type { Company } from "../../types/company";
+import { useAuth } from "../auth/AuthProvider";
 
 interface Props {
   company: Company;
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function CompanyActionsMenu({ company, open, placement, busy, onToggle, onRefresh, onImprove, onMonitor, onArchive, onDelete }: Props) {
+  const { isAdmin } = useAuth();
   return <div className="action-menu">
     <button className="action-menu__trigger" type="button" aria-label={`Actions for ${company.name}`} aria-expanded={open} onClick={onToggle}><DotsThreeVertical size={20} weight="bold" aria-hidden="true" /></button>
     {open ? <div className={`action-menu__panel action-menu__panel--${placement}`} role="menu">
@@ -27,7 +29,7 @@ export function CompanyActionsMenu({ company, open, placement, busy, onToggle, o
       <button role="menuitem" type="button" onClick={onMonitor}>Monitor company</button>
       <span className="action-menu__divider" />
       {company.archivedAt ? <button role="menuitem" type="button" disabled={busy} onClick={() => onArchive(true)}><ArrowUUpLeft size={16} aria-hidden="true" /> Restore</button> : <button role="menuitem" type="button" disabled={busy} onClick={() => onArchive(false)}><Archive size={16} aria-hidden="true" /> Archive</button>}
-      <button className="action-menu__danger" role="menuitem" type="button" onClick={onDelete}><Trash size={16} aria-hidden="true" /> Delete permanently</button>
+      {isAdmin ? <button className="action-menu__danger" role="menuitem" type="button" onClick={onDelete}><Trash size={16} aria-hidden="true" /> Delete permanently</button> : null}
     </div> : null}
   </div>;
 }

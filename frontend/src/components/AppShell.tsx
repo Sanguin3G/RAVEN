@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "../app/theme";
+import { useAuth } from "../features/auth/AuthProvider";
 import { useWorkspaceServiceHealth } from "../hooks/useWorkspaceServiceHealth";
 import { useActiveResearchRuns } from "../hooks/useActiveResearchRuns";
 import { useSharedResearchActivity } from "../hooks/useSharedResearchActivity";
@@ -30,9 +31,10 @@ function supportsCompanyReturn(pathname: string) {
 
 
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const { preference, resolvedTheme, setPreference } = useTheme();
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(readSidebarPreference);
   const [isMobileOpen, setMobileOpen] = useState(false);
@@ -55,6 +57,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     navigate(destination, { state: context ? { companyReturn: true } : null });
     closeMobileNavigation();
     setAccountMenuOpen(false);
+  };
+  const handleLogout = () => {
+    void logout().catch(() => undefined).finally(() => navigate("/login", { replace: true }));
   };
   const hasCompanyReturnState = !!(location.state && typeof location.state === "object" &&
     "companyReturn" in location.state && location.state.companyReturn === true);
@@ -143,7 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       data-mobile-open={isMobileOpen}
       data-sidebar-collapsed={isSidebarCollapsed}
     >
-      <AppSidebar isSidebarCollapsed={isSidebarCollapsed} setSidebarCollapsed={setSidebarCollapsed} mobileCloseButtonRef={mobileCloseButtonRef} closeMobileNavigation={closeMobileNavigation} pathname={location.pathname} navigateGlobal={navigateGlobal} showCompanyReturn={showCompanyReturn} workspaceServiceState={workspaceServiceState} workspaceServiceLabel={workspaceServiceLabel} accountMenu={<AccountMenu accountMenuRef={accountMenuRef} accountMenuButtonRef={accountMenuButtonRef} isAccountMenuOpen={isAccountMenuOpen} setAccountMenuOpen={setAccountMenuOpen} preference={preference} resolvedTheme={resolvedTheme} setPreference={setPreference} navigateGlobal={navigateGlobal} />} />
+      <AppSidebar isSidebarCollapsed={isSidebarCollapsed} setSidebarCollapsed={setSidebarCollapsed} mobileCloseButtonRef={mobileCloseButtonRef} closeMobileNavigation={closeMobileNavigation} pathname={location.pathname} navigateGlobal={navigateGlobal} showCompanyReturn={showCompanyReturn} workspaceServiceState={workspaceServiceState} workspaceServiceLabel={workspaceServiceLabel} accountMenu={user ? <AccountMenu accountMenuRef={accountMenuRef} accountMenuButtonRef={accountMenuButtonRef} isAccountMenuOpen={isAccountMenuOpen} setAccountMenuOpen={setAccountMenuOpen} preference={preference} resolvedTheme={resolvedTheme} setPreference={setPreference} navigateGlobal={navigateGlobal} user={user} onLogout={handleLogout} /> : null} />
 
       <button
         className="app-shell__backdrop"
@@ -157,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <ResearchActivityPanel activeResearch={activeResearch} currentResearchSession={currentResearchSession} sharedResearchActivities={sharedResearchActivities} togglePauseResearch={togglePauseResearch} cancelActiveResearch={cancelActiveResearch} />
 
-        <main className="page-content" id="main-content">{children}</main>
+        <main className="page-content" id="main-content">{children ?? <Outlet />}</main>
         <footer className="site-footer">RAVEN is building a public-source company record.</footer>
       </div>
     </div>

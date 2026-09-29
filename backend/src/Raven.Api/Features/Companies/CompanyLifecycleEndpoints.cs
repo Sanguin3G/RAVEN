@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Raven.Api.Features.Auth;
 
 namespace Raven.Api.Features.Companies;
 
@@ -28,6 +29,7 @@ public static class CompanyLifecycleEndpoints
             .Produces(StatusCodes.Status404NotFound);
 
         companies.MapDelete("/{id:guid}", DeleteAsync)
+            .RequireAuthorization(AuthServiceCollectionExtensions.AdminOnlyPolicy)
             .WithName("DeleteCompanyPermanently")
             .WithSummary("Permanently delete a company")
             .WithDescription("Requires an explicit confirmation payload. All dependent research, source, profile, monitoring, and investigation records are removed transactionally.")
@@ -36,6 +38,7 @@ public static class CompanyLifecycleEndpoints
             .Produces(StatusCodes.Status404NotFound);
 
         companies.MapPost("/merge/preview", PreviewMergeAsync)
+            .RequireAuthorization(AuthServiceCollectionExtensions.AdminOnlyPolicy)
             .WithName("PreviewCompanyMerge")
             .WithSummary("Preview a company merge")
             .WithDescription("Returns affected record counts and source deduplication details without mutating either company.")
@@ -44,6 +47,7 @@ public static class CompanyLifecycleEndpoints
             .Produces(StatusCodes.Status404NotFound);
 
         companies.MapPost("/merge/confirm", ConfirmMergeAsync)
+            .RequireAuthorization(AuthServiceCollectionExtensions.AdminOnlyPolicy)
             .WithName("ConfirmCompanyMerge")
             .WithSummary("Confirm a company merge")
             .WithDescription("Reassigns related records, remaps known source provenance, deduplicates matching documents, and removes the duplicate in one transaction.")

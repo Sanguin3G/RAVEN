@@ -5,6 +5,10 @@ import { App } from "./App";
 import { jsonResponse, renderWithRouter } from "./test/test-utils";
 import type { Company } from "./types/company";
 
+vi.mock("./features/auth/AuthProvider", () => ({
+  useAuth: () => ({ status: "authenticated", user: { id: "test-admin", displayName: "Test Admin", email: "admin@example.invalid", roles: ["Admin"] }, isAdmin: true, error: null, refresh: vi.fn(), login: vi.fn(), logout: vi.fn() }),
+}));
+
 const apiCompanies: Company[] = [
   { id: "11111111-1111-1111-1111-111111111111", name: "FPT Software", website: "https://fptsoftware.com", country: "Vietnam", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-08T08:30:00Z" },
   { id: "22222222-2222-2222-2222-222222222222", name: "Masan Group", website: "https://www.masangroup.com", country: "Vietnam", createdAt: "2026-08-21T00:00:00Z", updatedAt: "2026-09-04T16:20:00Z" },

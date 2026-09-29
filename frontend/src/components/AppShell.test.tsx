@@ -5,6 +5,10 @@ import { useLocation } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { renderWithRouter } from "../test/test-utils";
 
+vi.mock("../features/auth/AuthProvider", () => ({
+  useAuth: () => ({ status: "authenticated", user: { id: "test-admin", displayName: "Test Admin", email: "admin@example.invalid", roles: ["Admin"] }, isAdmin: true, error: null, refresh: vi.fn(), login: vi.fn(), logout: vi.fn() }),
+}));
+
 vi.mock("../api/companies", () => ({
   getCompany: vi.fn(async (id: string) => ({ id, name: "70mai" })),
 }));

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Raven.Api.Features.Auth;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Companies.Workspace;
 using Raven.Api.Features.Research;
@@ -21,7 +23,7 @@ using Raven.Api.Features.Research.Briefings;
 
 namespace Raven.Api.Data;
 
-public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : DbContext(options)
+public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<ResearchRun> ResearchRuns => Set<ResearchRun>();
@@ -56,6 +58,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RavenDbContext).Assembly);
     }
 }

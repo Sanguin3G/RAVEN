@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, getApiErrorMessage } from "../../api/client";
 import { getCompanyProfileCandidate, generateCompanyProfile, confirmCompanyProfile } from "../../api/profiles";
-import { createCompany, deleteCompanyPermanently, findCompanyMatches, getCompany } from "../../api/companies";
+import { createCompany, findCompanyMatches, getCompany } from "../../api/companies";
+import { archiveCompany } from "../../api/workspace";
 import {
   acquireResearchCandidates,
   cancelResearchRun,
@@ -543,7 +544,10 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     try {
       await cancelResearchRun(run.id);
       if (createdCompanyForResearch && company) {
-        await deleteCompanyPermanently(company.id);
+        // A Researcher may cancel the initial workflow, but permanent deletion
+        // is an Admin operation. Archive this newly-created, unaccepted row so
+        // cancellation still clears the active workspace without hard delete.
+        await archiveCompany(company.id);
       }
       clearCurrentResearch(run.id);
       resetResearchState();
