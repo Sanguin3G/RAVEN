@@ -195,16 +195,19 @@ dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Ap
 
 ## Local presentation and hosted evaluator modes
 
-The local presentation database is a separate frozen `backend/raven.demo.db`. Point the API at it without renaming or replacing the developer `raven.db`:
+The live local presentation uses the team's current `backend/src/Raven.Api/raven.db`. Set an absolute connection path so Rider and terminal launches use the same file. This database currently has no Identity user, so create the first Admin through the normal one-time bootstrap:
 
 ```powershell
 # from backend
-$demoDb = (Resolve-Path .\raven.demo.db).Path
-$env:ConnectionStrings__Raven = "Data Source=$demoDb"
+$workspaceDb = (Resolve-Path .\src\Raven.Api\raven.db).Path
+$env:ConnectionStrings__Raven = "Data Source=$workspaceDb"
+$env:RAVEN_BOOTSTRAP_ADMIN_EMAIL = 'admin@raven.local'
+$secret = Read-Host 'Choose local Admin password' -AsSecureString
+$env:RAVEN_BOOTSTRAP_ADMIN_PASSWORD = [System.Net.NetworkCredential]::new('', $secret).Password
 dotnet run --project .\src\Raven.Api --launch-profile http
 ```
 
-The curated artifact has no Identity users. For its first API startup, also set `RAVEN_BOOTSTRAP_ADMIN_EMAIL` (for example `admin@raven.local`) and `RAVEN_BOOTSTRAP_ADMIN_PASSWORD` to a locally chosen strong password. Bootstrap creates the Admin in `raven.demo.db` once; later starts do not need the variables. Enter the password through a hidden local prompt rather than committing it or placing it in a script. In another shell, start the frontend with `npm run dev` from `frontend`. It uses the local Vite `/api` proxy. Start local Crawl4AI separately and verify the provider status before choosing to run any live provider-backed workflow. Clear the environment override when finished. Provider credentials are not copied from the developer database by demo preparation.
+Use `admin@raven.local` and the password entered at the prompt to sign in. The password must have at least 12 characters with upper/lowercase, a digit, and a symbol. Bootstrap creates the Admin in the selected database once; later starts do not need the bootstrap variables. If launching through Rider instead, set the same connection and bootstrap variables in that API run configuration for the first launch. Clear the bootstrap variables after stopping the API. In another shell, start the frontend with `npm run dev` from `frontend`. It uses the local Vite `/api` proxy. Start local Crawl4AI separately and verify provider status before any live provider-backed workflow. The separate ignored `backend/raven.demo.db` remains an optional curated fallback; it has its own Admin and is not the default local connection.
 
 The hosted evaluator is intentionally a resettable Cloud Run demo, not durable production hosting. The API container stores SQLite under `/app/data/raven.db` and copies the bundled curated seed only when that runtime file is absent, then applies current EF migrations and bootstraps deployment users. Cloud Run's instance filesystem is disposable; keep the API at one instance. In-process background workers are not guaranteed CPU after a request finishes or while the service scales to zero, so use hosted mode mainly to browse curated dossiers and try short request-bound interactions. Long-running workflow presentation belongs in the local environment.
 
@@ -219,7 +222,7 @@ At deployment time configure the frontend service's `RAVEN_API_ORIGIN` to the AP
 
 For private Cloud Run Crawl4AI, configure `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_CLOUD_RUN_AUDIENCE`, and the separate Crawl4AI API token. Grant the API runtime service account Cloud Run Invoker on the crawler. The API sends the Google identity token in `X-Serverless-Authorization` and keeps Crawl4AI's own Bearer token in `Authorization`. The crawler remains private, with the intended deployment resource profile documented separately (4 GiB RAM, 2 CPU, min 0/max 1); changing that profile is an operator action, not inferred from Git.
 
-`backend/src/Raven.Api/seed/raven.seed.db` is a public, presentation-safe hosted starter artifact; it must be produced only by the DemoSeed allowlist/export workflow after schema changes settle. `raven.demo.db` is a local persistent presentation copy and should remain outside Git. Neither seed may contain Identity users or provider credential rows. The source `raven.db` is opened read-only by the export tool and never sanitized in place.
+`backend/src/Raven.Api/seed/raven.seed.db` is the presentation-safe hosted starter artifact produced by the DemoSeed allowlist/export workflow. `raven.demo.db` is an optional local curated copy and remains outside Git, not the default live-presentation database. Both export artifacts have no Identity users or provider credential rows at generation. The source `raven.db` is opened read-only by the export tool and never sanitized in place; normal local use and Identity bootstrap may of course add application state to that source workspace.
 
 The repeatable curation workflow first emits metadata only; it does not print SourceDocument bodies or Chat messages:
 
