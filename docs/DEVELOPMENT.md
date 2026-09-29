@@ -195,15 +195,16 @@ dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Ap
 
 ## Local presentation and hosted evaluator modes
 
-The local presentation database is a separate frozen `raven.demo.db`. Point the API at it without renaming or replacing the developer `raven.db`:
+The local presentation database is a separate frozen `backend/raven.demo.db`. Point the API at it without renaming or replacing the developer `raven.db`:
 
 ```powershell
-# from the repository root; use an absolute path to the prepared demo artifact
-$env:ConnectionStrings__Raven = 'Data Source=D:\RAVEN-DATA\raven.demo.db'
-dotnet run --project backend/src/Raven.Api
+# from backend
+$demoDb = (Resolve-Path .\raven.demo.db).Path
+$env:ConnectionStrings__Raven = "Data Source=$demoDb"
+dotnet run --project .\src\Raven.Api --launch-profile http
 ```
 
-In another shell, start the frontend with `npm run dev` from `frontend`. It uses the local Vite `/api` proxy. Start local Crawl4AI separately and verify the provider status before choosing to run any live provider-backed workflow. Clear the environment override when finished. Provider credentials are not copied from the developer database by demo preparation.
+The curated artifact has no Identity users. For its first API startup, also set `RAVEN_BOOTSTRAP_ADMIN_EMAIL` (for example `admin@raven.local`) and `RAVEN_BOOTSTRAP_ADMIN_PASSWORD` to a locally chosen strong password. Bootstrap creates the Admin in `raven.demo.db` once; later starts do not need the variables. Enter the password through a hidden local prompt rather than committing it or placing it in a script. In another shell, start the frontend with `npm run dev` from `frontend`. It uses the local Vite `/api` proxy. Start local Crawl4AI separately and verify the provider status before choosing to run any live provider-backed workflow. Clear the environment override when finished. Provider credentials are not copied from the developer database by demo preparation.
 
 The hosted evaluator is intentionally a resettable Cloud Run demo, not durable production hosting. The API container stores SQLite under `/app/data/raven.db` and copies the bundled curated seed only when that runtime file is absent, then applies current EF migrations and bootstraps deployment users. Cloud Run's instance filesystem is disposable; keep the API at one instance. In-process background workers are not guaranteed CPU after a request finishes or while the service scales to zero, so use hosted mode mainly to browse curated dossiers and try short request-bound interactions. Long-running workflow presentation belongs in the local environment.
 
@@ -226,17 +227,17 @@ The repeatable curation workflow first emits metadata only; it does not print So
 dotnet run --project backend/DemoSeed -- --inventory D:\RAVEN-DATA\raven.db
 ```
 
-After reviewing the inventory and each candidate's dossier in RAVEN, create a private manifest with explicit approved Company IDs. Optional `excludeChatConversationIds`, `excludeInvestigationIds`, and `excludeBriefingIds` let the reviewer omit distracting children; excluding an Investigation also removes Briefing snapshots that embed it and Chats that cite/attach it. Company names matching common test, joke, adult, or debug markers are rejected as a final guard, not treated as a substitute for explicit review.
+After reviewing the inventory and each candidate's dossier in RAVEN, create a manifest with explicit approved Company IDs. The current reviewed selection is `backend/DemoSeed/demo-selection.json`: 70mai, Sun Property, Alphabet, FPT Information System, FPT, Zepp Health, and CMC Telecom. Optional `excludeChatConversationIds`, `excludeInvestigationIds`, and `excludeBriefingIds` omit distracting children; excluding an Investigation also removes Briefing snapshots that embed it and Chats that cite/attach it. Company names matching common test, joke, adult, or debug markers are rejected as a final guard, not treated as a substitute for explicit review.
 
 ```powershell
 dotnet run --project backend/DemoSeed -- `
   --source D:\RAVEN-DATA\raven.db `
-  --manifest D:\RAVEN-DATA\demo-selection.json `
-  --output D:\RAVEN-DATA\raven.demo.db `
+  --manifest backend/DemoSeed/demo-selection.json `
+  --output backend/raven.demo.db `
   --public-seed backend/src/Raven.Api/seed/raven.seed.db
 ```
 
-The command refuses to overwrite outputs, snapshots the source through SQLite's online backup API in read-only mode, migrates and curates only the copy, removes non-allowlisted Companies through the existing deletion service, strips credentials and Identity users, clears transient work/telemetry, and validates model/migration state, settings, allowlist, sensitive columns, integrity, and foreign keys before publishing either output. Keep the local selection manifest and `raven.demo.db` outside Git; review the public seed with the same Company-ID manifest before committing it.
+The command refuses to overwrite outputs, snapshots the source through SQLite's online backup API in read-only mode, migrates and curates only the copy, removes non-allowlisted Companies through the existing deletion service, strips credentials and Identity users, clears transient work/telemetry, and validates model/migration state, settings, allowlist, sensitive columns, integrity, and foreign keys before publishing either output. Keep `raven.demo.db` outside Git; the allowlist manifest and sanitized public seed are versioned for reproducibility. The source workspace has no presentation-safe Briefing: its sole saved Briefing belongs to an explicitly excluded company. Do not fabricate one; create a new genuine Briefing from an approved Investigation in the presentation workspace if this feature must be shown.
 
 ## Tests and checks
 
