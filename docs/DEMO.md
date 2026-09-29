@@ -14,6 +14,8 @@ Use the local presentation environment as the primary live demonstration: local 
 
 The curated set comes from the reviewed IDs in `backend/DemoSeed/demo-selection.json`: 70mai, Sun Property, Alphabet, FPT Information System, FPT, Zepp Health, and CMC Telecom. Do not create fictional dossiers to fill a feature checklist. Use one researcher login for the mentor; keep bootstrap Admin and provider deployment secrets private. The seed has no saved Briefing because the source workspace's only Briefing belongs to an excluded company. A Briefing demo needs a genuine new Briefing generated from an approved Investigation, not copied from that excluded record.
 
+For a local Google Maps check, restart the Development API after configuring `RAVEN_CREDENTIAL_MASTER_KEY` in its user-secrets store. Sign in as Admin, open **Settings → Provider credentials → Google Maps**, enter a browser key, and choose **Replace**. Then open a Company Overview with a verified address and confirm the embedded map loads. The Maps **Test connection** action cannot verify a browser-referrer-restricted key from the server; a Company map in the browser is the meaningful check. Restrict the key to Maps Embed API and the frontend's allowed website origin.
+
 ## Before the meeting
 
 - Start the local API and frontend against the frozen, curated presentation database. Use a prepared duplicate pair for merge and a controlled live-provider run only when those workflows have been rehearsed.
