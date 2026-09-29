@@ -21,7 +21,19 @@ const profile: DossierProfile = {
 
 describe("CompanyOverview headquarters map", () => {
   beforeEach(() => vi.unstubAllEnvs());
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+  function mockRuntimeConfig(key: string | null) {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/api/runtime-config")) {
+        return new Response(JSON.stringify({ googleMapsEmbedApiKey: key, demoMode: false }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
+    }));
+  }
 
   it("does not render a map when no headquarters address is available", () => {
     render(<MemoryRouter><CompanyOverview company={company} profile={{ ...profile, headquarters: null }} /></MemoryRouter>);
@@ -30,6 +42,7 @@ describe("CompanyOverview headquarters map", () => {
   });
 
   it("provides a safe address-only Google Maps link when the embed key is absent", () => {
+    mockRuntimeConfig(null);
     render(<MemoryRouter><CompanyOverview company={{ ...company, headquarters: "Hanoi, Vietnam" }} profile={{ ...profile, headquarters: null }} /></MemoryRouter>);
 
     expect(screen.queryByTitle(/Map for/)).not.toBeInTheDocument();
@@ -41,11 +54,11 @@ describe("CompanyOverview headquarters map", () => {
     expect(url.searchParams.get("query")).toBe("Hanoi, Vietnam");
   });
 
-  it("renders a lazy accessible embed with safely encoded address and key", () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_EMBED_API_KEY", "test key");
+  it("renders a lazy accessible embed with safely encoded address and runtime key", async () => {
+    mockRuntimeConfig("test key");
     render(<MemoryRouter><CompanyOverview company={company} profile={profile} /></MemoryRouter>);
 
-    const frame = screen.getByTitle("Map for 17 Duy Tan Street & Tower A, Cầu Giấy, Hanoi");
+    const frame = await screen.findByTitle("Map for 17 Duy Tan Street & Tower A, Cầu Giấy, Hanoi");
     expect(frame).toHaveAttribute("loading", "lazy");
     expect(frame).toHaveAttribute("referrerpolicy", "no-referrer-when-downgrade");
 

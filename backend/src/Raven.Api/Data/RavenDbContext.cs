@@ -10,6 +10,7 @@ using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Research.Identity;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
+using Raven.Api.Features.ProviderCredentials;
 using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.DeepResearch;
@@ -34,6 +35,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : I
     public DbSet<CompanyProfileCandidate> CompanyProfileCandidates => Set<CompanyProfileCandidate>();
     public DbSet<ProfileEvidence> ProfileEvidences => Set<ProfileEvidence>();
     public DbSet<ResearchSettingsEntity> ResearchSettings => Set<ResearchSettingsEntity>();
+    public DbSet<ProviderCredentialEntity> ProviderCredentials => Set<ProviderCredentialEntity>();
     public DbSet<ProfileChange> ProfileChanges => Set<ProfileChange>();
     public DbSet<ResearchIdentityCandidate> ResearchIdentityCandidates => Set<ResearchIdentityCandidate>();
     public DbSet<CompanyMonitoringSetting> CompanyMonitoringSettings => Set<CompanyMonitoringSetting>();

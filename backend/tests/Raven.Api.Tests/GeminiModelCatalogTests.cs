@@ -31,7 +31,7 @@ public sealed class GeminiModelCatalogTests
 
         var catalog = new GeminiModelCatalog(
             client,
-            Options.Create(new GeminiOptions { ApiKey = "test-key" }));
+            Options.Create(new GeminiOptions { ApiKey = "test-key" }), null);
 
         var response = await catalog.GetAsync();
 
@@ -68,7 +68,7 @@ public sealed class GeminiModelCatalogTests
 
         var catalog = new GeminiModelCatalog(
             client,
-            Options.Create(new GeminiOptions { ApiKey = "test-key" }));
+            Options.Create(new GeminiOptions { ApiKey = "test-key" }), null);
 
         var response = await catalog.GetAsync();
 
@@ -83,7 +83,7 @@ public sealed class GeminiModelCatalogTests
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
         var catalog = new GeminiModelCatalog(
             client,
-            Options.Create(new GeminiOptions { ApiKey = "test-key" }));
+            Options.Create(new GeminiOptions { ApiKey = "test-key" }), null);
 
         var response = await catalog.GetAsync();
 

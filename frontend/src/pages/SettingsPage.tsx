@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type DragEvent } from "react";
-import { Binoculars, Brain, Buildings, CaretDown, CaretRight, CaretUp, DotsSixVertical, GlobeHemisphereWest, Microphone, Minus, Sun, UserCircle, UsersThree } from "@phosphor-icons/react";
+import { Binoculars, Brain, Buildings, CaretDown, CaretRight, CaretUp, DotsSixVertical, GlobeHemisphereWest, Key, Microphone, Minus, Sun, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { useTheme, type ThemePreference } from "../app/theme";
 import { Button } from "../components/Button";
 import { Panel } from "../components/Panel";
@@ -25,6 +25,7 @@ import { ManagedResearchSettings } from "./settings/ManagedResearchSettings";
 import { AccountSettings } from "../features/auth/AccountSettings";
 import { WorkspaceAccessSettings } from "../features/auth/WorkspaceAccessSettings";
 import { useAuth } from "../features/auth/AuthProvider";
+import { ProviderCredentialsSettings } from "./settings/ProviderCredentialsSettings";
 
 const fallbackSettings: ResearchSettings = {
   groundingMode: "Auto",
@@ -51,7 +52,7 @@ const fallbackModels: Array<{ value: string; label: string; description: string;
 ];
 
 
-const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Voice & speech", "Appearance", "Account", "Workspace access"] as const;
+const settingsSections = ["Research behavior", "AI & models", "Research providers", "Deep Research", "Voice & speech", "Appearance", "Account", "Workspace access", "Provider credentials"] as const;
 type SettingsSection = typeof settingsSections[number];
 const settingsSectionIcons = {
   "Research behavior": Buildings,
@@ -62,6 +63,7 @@ const settingsSectionIcons = {
   Appearance: Sun,
   Account: UserCircle,
   "Workspace access": UsersThree,
+  "Provider credentials": Key,
 } satisfies Record<SettingsSection, typeof Buildings>;
 
 const presetPriorities: Record<Exclude<ProviderPreset, "Custom">, Pick<UpdateResearchSettings, "searchProviderPriority" | "crawlerProviderPriority">> = {
@@ -392,18 +394,18 @@ export function SettingsPage() {
 
       <div className={styles.settingsLayout}>
         <nav className={styles.navigation} aria-label="Settings sections">
-          {settingsSections.filter(section => section !== "Workspace access" || isAdmin).map(section => {
+          {settingsSections.filter(section => (section !== "Workspace access" && section !== "Provider credentials") || isAdmin).map(section => {
             const Icon = settingsSectionIcons[section];
             return <button type="button" key={section} aria-current={activeSection === section ? "page" : undefined} onClick={() => setActiveSection(section)}><Icon size={17} weight="bold" aria-hidden="true" /><span>{section}</span></button>;
           })}
         </nav>
 
-        {(activeSection === "Account" || activeSection === "Workspace access") && isDirty ? <aside className={styles.pendingDraft} role="status">
+        {(activeSection === "Account" || activeSection === "Workspace access" || activeSection === "Provider credentials") && isDirty ? <aside className={styles.pendingDraft} role="status">
           <span>Research or appearance settings have unsaved changes.</span>
           <div><Button type="button" tone="quiet" onClick={discard} disabled={isSaving || isResetting}>Discard draft</Button><Button type="button" onClick={() => void save()} loading={isSaving} disabled={isResetting}>Save draft</Button></div>
         </aside> : null}
 
-        {activeSection === "Account" ? <AccountSettings /> : activeSection === "Workspace access" ? <WorkspaceAccessSettings /> : <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
+        {activeSection === "Account" ? <AccountSettings /> : activeSection === "Workspace access" ? <WorkspaceAccessSettings /> : activeSection === "Provider credentials" ? <ProviderCredentialsSettings /> : <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <div className={styles.sectionContent}>
 {activeSection === "Research behavior" ? <ResearchBehaviorSettings draft={draft} disabled={isLoading || isSaving || isResetting} updateDraft={updateDraft} /> : null}
 

@@ -17,7 +17,7 @@ public sealed class ProviderAdapterTests
             Assert.Contains("q=FPT%20Software", request.RequestUri!.Query);
             return Json("""{"web":{"results":[{"title":"FPT","url":"https://fptsoftware.com","description":"Official site"}]}}""");
         })) { BaseAddress = new Uri("https://api.search.brave.com") };
-        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }));
+        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }), null);
 
         var response = await provider.SearchAsync(new SearchRequest("FPT Software", 5));
 
@@ -36,7 +36,7 @@ public sealed class ProviderAdapterTests
             Assert.DoesNotContain("country=", request.RequestUri.Query);
             return Json("""{"web":{"results":[]}}""");
         })) { BaseAddress = new Uri("https://api.search.brave.com") };
-        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }));
+        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }), null);
 
         await provider.SearchAsync(new SearchRequest("Viettel Telecom", 5, "Vietnam"));
     }
@@ -49,7 +49,7 @@ public sealed class ProviderAdapterTests
             Assert.Contains("country=VN", request.RequestUri!.Query);
             return Json("""{"web":{"results":[]}}""");
         })) { BaseAddress = new Uri("https://api.search.brave.com") };
-        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }));
+        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "brave-key" }), null);
 
         await provider.SearchAsync(new SearchRequest("Viettel Telecom", 5, "vn"));
     }
@@ -58,11 +58,11 @@ public sealed class ProviderAdapterTests
     public async Task Brave_reports_configuration_and_authentication_failures_explicitly()
     {
         using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized))) { BaseAddress = new Uri("https://api.search.brave.com") };
-        var missingKey = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions()));
+        var missingKey = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions()), null);
         var missingKeyException = await Assert.ThrowsAsync<ProviderException>(() => missingKey.SearchAsync(new SearchRequest("FPT", 1)));
         Assert.Equal(ProviderFailureKind.Configuration, missingKeyException.Kind);
 
-        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "wrong" }));
+        var provider = new BraveSearchProvider(client, Options.Create(new BraveSearchOptions { ApiKey = "wrong" }), null);
         var authException = await Assert.ThrowsAsync<ProviderException>(() => provider.SearchAsync(new SearchRequest("FPT", 1)));
         Assert.Equal(ProviderFailureKind.Authentication, authException.Kind);
     }
@@ -77,7 +77,7 @@ public sealed class ProviderAdapterTests
             Assert.Equal("/crawl", request.RequestUri!.AbsolutePath);
             return Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"fit_markdown":"# About"},"metadata":{"title":"About us"}}]}""");
         })) { BaseAddress = new Uri("http://localhost:11235") };
-        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }));
+        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about"));
 
@@ -92,7 +92,7 @@ public sealed class ProviderAdapterTests
         using var client = new HttpClient(new StubHandler(_ =>
             Json("""{"success":true,"results":[{"success":true,"url":"https://example.com/about","markdown":{"fit_markdown":"","raw_markdown":"# Full page"},"metadata":{}}]}""")))
         { BaseAddress = new Uri("http://localhost:11235") };
-        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }));
+        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about"));
 
@@ -104,7 +104,7 @@ public sealed class ProviderAdapterTests
     public async Task Crawl4Ai_returns_a_page_failure_without_throwing()
     {
         using var client = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.BadGateway))) { BaseAddress = new Uri("http://localhost:11235") };
-        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }));
+        var provider = new Crawl4AiLocalProvider(client, Options.Create(new Crawl4AiLocalOptions { ApiToken = "crawl-token" }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about"));
 

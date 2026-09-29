@@ -117,9 +117,14 @@ System endpoints:
 GET /api/system/crawler-status
 GET /api/system/provider-status
 PUT /api/system/model-preferences
+GET /api/runtime-config
+GET /api/admin/provider-credentials                (Admin)
+PUT /api/admin/provider-credentials/{provider}     (Admin)
+DELETE /api/admin/provider-credentials/{provider}  (Admin)
+POST /api/admin/provider-credentials/{provider}/test (Admin)
 ```
 
-The runtime model-preference endpoint is a local compatibility surface. Current persistent model roles are configured through `/api/settings/research` and selected from the compatibility-tested catalog returned by `/api/settings/ai-models`. Neither endpoint accepts provider credentials.
+The runtime model-preference endpoint is a local compatibility surface. Current persistent model roles are configured through `/api/settings/research` and selected from the compatibility-tested catalog returned by `/api/settings/ai-models`. Neither endpoint accepts provider credentials. `GET /api/runtime-config` is authenticated and returns only the browser-facing Maps embed key and the safe `demoMode` boolean; no Brave, Exa, or Gemini secret is included.
 
 ## Configuration and secrets
 
@@ -135,6 +140,16 @@ dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_EMAIL "admin@example.com" --projec
 dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_PASSWORD "<strong temporary password>" --project src/Raven.Api
 ```
 
+Provider keys may be supplied by server environment/user-secrets or configured by an Admin under **Settings â†’ Provider credentials**. Workspace overrides are AES-256-GCM encrypted in SQLite and take effect without restart. Before enabling workspace overrides, configure a separate 32-byte random deployment master key as Base64; keep it outside source control and back it up independently from SQLite:
+
+```powershell
+$keyBytes = [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+dotnet user-secrets set RAVEN_CREDENTIAL_MASTER_KEY ([Convert]::ToBase64String($keyBytes)) --project src/Raven.Api
+[Array]::Clear($keyBytes, 0, $keyBytes.Length)
+```
+
+If `RAVEN_CREDENTIAL_MASTER_KEY` is missing or malformed, the API continues to use environment/user-secret provider fallbacks but rejects workspace-secret writes. Losing or changing the master key makes existing workspace overrides undecryptable; deployment fallbacks remain available and an Admin can remove the unusable override. For hosted deployments, bind baseline secrets from Google Secret Manager/environment and treat workspace overrides as disposable when the SQLite workspace itself can reset.
+
 The API migrates SQLite and creates the Admin on startup. Sign in at `/login`, then use **Settings → Workspace access** to create Researcher accounts. Use **Settings → Account** to change the current password. Health checks, login, and the CSRF-token bootstrap route are the only anonymous API surfaces; all other API routes require authentication, with merge, permanent deletion, and user administration restricted to Admin. Local Vite and production same-origin API requests use an HttpOnly cookie plus an antiforgery request token.
 
 | Capability | Environment variables |
@@ -142,13 +157,15 @@ The API migrates SQLite and creates the Admin on startup. Sign in at `/login`, t
 | Brave | `BRAVE_SEARCH_API_KEY` |
 | Exa Search and Contents | `EXA_API_KEY` |
 | Exa Managed AI Research | `EXA_API_KEY` |
-| Google Maps Embed (optional frontend) | `VITE_GOOGLE_MAPS_EMBED_API_KEY` |
+| Google Maps Embed (browser-visible key) | `GOOGLE_MAPS_EMBED_API_KEY` or `GoogleMaps:EmbedApiKey` |
 | Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
 | Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
 | SQLite | `ConnectionStrings__Raven` |
 | Initial workspace Admin | `RAVEN_BOOTSTRAP_ADMIN_EMAIL`, `RAVEN_BOOTSTRAP_ADMIN_PASSWORD` |
+| Credential encryption master key | `RAVEN_CREDENTIAL_MASTER_KEY` (Base64-encoded 32 random bytes) |
+| Hosted demo notice | `RAVEN_DEMO_MODE=true` |
 
-The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
+The equivalent nested configuration sections remain available for local configuration. Brave, Exa, Gemini, and Crawl4AI values are server-only and must never be returned to React, written to ResearchEvents, or added to source control. Google Maps is the exception: its key is deliberately browser-visible, so restrict it in Google Cloud to the Maps Embed API and the intended RAVEN origins/referrers. It is served through runtime configuration, so changing it does not require rebuilding the frontend. The hosted evaluator may set `RAVEN_DEMO_MODE=true` to display the small “Demo workspace Â· changes may reset” notice.
 
 Research Settings persist safe model roles, identity-resolution/reranking preferences, provider priorities, and provider-neutral Managed AI Research depth in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets use Brave/Exa Search and Crawl4AI Local/Exa Contents. Legacy persisted provider identifiers are normalized safely on read. Managed Research depth maps internally to Exa Agent effort (`Adaptive=auto`, `Focused=low`, `Standard=medium`, `Thorough=high`, `Exhaustive=xhigh`). Authentication, configuration, and invalid-request errors never silently fall back.
 

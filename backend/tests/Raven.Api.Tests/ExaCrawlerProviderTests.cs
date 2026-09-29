@@ -43,7 +43,7 @@ public sealed class ExaCrawlerProviderTests
             {
                 ApiKey = "exa-test-key",
                 MaxTextCharacters = 8_000
-            }));
+            }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("https://example.com/about"));
 
@@ -70,7 +70,7 @@ public sealed class ExaCrawlerProviderTests
             """))) { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaCrawlerProvider(
             client,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("https://example.com"));
 
@@ -90,7 +90,7 @@ public sealed class ExaCrawlerProviderTests
             """))) { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaCrawlerProvider(
             client,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "key", MaxTextCharacters = 1_000 }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "key", MaxTextCharacters = 1_000 }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("https://example.com"));
 
@@ -110,7 +110,7 @@ public sealed class ExaCrawlerProviderTests
         })) { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaCrawlerProvider(
             client,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }), null);
 
         var result = await provider.CrawlAsync(new CrawlRequest("javascript:alert(1)"));
 
@@ -128,7 +128,7 @@ public sealed class ExaCrawlerProviderTests
             called = true;
             return Json("{}");
         })) { BaseAddress = new Uri("https://api.exa.ai") };
-        var provider = new ExaCrawlerProvider(client, Options.Create(new ExaCrawlerOptions()));
+        var provider = new ExaCrawlerProvider(client, Options.Create(new ExaCrawlerOptions()), null);
 
         var exception = await Assert.ThrowsAsync<ProviderException>(() =>
             provider.CrawlAsync(new CrawlRequest("https://example.com")));
@@ -154,7 +154,7 @@ public sealed class ExaCrawlerProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaCrawlerProvider(
             client,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }), null);
 
         var exception = await Assert.ThrowsAsync<ProviderException>(() =>
             provider.CrawlAsync(new CrawlRequest("https://example.com")));
@@ -169,7 +169,7 @@ public sealed class ExaCrawlerProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var timeoutProvider = new ExaCrawlerProvider(
             timeoutClient,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "secret-exa-key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "secret-exa-key" }), null);
 
         var timeout = await Assert.ThrowsAsync<ProviderException>(() =>
             timeoutProvider.CrawlAsync(new CrawlRequest("https://example.com")));
@@ -181,7 +181,7 @@ public sealed class ExaCrawlerProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var unavailableProvider = new ExaCrawlerProvider(
             unavailableClient,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "secret-exa-key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "secret-exa-key" }), null);
 
         var unavailable = await Assert.ThrowsAsync<ProviderException>(() =>
             unavailableProvider.CrawlAsync(new CrawlRequest("https://example.com")));
@@ -200,7 +200,7 @@ public sealed class ExaCrawlerProviderTests
             })) { BaseAddress = new Uri("https://api.exa.ai") };
         var invalidJsonProvider = new ExaCrawlerProvider(
             invalidJsonClient,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }), null);
 
         var invalidJson = await Assert.ThrowsAsync<ProviderException>(() =>
             invalidJsonProvider.CrawlAsync(new CrawlRequest("https://example.com")));
@@ -211,7 +211,7 @@ public sealed class ExaCrawlerProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var missingResultsProvider = new ExaCrawlerProvider(
             missingResultsClient,
-            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }));
+            Options.Create(new ExaCrawlerOptions { ApiKey = "key" }), null);
 
         var missingResults = await Assert.ThrowsAsync<ProviderException>(() =>
             missingResultsProvider.CrawlAsync(new CrawlRequest("https://example.com")));

@@ -22,6 +22,7 @@ using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.Briefings;
 using Raven.Api.Features.Speech;
 using Raven.Api.Features.Auth;
+using Raven.Api.Features.ProviderCredentials;
 using Microsoft.Extensions.Logging.EventLog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -38,6 +39,10 @@ builder.Services.AddDbContext<RavenDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db"));
 builder.Services.AddHealthChecks().AddDbContextCheck<RavenDbContext>();
 builder.Services.AddRavenIdentity(builder.Environment);
+builder.Services.AddSingleton<IProviderCredentialVault, ProviderCredentialVault>();
+builder.Services.AddScoped<IProviderCredentialResolver, ProviderCredentialResolver>();
+builder.Services.AddScoped<ProviderCredentialConnectionTester>();
+builder.Services.AddScoped<ProviderCredentialManagementService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<ChatExceptionHandler>();
@@ -149,6 +154,7 @@ app.MapCompanyEndpoints();
 app.MapCompanyLifecycleEndpoints();
 app.MapCompanyWorkspaceEndpoints();
 app.MapSystemEndpoints();
+app.MapProviderCredentialEndpoints();
 app.MapResearchSettingsEndpoints();
 app.MapMonitoringEndpoints();
 app.MapResearchEndpoints();

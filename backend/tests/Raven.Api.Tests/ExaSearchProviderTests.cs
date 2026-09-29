@@ -33,7 +33,7 @@ public sealed class ExaSearchProviderTests
 
         var provider = new ExaSearchProvider(
             client,
-            Options.Create(new ExaSearchOptions { ApiKey = "exa-test-key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "exa-test-key" }), null);
 
         var response = await provider.SearchAsync(new SearchRequest("FPT Software", 50, "vn"));
 
@@ -62,7 +62,7 @@ public sealed class ExaSearchProviderTests
             """))) { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaSearchProvider(
             client,
-            Options.Create(new ExaSearchOptions { ApiKey = "key", MaxSnippetCharacters = 9 }));
+            Options.Create(new ExaSearchOptions { ApiKey = "key", MaxSnippetCharacters = 9 }), null);
 
         var result = Assert.Single((await provider.SearchAsync(new SearchRequest("example", 1))).Results);
 
@@ -79,7 +79,7 @@ public sealed class ExaSearchProviderTests
             called = true;
             return Json("{\"results\":[]}");
         })) { BaseAddress = new Uri("https://api.exa.ai") };
-        var provider = new ExaSearchProvider(client, Options.Create(new ExaSearchOptions()));
+        var provider = new ExaSearchProvider(client, Options.Create(new ExaSearchOptions()), null);
 
         var exception = await Assert.ThrowsAsync<ProviderException>(() =>
             provider.SearchAsync(new SearchRequest("FPT", 1)));
@@ -96,7 +96,7 @@ public sealed class ExaSearchProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaSearchProvider(
             client,
-            Options.Create(new ExaSearchOptions { ApiKey = "key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "key" }), null);
 
         await Assert.ThrowsAsync<ArgumentException>(() => provider.SearchAsync(new SearchRequest(" ", 1)));
     }
@@ -116,7 +116,7 @@ public sealed class ExaSearchProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var provider = new ExaSearchProvider(
             client,
-            Options.Create(new ExaSearchOptions { ApiKey = "key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "key" }), null);
 
         var exception = await Assert.ThrowsAsync<ProviderException>(() =>
             provider.SearchAsync(new SearchRequest("FPT", 1)));
@@ -131,7 +131,7 @@ public sealed class ExaSearchProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var timeoutProvider = new ExaSearchProvider(
             timeoutClient,
-            Options.Create(new ExaSearchOptions { ApiKey = "secret-exa-key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "secret-exa-key" }), null);
 
         var timeout = await Assert.ThrowsAsync<ProviderException>(() =>
             timeoutProvider.SearchAsync(new SearchRequest("FPT", 1)));
@@ -143,7 +143,7 @@ public sealed class ExaSearchProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var unavailableProvider = new ExaSearchProvider(
             unavailableClient,
-            Options.Create(new ExaSearchOptions { ApiKey = "secret-exa-key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "secret-exa-key" }), null);
 
         var unavailable = await Assert.ThrowsAsync<ProviderException>(() =>
             unavailableProvider.SearchAsync(new SearchRequest("FPT", 1)));
@@ -162,7 +162,7 @@ public sealed class ExaSearchProviderTests
             })) { BaseAddress = new Uri("https://api.exa.ai") };
         var invalidJsonProvider = new ExaSearchProvider(
             invalidJsonClient,
-            Options.Create(new ExaSearchOptions { ApiKey = "key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "key" }), null);
 
         var invalidJson = await Assert.ThrowsAsync<ProviderException>(() =>
             invalidJsonProvider.SearchAsync(new SearchRequest("FPT", 1)));
@@ -173,7 +173,7 @@ public sealed class ExaSearchProviderTests
         { BaseAddress = new Uri("https://api.exa.ai") };
         var missingResultsProvider = new ExaSearchProvider(
             missingResultsClient,
-            Options.Create(new ExaSearchOptions { ApiKey = "key" }));
+            Options.Create(new ExaSearchOptions { ApiKey = "key" }), null);
 
         var missingResults = await Assert.ThrowsAsync<ProviderException>(() =>
             missingResultsProvider.SearchAsync(new SearchRequest("FPT", 1)));

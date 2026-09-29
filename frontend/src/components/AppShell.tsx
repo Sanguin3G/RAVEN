@@ -10,6 +10,7 @@ import { AccountMenu } from "./app-shell/AccountMenu";
 import { ContextTopbar } from "./app-shell/ContextTopbar";
 import { AppSidebar } from "./app-shell/AppSidebar";
 import { ResearchActivityPanel } from "./app-shell/ResearchActivityPanel";
+import { DemoModeNotice } from "./app-shell/DemoModeNotice";
 
 const sidebarStorageKey = "raven-sidebar-collapsed";
 
@@ -159,6 +160,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
       <div className="app-shell__main">
         <ContextTopbar mobileMenuButtonRef={mobileMenuButtonRef} isMobileOpen={isMobileOpen} setMobileOpen={setMobileOpen} pathname={location.pathname} workspaceServiceState={workspaceServiceState} workspaceServiceLabel={workspaceServiceLabel} navigateGlobal={navigateGlobal} />
+
+        <DemoModeNotice />
 
         <ResearchActivityPanel activeResearch={activeResearch} currentResearchSession={currentResearchSession} sharedResearchActivities={sharedResearchActivities} togglePauseResearch={togglePauseResearch} cancelActiveResearch={cancelActiveResearch} />
 

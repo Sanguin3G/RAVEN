@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 using Raven.Api.Features.Search;
 
 namespace Raven.Api.Features.Crawling.Exa;
@@ -14,7 +15,8 @@ namespace Raven.Api.Features.Crawling.Exa;
 /// </summary>
 public sealed class ExaCrawlerProvider(
     HttpClient httpClient,
-    IOptions<ExaCrawlerOptions> options) : ICrawlerProvider
+    IOptions<ExaCrawlerOptions> options,
+    IProviderCredentialResolver? credentials = null) : ICrawlerProvider
 {
     public const string ProviderId = "exa";
 
@@ -37,7 +39,11 @@ public sealed class ExaCrawlerProvider(
 
         var requestedUrl = request.Url.Trim();
         var configured = options.Value;
-        EnsureConfigured(configured);
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Exa, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
+        EnsureConfigured(apiKey);
 
         var requestBody = new
         {
@@ -53,7 +59,7 @@ public sealed class ExaCrawlerProvider(
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             // Exa supports x-api-key for server-side requests. Never include it
             // in a URL, response object, or exception message.
-            message.Headers.TryAddWithoutValidation("x-api-key", configured.ApiKey!);
+            message.Headers.TryAddWithoutValidation("x-api-key", apiKey!);
             message.Content = new StringContent(
                 JsonSerializer.Serialize(requestBody, JsonOptions),
                 Encoding.UTF8,
@@ -96,9 +102,9 @@ public sealed class ExaCrawlerProvider(
         }
     }
 
-    private static void EnsureConfigured(ExaCrawlerOptions configured)
+    private static void EnsureConfigured(string? apiKey)
     {
-        if (string.IsNullOrWhiteSpace(configured.ApiKey))
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new ProviderException(
                 ProviderId,

@@ -3,10 +3,14 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.ProviderCredentials;
 
 namespace Raven.Api.Features.Speech;
 
-public sealed class GeminiSpeechService(HttpClient http, IOptions<GeminiOptions> options)
+public sealed class GeminiSpeechService(
+    HttpClient http,
+    IOptions<GeminiOptions> options,
+    IProviderCredentialResolver? credentials = null)
 {
     private const string LiveModel = "gemini-3.5-transcribe-live";
     private const string TtsModel = "gemini-3.8-flash-lite-tts";
@@ -14,7 +18,7 @@ public sealed class GeminiSpeechService(HttpClient http, IOptions<GeminiOptions>
 
     public async Task<string> CreateLiveTokenAsync(string? language, CancellationToken ct)
     {
-        var configured = GetOptions();
+        var (configured, apiKey) = await GetOptionsAsync(ct);
         var now = DateTimeOffset.UtcNow;
         var body = new
         {
@@ -31,7 +35,7 @@ public sealed class GeminiSpeechService(HttpClient http, IOptions<GeminiOptions>
                 }
             }
         };
-        using var response = await SendAsync(HttpMethod.Post, "auth_tokens", configured.ApiKey!, body, ct);
+        using var response = await SendAsync(HttpMethod.Post, "auth_tokens", apiKey, body, ct);
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var name = document.RootElement.TryGetProperty("name", out var value) ? value.GetString() : null;
         if (string.IsNullOrWhiteSpace(name)) throw new GeminiSpeechException(502, "Gemini did not provide a temporary speech token.");
@@ -44,7 +48,7 @@ public sealed class GeminiSpeechService(HttpClient http, IOptions<GeminiOptions>
             throw new GeminiSpeechException(400, "Read-aloud text must contain 1 to 4,000 characters.");
         var selectedVoice = string.IsNullOrWhiteSpace(voice) ? "Kore" : voice.Trim();
         if (!Voices.Contains(selectedVoice)) throw new GeminiSpeechException(400, "Choose a supported Gemini voice.");
-        var configured = GetOptions();
+        var (configured, apiKey) = await GetOptionsAsync(ct);
         var body = new
         {
             model = TtsModel,
@@ -52,7 +56,7 @@ public sealed class GeminiSpeechService(HttpClient http, IOptions<GeminiOptions>
             response_format = new { type = "audio" },
             generation_config = new { speech_config = new[] { new { voice = selectedVoice } } }
         };
-        using var response = await SendAsync(HttpMethod.Post, "interactions", configured.ApiKey!, body, ct);
+        using var response = await SendAsync(HttpMethod.Post, "interactions", apiKey, body, ct);
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var audio = document.RootElement.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array
             ? steps.EnumerateArray().SelectMany(step => step.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array
@@ -63,11 +67,15 @@ public sealed class GeminiSpeechService(HttpClient http, IOptions<GeminiOptions>
         return new GeminiSpeechAudioResponse(data, "audio/wav");
     }
 
-    private GeminiOptions GetOptions()
+    private async Task<(GeminiOptions Options, string ApiKey)> GetOptionsAsync(CancellationToken cancellationToken)
     {
         var configured = options.Value;
-        if (string.IsNullOrWhiteSpace(configured.ApiKey)) throw new GeminiSpeechException(503, "Gemini speech is not configured on this server.");
-        return configured;
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Gemini, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey)) throw new GeminiSpeechException(503, "Gemini speech is not configured on this server.");
+        return (configured, apiKey);
     }
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string apiKey, object body, CancellationToken ct)

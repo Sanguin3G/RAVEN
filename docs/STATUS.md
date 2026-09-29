@@ -17,6 +17,7 @@
 - About RAVEN and Help provide concise product/trust overviews, workflow guides, sticky topic navigation, and FAQ.
 - Provider-routed Brave/Exa Search, Crawl4AI Local/Exa Contents, Gemini inference, durable user activity, and best-effort developer execution telemetry.
 - Private ASP.NET Core Identity workspace with Admin/Researcher roles, cookie login/logout, password change, bootstrap Admin, member enable/role operations, default authenticated API authorization, and Admin-only merge/permanent delete. Researchers retain normal workspace access; cancelling a just-created initial research row archives it instead of invoking permanent deletion.
+- Admin-only provider credential management for Brave, Exa, Gemini, Google Maps, and Crawl4AI. Workspace overrides are AES-256-GCM encrypted with a deployment-provided 32-byte key, loaded before environment/configuration fallback, and take effect without restart. Provider status responses never echo secrets; authenticated browser runtime config returns only the intentionally browser-visible Maps key and safe demo-mode boolean.
 
 ## Current limitations
 
@@ -25,10 +26,13 @@
 - Browser recognition and speech synthesis depend on browser/device support. Browser recognition may use the browser's speech service; Gemini speech requires server configuration, quota, and connectivity.
 - Gemini Live/TTS paths were not live-provider tested in this validation. Gemini TTS preview was rate-limited during this pass; its Settings playback lifecycle is covered with deterministic tests.
 - Persistent vector retrieval, embeddings, MCP, Crawl4AI Cloud, and advanced analytics are not implemented.
+- Cloud Run packaging, the private Cloud Run crawler identity handler, curated demo-seed tooling/data, and hosted deployment smoke remain pending. Crawl4AI Cloud remains future work in the current source branch until the deployment port is completed.
+- Google Maps connection checks must be verified from a browser origin because the key is referrer-restricted; the Admin server test reports this limitation rather than claiming a server-side probe proves browser authorization.
 
 ## Security follow-up
 
-- `frontend/.env.local` is no longer tracked and local env files are ignored. A Google Maps client key existed in repository history; rotate it and restrict it externally to the required Google API and intended origins/referrers.
+- `frontend/.env.local` is no longer tracked and local env files are ignored. A Google Maps client key existed in repository history; rotate it and restrict it externally to the Maps Embed API and intended RAVEN origins/referrers. Production now reads the browser key through authenticated runtime config rather than `VITE_GOOGLE_MAPS_EMBED_API_KEY`.
+- Set `RAVEN_CREDENTIAL_MASTER_KEY` as a deployment secret before enabling workspace credential overrides. Without a valid Base64 32-byte key, secret persistence is disabled and provider environment fallbacks still work.
 
 ## Validation baseline
 
@@ -47,6 +51,13 @@ Authentication checkpoint — 29 Sep 2026, branch `refactor/deployment-readiness
 - EF Core `has-pending-model-changes`: no model changes after the Identity migration.
 - Frontend production build passed. The full suite initially reported 108/109 because one new permission test used a singular query for two same-name companies; that query was corrected and its file passed (6/6). Initial-research workflow tests passed (11/11) after cancellation cleanup changed to archive. The full frontend suite was not rerun after those targeted corrections.
 - No deployed or live-provider smoke was performed. Cloud Run packaging and the same-origin production proxy remain pending.
+
+Provider credential checkpoint in progress — 29 Sep 2026, branch `refactor/deployment-readiness`:
+
+- Added the `AddProviderCredentials` migration; EF Core reports no pending model changes.
+- Release test build succeeded. Focused credential API/security tests passed (3/3): encrypted persistence and live precedence/removal, Admin-only authorization and Crawl4AI URL validation, Maps-only runtime config, and missing-master-key storage disablement.
+- Focused Maps runtime-config frontend tests passed (3/3); frontend production build passed. Full backend/frontend suites are deferred to the planned final release-readiness validation.
+- No live-provider or deployed Cloud Run smoke has been performed. Google Maps browser-origin restrictions and all Cloud Run packaging/seed work remain to be validated.
 
 ## Compatibility
 

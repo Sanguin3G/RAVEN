@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 
 namespace Raven.Api.Features.Search.Exa;
 
@@ -10,7 +11,10 @@ namespace Raven.Api.Features.Search.Exa;
 /// Exa REST adapter. Provider-specific request and response shapes stay inside
 /// this class; the research workflow consumes only the neutral search contract.
 /// </summary>
-public sealed class ExaSearchProvider(HttpClient httpClient, IOptions<ExaSearchOptions> options) : ISearchProvider
+public sealed class ExaSearchProvider(
+    HttpClient httpClient,
+    IOptions<ExaSearchOptions> options,
+    IProviderCredentialResolver? credentials = null) : ISearchProvider
 {
     public const string ProviderId = "exa";
 
@@ -30,7 +34,11 @@ public sealed class ExaSearchProvider(HttpClient httpClient, IOptions<ExaSearchO
         }
 
         var configured = options.Value;
-        if (string.IsNullOrWhiteSpace(configured.ApiKey))
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Exa, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new ProviderException(
                 Id,
@@ -64,7 +72,7 @@ public sealed class ExaSearchProvider(HttpClient httpClient, IOptions<ExaSearchO
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             // Exa documents x-api-key for server-side requests. It is kept in a
             // header, never in the URL or any result returned to the browser.
-            message.Headers.TryAddWithoutValidation("x-api-key", configured.ApiKey);
+            message.Headers.TryAddWithoutValidation("x-api-key", apiKey);
             message.Content = new StringContent(
                 JsonSerializer.Serialize(requestBody, JsonOptions),
                 Encoding.UTF8,
