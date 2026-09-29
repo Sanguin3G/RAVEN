@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowSquareOut, Sparkle } from "@phosphor-icons/react";
 import { getApiErrorMessage } from "../../api/client";
 import { getResearchCandidates, getResearchSources, acquireResearchCandidates } from "../../api/research";
 import { getManagedResearchJobs, startManagedResearch } from "../../api/managedResearch";
@@ -12,35 +11,15 @@ import {
 import type { ResearchTarget } from "../../api/coverage";
 import type { ResearchCandidate, ResearchRun, SourceDocument } from "../../types/research";
 import type { CompanyProfileVersion } from "../../types/profile";
-import { CandidateSourceCard, EvidenceCard, type CandidateSource, type EvidenceRecord } from "../../components/sources";
+import { CandidateSourceCard, EvidenceCard } from "../../components/sources";
 import styles from "./company-workspace.module.css";
 import type { DossierCompany, DossierProfile } from "./dossierTypes";
 import { upsertResearchActivity } from "../../utils/researchActivity";
 import { hasUsableAcceptedProfile } from "../../utils/profileReadiness";
+import { fieldLabel, prettyValue, targetLabels, targetOrder, toCandidateSource, toEvidenceRecord } from "./enrichment/enrichmentMapping";
+import { EnrichmentTargetSelector } from "./enrichment/EnrichmentTargetSelector";
+import { EnrichmentCandidateReview } from "./enrichment/EnrichmentCandidateReview";
 
-const targetOrder: ResearchTarget[] = [
-  "LegalIdentity",
-  "TaxRegistration",
-  "FoundedHistory",
-  "Industry",
-  "EmployeeScale",
-  "ProductsServices",
-  "Markets",
-  "Leadership",
-  "Locations",
-];
-
-const targetLabels: Record<ResearchTarget, string> = {
-  LegalIdentity: "Legal identity",
-  TaxRegistration: "Tax registration",
-  FoundedHistory: "Founded / history",
-  Industry: "Industry",
-  EmployeeScale: "Company scale",
-  ProductsServices: "Products & services",
-  Markets: "Markets & customer segments",
-  Leadership: "Leadership",
-  Locations: "Locations",
-};
 
 type EnrichmentPhase = "choose" | "discovering" | "reviewingSources" | "acquiring" | "reviewingEvidence" | "generatingPatch" | "reviewingPatch" | "confirmed" | "failed";
 
@@ -56,92 +35,6 @@ export interface TargetedEnrichmentPanelProps {
   onOpenExternalResearch?: (targets: ResearchTarget[]) => void;
 }
 
-function toCandidateSource(candidate: ResearchCandidate): CandidateSource {
-  const semantic = [
-    candidate.entityRelationship ? `Entity: ${candidate.entityRelationship}` : undefined,
-    candidate.semanticRelevance ? `${candidate.semanticRelevance} relevance` : undefined,
-    candidate.semanticPurposes?.length ? `Covers ${candidate.semanticPurposes.slice(0, 3).join(" · ")}` : undefined,
-    candidate.semanticRationale,
-  ].filter(Boolean).join(" · ");
-  return {
-    id: candidate.id,
-    url: candidate.url,
-    title: candidate.title || candidate.domain || "Untitled source",
-    domain: candidate.domain,
-    snippet: [candidate.snippet, semantic].filter(Boolean).join(" · "),
-    kind: candidate.sourceKind,
-    iconUrl: candidate.iconUrl,
-    recommended: candidate.recommended,
-    recommendationReasons: candidate.recommendationReasons,
-    selected: candidate.selected || candidate.recommended,
-    acquisitionStatus: candidate.acquisitionStatus === "Acquired" ? "acquired" : candidate.acquisitionStatus === "Failed" || candidate.acquisitionStatus === "Unavailable" ? "failed" : candidate.acquisitionStatus === "DuplicateSkipped" ? "duplicate" : candidate.acquisitionStatus === "Acquiring" ? "pending" : "idle",
-    acquisitionMessage: candidate.acquisitionError,
-  };
-}
-
-function toEvidenceRecord(source: SourceDocument): EvidenceRecord {
-  return {
-    id: source.id,
-    url: source.url,
-    title: source.title || source.sourceDomain || "Untitled source",
-    domain: source.sourceDomain,
-    kind: source.sourceKind,
-    iconUrl: source.iconUrl,
-    preview: source.contentPreview,
-    retrievedAt: source.retrievedAt,
-    crawlerProvider: source.crawlerProvider,
-    status: "acquired",
-  };
-}
-
-function fieldLabel(path: string) {
-  const labels: Record<string, string> = {
-    displayName: "Display name",
-    legalName: "Legal name",
-    website: "Official website",
-    country: "Country",
-    headquarters: "Headquarters",
-    registrationNumberOrTaxId: "Registration / tax ID",
-    foundedYear: "Founded year",
-    primaryIndustry: "Primary industry",
-    secondaryIndustries: "Secondary industries",
-    companySize: "Company scale",
-    employeeCount: "Employee count",
-    employeeCountRange: "Employee range",
-    productsServices: "Products & services",
-    markets: "Markets",
-    leadership: "Leadership",
-    locations: "Locations",
-  };
-  return labels[path] || path;
-}
-
-function formatStructuredValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
-  if (Array.isArray(value)) return value.map(formatStructuredValue).filter(Boolean).join(", ");
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const preferred = record.name ?? record.fullName ?? record.title ?? record.role ?? record.value;
-    if (preferred !== undefined) return formatStructuredValue(preferred);
-    return Object.entries(record).map(([key, item]) => {
-      const formatted = formatStructuredValue(item);
-      return formatted ? key + ": " + formatted : "";
-    }).filter(Boolean).join("; ");
-  }
-  return "";
-}
-
-function prettyValue(value?: string | null) {
-  if (!value) return "Not verified";
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    const formatted = formatStructuredValue(parsed);
-    return formatted || "Not verified";
-  } catch {
-    return value;
-  }
-}
 
 export function TargetedEnrichmentPanel({ company, profile, initialTargets, initialMaterialArtifactId, initialManagedResearchInvestigationId, open, onClose, onConfirmed, onOpenExternalResearch }: TargetedEnrichmentPanelProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -394,24 +287,11 @@ export function TargetedEnrichmentPanel({ company, profile, initialTargets, init
           </div>
         </section> : null}
 
-        {phase === "choose" && !materialArtifactId && !managedInvestigationId && <section className={styles.enrichmentSection} aria-labelledby="targeted-areas-heading">
-          <h3 id="targeted-areas-heading">What should RAVEN strengthen?</h3>
-          <p className={styles.contextNote}>Choose one or more missing or weak areas. Unselected accepted fields cannot be changed by this run.</p>
-          <div className={styles.targetGrid}>
-            {targetOrder.map((target) => <label className={styles.targetOption} key={target}><input type="checkbox" checked={targets.includes(target)} onChange={() => toggleTarget(target)} /><span><strong>{targetLabels[target]}</strong><small>Target-specific evidence only</small></span></label>)}
-          </div>
-            <div className={styles.methodChoice} aria-labelledby="research-method-heading">
-              <div><p className={styles.eyebrow}>RESEARCH METHOD</p><h3 id="research-method-heading">Improve {targets.length === 1 ? targetLabels[targets[0]] : "selected areas"}</h3><p className={styles.contextNote}>RAVEN Research is the fast integrated evidence workflow. Deep Research runs asynchronously and becomes reviewable for profile improvement after an accepted Profile v1 exists. External AI Assist brings in outside material for review.</p></div>
-              <article className={styles.methodChoiceRecommended}><div><strong>Research with RAVEN</strong><span>Search and verify sources using RAVEN's normal evidence workflow.</span></div><button className="button" type="button" onClick={() => void start()} disabled={loading || targets.length === 0 || !hasUsableAcceptedProfile(profile)}>Find selected information</button></article>
-              {!hasUsableAcceptedProfile(profile) ? <p className={styles.contextNote} role="status">Create or repair the initial profile before applying targeted evidence. Deep Research may still run in the background, but its completed result stays locked until a supported profile exists.</p> : null}
-              <div className={styles.methodChoiceAlternatives}><button className="button button--secondary" type="button" onClick={() => void launchDeepResearch()} disabled={loading || targets.length === 0}><Sparkle size={16} weight="fill" /> Deep Research <small>Broader background investigation</small></button><button className="button button--secondary" type="button" onClick={() => { if (targets.length > 0) { onClose(); onOpenExternalResearch?.(targets); } }} disabled={loading || targets.length === 0}><ArrowSquareOut size={16} weight="bold" /> External AI Assist <small>Generate a brief for all selected areas</small></button></div>
-            </div>
-          <div className="form-actions"><button className="button button--secondary" type="button" onClick={close}>Cancel</button></div>
-        </section>}
+{phase === "choose" && !materialArtifactId && !managedInvestigationId && <EnrichmentTargetSelector targets={targets} toggleTarget={toggleTarget} profile={profile} loading={loading} start={start} launchDeepResearch={launchDeepResearch} onClose={onClose} onOpenExternalResearch={onOpenExternalResearch} close={close} />}
 
         {(phase === "discovering" || phase === "acquiring" || phase === "generatingPatch") && <section className={styles.enrichmentSection} aria-live="polite"><h3>{phase === "discovering" ? materialArtifactId || managedInvestigationId ? "Reviewing investigation findings" : "Finding targeted evidence" : phase === "acquiring" ? "Acquiring selected evidence" : "Preparing profile update"}</h3><p className={styles.contextNote}>{materialArtifactId || managedInvestigationId ? "RAVEN is comparing the supplied findings with the accepted profile. No new search or crawl is running." : `RAVEN is working on ${targets.map((target) => targetLabels[target]).join(", ")}.`}</p><div className={styles.enrichmentProgress} role="status">Working…</div></section>}
 
-        {phase === "reviewingSources" && <section className={styles.enrichmentSection} aria-labelledby="targeted-sources-heading"><div className={styles.sectionHeader}><h3 id="targeted-sources-heading">Review targeted candidates</h3><span>{selectedCandidates} selected · {candidates.length} found</span></div><p className={styles.contextNote}>These roots were selected for the approved gaps. Review them before they become evidence.</p><div className={styles.enrichmentCandidateGrid}>{candidates.map((candidate) => <CandidateSourceCard key={candidate.id} candidate={toCandidateSource(candidate)} disabled={loading} onSelectionChange={(selected) => setCandidates((current) => current.map((item) => item.id === candidate.id ? { ...item, selected } : item))} />)}</div><div className="form-actions"><button className="button" type="button" onClick={() => void acquire()} disabled={loading || selectedCandidates === 0}>Acquire {selectedCandidates} evidence root{selectedCandidates === 1 ? "" : "s"}</button><button className="button button--secondary" type="button" onClick={() => setPhase("choose")}>Back to targets</button></div></section>}
+        {phase === "reviewingSources" && <EnrichmentCandidateReview candidates={candidates} selectedCandidates={selectedCandidates} loading={loading} setCandidates={setCandidates} acquire={acquire} onBack={() => setPhase("choose")} />}
 
         {phase === "reviewingEvidence" && <section className={styles.enrichmentSection} aria-labelledby="targeted-evidence-heading"><div className={styles.sectionHeader}><h3 id="targeted-evidence-heading">Review acquired evidence</h3><span>{sources.length} document{sources.length === 1 ? "" : "s"} acquired</span></div><div className={styles.enrichmentEvidenceGrid}>{sources.map((source) => <EvidenceCard key={source.id} evidence={toEvidenceRecord(source)} />)}</div>{sources.length === 0 && <p className={styles.contextNote}>No documents were acquired. RAVEN will not invent a patch.</p>}<div className="form-actions"><button className="button" type="button" onClick={() => void generatePatch()} disabled={loading || sources.length === 0}>Generate profile update</button><button className="button button--secondary" type="button" onClick={() => setPhase("reviewingSources")}>Back to candidates</button></div></section>}
 
