@@ -143,9 +143,15 @@ dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_PASSWORD "<strong temporary passwo
 Provider keys may be supplied by server environment/user-secrets or configured by an Admin under **Settings â†’ Provider credentials**. Workspace overrides are AES-256-GCM encrypted in SQLite and take effect without restart. Before enabling workspace overrides, configure a separate 32-byte random deployment master key as Base64; keep it outside source control and back it up independently from SQLite:
 
 ```powershell
-$keyBytes = [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
-dotnet user-secrets set RAVEN_CREDENTIAL_MASTER_KEY ([Convert]::ToBase64String($keyBytes)) --project src/Raven.Api
-[Array]::Clear($keyBytes, 0, $keyBytes.Length)
+$keyBytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+  $rng.GetBytes($keyBytes)
+  dotnet user-secrets set RAVEN_CREDENTIAL_MASTER_KEY ([Convert]::ToBase64String($keyBytes)) --project src/Raven.Api
+} finally {
+  $rng.Dispose()
+  [Array]::Clear($keyBytes, 0, $keyBytes.Length)
+}
 ```
 
 If `RAVEN_CREDENTIAL_MASTER_KEY` is missing or malformed, the API continues to use environment/user-secret provider fallbacks but rejects workspace-secret writes. Losing or changing the master key makes existing workspace overrides undecryptable; deployment fallbacks remain available and an Admin can remove the unusable override. For hosted deployments, bind baseline secrets from Google Secret Manager/environment and treat workspace overrides as disposable when the SQLite workspace itself can reset.
