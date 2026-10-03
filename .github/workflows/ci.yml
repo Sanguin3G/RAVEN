@@ -18,7 +18,6 @@ jobs:
       - run: dotnet restore backend/Raven.sln
       - run: dotnet build backend/Raven.sln -c Release --no-restore
       - run: dotnet test backend/Raven.sln -c Release --no-build
-      - run: docker build -f backend/Dockerfile -t raven-api-ci backend
 
   frontend:
     runs-on: ubuntu-latest
@@ -35,4 +34,11 @@ jobs:
       - run: npm ci
       - run: npm test -- --run
       - run: npm run build
-      - run: docker build -f Dockerfile -t raven-frontend-ci .
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t raven-api-ci backend
+      - run: docker build -t raven-frontend-ci frontend
+      - run: python3 backend/deploy/container_smoke.py

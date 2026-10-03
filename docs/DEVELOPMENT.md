@@ -201,6 +201,8 @@ dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Ap
 
 ## Local presentation and hosted evaluator modes
 
+Current release scope is deployment **preparation**, with no actual deployment required. See [portable deployment instructions](../backend/deploy/README.md) for Docker/Compose, Railway/AWS-compatible runtime requirements, persistent SQLite and cookie keys, TLS, secrets, backup, and container smoke. Cloud Run below is an optional evaluator profile rather than the only hosting target. Normal production startup is empty; set `RAVEN_SEED_DATABASE=true` explicitly to load the curated starter data when no runtime database exists.
+
 The live local presentation uses the team's current `backend/src/Raven.Api/raven.db`. Set an absolute connection path so Rider and terminal launches use the same file. This database currently has no Identity user, so create the first Admin through the normal one-time bootstrap:
 
 ```powershell
@@ -224,7 +226,7 @@ gcloud builds submit backend --tag $env:API_IMAGE
 gcloud builds submit frontend --config=frontend/cloudbuild.yaml --substitutions=_IMAGE=$env:FRONTEND_IMAGE
 ```
 
-At deployment time configure the frontend service's `RAVEN_API_ORIGIN` to the API service origin. Configure the API's SQLite connection, Admin bootstrap email/password, `RAVEN_CREDENTIAL_MASTER_KEY`, optional provider fallbacks, and `RAVEN_DEMO_MODE=true` through Cloud Run environment bindings and Secret Manager. The mentor uses a Researcher account created by the private Admin; do not share the deployment Admin credentials.
+At deployment time configure the frontend service's `RAVEN_API_ORIGIN` to the API service origin. Configure the API's SQLite connection, Admin bootstrap email/password, `RAVEN_CREDENTIAL_MASTER_KEY`, optional provider fallbacks, and, for the resettable evaluator profile, `RAVEN_SEED_DATABASE=true` plus `RAVEN_DEMO_MODE=true` through environment bindings and the chosen platform's secret manager. The mentor uses a Researcher account created by the private Admin; do not share the deployment Admin credentials.
 
 For private Cloud Run Crawl4AI, configure `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_CLOUD_RUN_AUDIENCE`, and the separate Crawl4AI API token. Grant the API runtime service account Cloud Run Invoker on the crawler. The API sends the Google identity token in `X-Serverless-Authorization` and keeps Crawl4AI's own Bearer token in `Authorization`. The crawler remains private, with the intended deployment resource profile documented separately (4 GiB RAM, 2 CPU, min 0/max 1); changing that profile is an operator action, not inferred from Git.
 

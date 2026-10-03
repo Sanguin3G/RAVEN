@@ -24,6 +24,7 @@ using Raven.Api.Features.Speech;
 using Raven.Api.Features.Auth;
 using Raven.Api.Features.ProviderCredentials;
 using Microsoft.Extensions.Logging.EventLog;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,14 @@ builder.Services.AddDbContext<RavenDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db"));
 builder.Services.AddHealthChecks().AddDbContextCheck<RavenDbContext>();
 builder.Services.AddRavenIdentity(builder.Environment);
+var dataProtectionPath = builder.Configuration["RAVEN_DATA_PROTECTION_PATH"];
+if (!string.IsNullOrWhiteSpace(dataProtectionPath))
+{
+    Directory.CreateDirectory(dataProtectionPath);
+    builder.Services.AddDataProtection()
+        .SetApplicationName("RAVEN")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath));
+}
 builder.Services.AddSingleton<IProviderCredentialVault, ProviderCredentialVault>();
 builder.Services.AddScoped<IProviderCredentialResolver, ProviderCredentialResolver>();
 builder.Services.AddScoped<ProviderCredentialConnectionTester>();
@@ -176,7 +185,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-if (app.Environment.IsProduction())
+if (builder.Configuration.GetValue<bool>("RAVEN_SEED_DATABASE"))
 {
     SqliteSeedDatabase.CopyIfMissing(
         builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db",
