@@ -48,6 +48,15 @@ export interface RuntimeModelPreferences {
   deepModel: string;
 }
 
+export interface RuntimeConfigResponse {
+  googleMapsEmbedApiKey: string | null;
+  demoMode: boolean;
+}
+
+export function getRuntimeConfig() {
+  return request<RuntimeConfigResponse>("/api/runtime-config");
+}
+
 export function getProviderStatus() {
   return request<ProviderStatusResponse>("/api/system/provider-status");
 }

@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 
 namespace Raven.Api.Features.ManagedResearch;
 
@@ -52,7 +53,8 @@ public sealed class ManagedResearchProviderException : Exception
 /// </summary>
 public sealed class ExaAgentClient(
     HttpClient httpClient,
-    IOptions<ExaAgentOptions> options) : IManagedResearchAgentClient
+    IOptions<ExaAgentOptions> options,
+    IProviderCredentialResolver? credentials = null) : IManagedResearchAgentClient
 {
     public const string ProviderId = "exa-agent";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -68,7 +70,7 @@ public sealed class ExaAgentClient(
         }
 
         var configured = options.Value;
-        EnsureConfigured(configured);
+        var apiKey = await GetApiKeyAsync(configured, cancellationToken);
         var body = new
         {
             query = ManagedResearchText.Bound(request.Query, ManagedResearchLimits.MaxQueryLength),
@@ -76,7 +78,7 @@ public sealed class ExaAgentClient(
             outputSchema = OutputSchema
         };
 
-        using var message = CreateRequest(HttpMethod.Post, configured.AgentRunsPath, configured);
+        using var message = CreateRequest(HttpMethod.Post, configured.AgentRunsPath, apiKey);
         message.Content = new StringContent(
             JsonSerializer.Serialize(body, JsonOptions),
             Encoding.UTF8,
@@ -84,24 +86,24 @@ public sealed class ExaAgentClient(
         return await SendAsync(message, configured, httpClient, cancellationToken);
     }
 
-    public Task<ManagedResearchProviderRun> GetAsync(
+    public async Task<ManagedResearchProviderRun> GetAsync(
         string providerRunId,
         CancellationToken cancellationToken = default)
     {
         var configured = options.Value;
-        EnsureConfigured(configured);
+        var apiKey = await GetApiKeyAsync(configured, cancellationToken);
         var path = JoinPath(configured.AgentRunsPath, Uri.EscapeDataString(RequireRunId(providerRunId)));
-        return SendAsync(CreateRequest(HttpMethod.Get, path, configured), configured, httpClient, cancellationToken);
+        return await SendAsync(CreateRequest(HttpMethod.Get, path, apiKey), configured, httpClient, cancellationToken);
     }
 
-    public Task<ManagedResearchProviderRun> CancelAsync(
+    public async Task<ManagedResearchProviderRun> CancelAsync(
         string providerRunId,
         CancellationToken cancellationToken = default)
     {
         var configured = options.Value;
-        EnsureConfigured(configured);
+        var apiKey = await GetApiKeyAsync(configured, cancellationToken);
         var path = JoinPath(configured.AgentRunsPath, Uri.EscapeDataString(RequireRunId(providerRunId)), "cancel");
-        return SendAsync(CreateRequest(HttpMethod.Post, path, configured), configured, httpClient, cancellationToken);
+        return await SendAsync(CreateRequest(HttpMethod.Post, path, apiKey), configured, httpClient, cancellationToken);
     }
 
     private static readonly object OutputSchema = new
@@ -151,14 +153,24 @@ public sealed class ExaAgentClient(
         required = new[] { "summary", "claims", "sources", "uncertainties" }
     };
 
-    private static HttpRequestMessage CreateRequest(HttpMethod method, string path, ExaAgentOptions configured)
+    private static HttpRequestMessage CreateRequest(HttpMethod method, string path, string apiKey)
     {
         var message = new HttpRequestMessage(method, string.IsNullOrWhiteSpace(path) ? "/agent/runs" : path);
         message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         // The managed-research contract uses Bearer authentication. The key is
         // never included in a URL, result, or exception text.
-        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configured.ApiKey);
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         return message;
+    }
+
+    private async Task<string> GetApiKeyAsync(ExaAgentOptions configured, CancellationToken cancellationToken)
+    {
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Exa, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
+        EnsureConfigured(apiKey);
+        return apiKey!;
     }
 
     private static async Task<ManagedResearchProviderRun> SendAsync(
@@ -306,9 +318,9 @@ public sealed class ExaAgentClient(
         return new ManagedResearchProviderOutput(text, structured, citations);
     }
 
-    private static void EnsureConfigured(ExaAgentOptions configured)
+    private static void EnsureConfigured(string? apiKey)
     {
-        if (string.IsNullOrWhiteSpace(configured.ApiKey))
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new ManagedResearchProviderException(
                 $"Managed AI Research is not configured. Set {ExaAgentOptions.ApiKeyEnvironmentVariable}.",

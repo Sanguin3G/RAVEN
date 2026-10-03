@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 
 namespace Raven.Api.Features.Ai;
 
@@ -13,7 +14,10 @@ namespace Raven.Api.Features.Ai;
 /// v1beta generateContent endpoint and the server-side x-goog-api-key header;
 /// no Gemini DTOs escape this class.
 /// </summary>
-public sealed class GeminiProvider(HttpClient httpClient, IOptions<GeminiOptions> options) : IAiModelProvider
+public sealed class GeminiProvider(
+    HttpClient httpClient,
+    IOptions<GeminiOptions> options,
+    IProviderCredentialResolver? credentials = null) : IAiModelProvider
 {
     public const string ProviderId = "gemini";
 
@@ -29,8 +33,12 @@ public sealed class GeminiProvider(HttpClient httpClient, IOptions<GeminiOptions
 
         var stopwatch = Stopwatch.StartNew();
         var configured = options.Value;
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Gemini, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
 
-        if (string.IsNullOrWhiteSpace(configured.ApiKey))
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             return Failure(
                 request.Model,
@@ -81,7 +89,7 @@ public sealed class GeminiProvider(HttpClient httpClient, IOptions<GeminiOptions
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             // Google documents this header for server-side REST requests. It
             // keeps the key out of the URL and therefore out of URI logging.
-            message.Headers.TryAddWithoutValidation("x-goog-api-key", configured.ApiKey);
+            message.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
 
             using var response = await httpClient.SendAsync(message, cancellationToken);
 

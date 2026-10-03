@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Raven.Api.Features.Auth;
 using Raven.Api.Features.Companies;
 using Raven.Api.Features.Companies.Workspace;
 using Raven.Api.Features.Research;
@@ -8,6 +10,7 @@ using Raven.Api.Features.Research.Intelligence;
 using Raven.Api.Features.Research.Identity;
 using Raven.Api.Features.Profiles;
 using Raven.Api.Features.Settings;
+using Raven.Api.Features.ProviderCredentials;
 using Raven.Api.Features.Profiles.Changes;
 using Raven.Api.Features.Monitoring;
 using Raven.Api.Features.DeepResearch;
@@ -21,7 +24,7 @@ using Raven.Api.Features.Research.Briefings;
 
 namespace Raven.Api.Data;
 
-public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : DbContext(options)
+public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<ResearchRun> ResearchRuns => Set<ResearchRun>();
@@ -32,6 +35,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
     public DbSet<CompanyProfileCandidate> CompanyProfileCandidates => Set<CompanyProfileCandidate>();
     public DbSet<ProfileEvidence> ProfileEvidences => Set<ProfileEvidence>();
     public DbSet<ResearchSettingsEntity> ResearchSettings => Set<ResearchSettingsEntity>();
+    public DbSet<ProviderCredentialEntity> ProviderCredentials => Set<ProviderCredentialEntity>();
     public DbSet<ProfileChange> ProfileChanges => Set<ProfileChange>();
     public DbSet<ResearchIdentityCandidate> ResearchIdentityCandidates => Set<ResearchIdentityCandidate>();
     public DbSet<CompanyMonitoringSetting> CompanyMonitoringSettings => Set<CompanyMonitoringSetting>();
@@ -56,6 +60,7 @@ public sealed class RavenDbContext(DbContextOptions<RavenDbContext> options) : D
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RavenDbContext).Assembly);
     }
 }

@@ -117,9 +117,14 @@ System endpoints:
 GET /api/system/crawler-status
 GET /api/system/provider-status
 PUT /api/system/model-preferences
+GET /api/runtime-config
+GET /api/admin/provider-credentials                (Admin)
+PUT /api/admin/provider-credentials/{provider}     (Admin)
+DELETE /api/admin/provider-credentials/{provider}  (Admin)
+POST /api/admin/provider-credentials/{provider}/test (Admin)
 ```
 
-The runtime model-preference endpoint is a local compatibility surface. Current persistent model roles are configured through `/api/settings/research` and selected from the compatibility-tested catalog returned by `/api/settings/ai-models`. Neither endpoint accepts provider credentials.
+The runtime model-preference endpoint is a local compatibility surface. Current persistent model roles are configured through `/api/settings/research` and selected from the compatibility-tested catalog returned by `/api/settings/ai-models`. Neither endpoint accepts provider credentials. `GET /api/runtime-config` is authenticated and returns only the browser-facing Maps embed key and the safe `demoMode` boolean; no Brave, Exa, or Gemini secret is included.
 
 ## Configuration and secrets
 
@@ -127,17 +132,46 @@ Ask RAVEN stores Chat rows in SQLite across API restarts and pins each conversat
 
 Never commit a populated `.env` file. RAVEN does not load `.env` automatically; export values into the API process or use user secrets.
 
+The private workspace uses ASP.NET Core Identity with `Admin` and `Researcher` roles. There is no public registration. Configure the initial Admin before the first API start against an empty user database; bootstrap only runs while the Identity user store is empty and never overwrites an existing account:
+
+```powershell
+# from backend; replace the placeholders locally and never commit the values
+dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_EMAIL "admin@example.com" --project src/Raven.Api
+dotnet user-secrets set RAVEN_BOOTSTRAP_ADMIN_PASSWORD "<strong temporary password>" --project src/Raven.Api
+```
+
+Provider keys may be supplied by server environment/user-secrets or configured by an Admin under **Settings â†’ Provider credentials**. Workspace overrides are AES-256-GCM encrypted in SQLite and take effect without restart. Before enabling workspace overrides, configure a separate 32-byte random deployment master key as Base64; keep it outside source control and back it up independently from SQLite:
+
+```powershell
+$keyBytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+  $rng.GetBytes($keyBytes)
+  dotnet user-secrets set RAVEN_CREDENTIAL_MASTER_KEY ([Convert]::ToBase64String($keyBytes)) --project src/Raven.Api
+} finally {
+  $rng.Dispose()
+  [Array]::Clear($keyBytes, 0, $keyBytes.Length)
+}
+```
+
+If `RAVEN_CREDENTIAL_MASTER_KEY` is missing or malformed, the API continues to use environment/user-secret provider fallbacks but rejects workspace-secret writes. Losing or changing the master key makes existing workspace overrides undecryptable; deployment fallbacks remain available and an Admin can remove the unusable override. For hosted deployments, bind baseline secrets from Google Secret Manager/environment and treat workspace overrides as disposable when the SQLite workspace itself can reset.
+
+The API migrates SQLite and creates the Admin on startup. Sign in at `/login`, then use **Settings → Workspace access** to create Researcher accounts. Use **Settings → Account** to change the current password. Health checks, login, and the CSRF-token bootstrap route are the only anonymous API surfaces; all other API routes require authentication, with merge, permanent deletion, and user administration restricted to Admin. Local Vite and production same-origin API requests use an HttpOnly cookie plus an antiforgery request token.
+
 | Capability | Environment variables |
 | --- | --- |
 | Brave | `BRAVE_SEARCH_API_KEY` |
 | Exa Search and Contents | `EXA_API_KEY` |
 | Exa Managed AI Research | `EXA_API_KEY` |
-| Google Maps Embed (optional frontend) | `VITE_GOOGLE_MAPS_EMBED_API_KEY` |
+| Google Maps Embed (browser-visible key) | `GOOGLE_MAPS_EMBED_API_KEY` or `GoogleMaps:EmbedApiKey` |
 | Crawl4AI Local | `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_API_TOKEN` |
 | Gemini | `GEMINI_API_KEY`, optional `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL` |
 | SQLite | `ConnectionStrings__Raven` |
+| Initial workspace Admin | `RAVEN_BOOTSTRAP_ADMIN_EMAIL`, `RAVEN_BOOTSTRAP_ADMIN_PASSWORD` |
+| Credential encryption master key | `RAVEN_CREDENTIAL_MASTER_KEY` (Base64-encoded 32 random bytes) |
+| Hosted demo notice | `RAVEN_DEMO_MODE=true` |
 
-The equivalent nested configuration sections remain available for local configuration. Provider keys are server-only and must never be returned to React, written to ResearchEvents, or added to source control.
+The equivalent nested configuration sections remain available for local configuration. Brave, Exa, Gemini, and Crawl4AI values are server-only and must never be returned to React, written to ResearchEvents, or added to source control. Google Maps is the exception: its key is deliberately browser-visible, so restrict it in Google Cloud to the Maps Embed API and the intended RAVEN origins/referrers. It is served through runtime configuration, so changing it does not require rebuilding the frontend. The hosted evaluator may set `RAVEN_DEMO_MODE=true` to display the small “Demo workspace Â· changes may reset” notice.
 
 Research Settings persist safe model roles, identity-resolution/reranking preferences, provider priorities, and provider-neutral Managed AI Research depth in SQLite. They never persist provider keys. `RAVEN Local First` uses Brave plus Crawl4AI Local; Resilient and Cloud presets use Brave/Exa Search and Crawl4AI Local/Exa Contents. Legacy persisted provider identifiers are normalized safely on read. Managed Research depth maps internally to Exa Agent effort (`Adaptive=auto`, `Focused=low`, `Standard=medium`, `Thorough=high`, `Exhaustive=xhigh`). Authentication, configuration, and invalid-request errors never silently fall back.
 
@@ -164,6 +198,57 @@ SQLite is the source of record. API startup applies EF Core migrations. With the
 dotnet ef migrations add <MigrationName> --project src/Raven.Api --startup-project src/Raven.Api
 dotnet ef database update --project src/Raven.Api --startup-project src/Raven.Api
 ```
+
+## Local presentation and hosted evaluator modes
+
+Current release scope is deployment **preparation**, with no actual deployment required. See [portable deployment instructions](../backend/deploy/README.md) for Docker/Compose, Railway/AWS-compatible runtime requirements, persistent SQLite and cookie keys, TLS, secrets, backup, and container smoke. Cloud Run below is an optional evaluator profile rather than the only hosting target. Normal production startup is empty; set `RAVEN_SEED_DATABASE=true` explicitly to load the curated starter data when no runtime database exists.
+
+The live local presentation uses the team's current `backend/src/Raven.Api/raven.db`. Set an absolute connection path so Rider and terminal launches use the same file. This database currently has no Identity user, so create the first Admin through the normal one-time bootstrap:
+
+```powershell
+# from backend
+$workspaceDb = (Resolve-Path .\src\Raven.Api\raven.db).Path
+$env:ConnectionStrings__Raven = "Data Source=$workspaceDb"
+$env:RAVEN_BOOTSTRAP_ADMIN_EMAIL = 'admin@raven.local'
+$secret = Read-Host 'Choose local Admin password' -AsSecureString
+$env:RAVEN_BOOTSTRAP_ADMIN_PASSWORD = [System.Net.NetworkCredential]::new('', $secret).Password
+dotnet run --project .\src\Raven.Api --launch-profile http
+```
+
+Use `admin@raven.local` and the password entered at the prompt to sign in. The password must have at least 12 characters with upper/lowercase, a digit, and a symbol. Bootstrap creates the Admin in the selected database once; later starts do not need the bootstrap variables. If launching through Rider instead, set the same connection and bootstrap variables in that API run configuration for the first launch. Clear the bootstrap variables after stopping the API. In another shell, start the frontend with `npm run dev` from `frontend`. It uses the local Vite `/api` proxy. Start local Crawl4AI separately and verify provider status before any live provider-backed workflow. The separate ignored `backend/raven.demo.db` remains an optional curated fallback; it has its own Admin and is not the default local connection.
+
+The hosted evaluator is intentionally a resettable Cloud Run demo, not durable production hosting. The API container stores SQLite under `/app/data/raven.db` and copies the bundled curated seed only when that runtime file is absent, then applies current EF migrations and bootstraps deployment users. Cloud Run's instance filesystem is disposable; keep the API at one instance. In-process background workers are not guaranteed CPU after a request finishes or while the service scales to zero, so use hosted mode mainly to browse curated dossiers and try short request-bound interactions. Long-running workflow presentation belongs in the local environment.
+
+The frontend Docker image serves the Vite build and reverse-proxies `/api` to `RAVEN_API_ORIGIN`, supplied as a Cloud Run service environment value. This keeps cookie auth same-origin. Nginx disables buffering and uses extended read/send timeouts for Chat SSE. Do not build the API URL into React or commit a deployment endpoint. Build from the repository root's service directories:
+
+```powershell
+gcloud builds submit backend --tag $env:API_IMAGE
+gcloud builds submit frontend --config=frontend/cloudbuild.yaml --substitutions=_IMAGE=$env:FRONTEND_IMAGE
+```
+
+At deployment time configure the frontend service's `RAVEN_API_ORIGIN` to the API service origin. Configure the API's SQLite connection, Admin bootstrap email/password, `RAVEN_CREDENTIAL_MASTER_KEY`, optional provider fallbacks, and, for the resettable evaluator profile, `RAVEN_SEED_DATABASE=true` plus `RAVEN_DEMO_MODE=true` through environment bindings and the chosen platform's secret manager. The mentor uses a Researcher account created by the private Admin; do not share the deployment Admin credentials.
+
+For private Cloud Run Crawl4AI, configure `CRAWL4AI_LOCAL_BASE_URL`, `CRAWL4AI_CLOUD_RUN_AUDIENCE`, and the separate Crawl4AI API token. Grant the API runtime service account Cloud Run Invoker on the crawler. The API sends the Google identity token in `X-Serverless-Authorization` and keeps Crawl4AI's own Bearer token in `Authorization`. The crawler remains private, with the intended deployment resource profile documented separately (4 GiB RAM, 2 CPU, min 0/max 1); changing that profile is an operator action, not inferred from Git.
+
+`backend/src/Raven.Api/seed/raven.seed.db` is the presentation-safe hosted starter artifact produced by the DemoSeed allowlist/export workflow. `raven.demo.db` is an optional local curated copy and remains outside Git, not the default live-presentation database. Both export artifacts have no Identity users or provider credential rows at generation. The source `raven.db` is opened read-only by the export tool and never sanitized in place; normal local use and Identity bootstrap may of course add application state to that source workspace.
+
+The repeatable curation workflow first emits metadata only; it does not print SourceDocument bodies or Chat messages:
+
+```powershell
+dotnet run --project backend/DemoSeed -- --inventory D:\RAVEN-DATA\raven.db
+```
+
+After reviewing the inventory and each candidate's dossier in RAVEN, create a manifest with explicit approved Company IDs. The current reviewed selection is `backend/DemoSeed/demo-selection.json`: 70mai, Sun Property, Alphabet, FPT Information System, FPT, Zepp Health, and CMC Telecom. Optional `excludeChatConversationIds`, `excludeInvestigationIds`, and `excludeBriefingIds` omit distracting children; excluding an Investigation also removes Briefing snapshots that embed it and Chats that cite/attach it. Company names matching common test, joke, adult, or debug markers are rejected as a final guard, not treated as a substitute for explicit review.
+
+```powershell
+dotnet run --project backend/DemoSeed -- `
+  --source D:\RAVEN-DATA\raven.db `
+  --manifest backend/DemoSeed/demo-selection.json `
+  --output backend/raven.demo.db `
+  --public-seed backend/src/Raven.Api/seed/raven.seed.db
+```
+
+The command refuses to overwrite outputs, snapshots the source through SQLite's online backup API in read-only mode, migrates and curates only the copy, removes non-allowlisted Companies through the existing deletion service, strips credentials and Identity users, clears transient work/telemetry, and validates model/migration state, settings, allowlist, sensitive columns, integrity, and foreign keys before publishing either output. Keep `raven.demo.db` outside Git; the allowlist manifest and sanitized public seed are versioned for reproducibility. The source workspace has no presentation-safe Briefing: its sole saved Briefing belongs to an explicitly excluded company. Do not fabricate one; create a new genuine Briefing from an approved Investigation in the presentation workspace if this feature must be shown.
 
 ## Tests and checks
 

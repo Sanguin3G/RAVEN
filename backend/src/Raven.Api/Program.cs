@@ -21,7 +21,10 @@ using Raven.Api.Features.Research.ExternalImport;
 using Raven.Api.Features.Research.Organization;
 using Raven.Api.Features.Research.Briefings;
 using Raven.Api.Features.Speech;
+using Raven.Api.Features.Auth;
+using Raven.Api.Features.ProviderCredentials;
 using Microsoft.Extensions.Logging.EventLog;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +39,19 @@ if (OperatingSystem.IsWindows())
 builder.Services.AddDbContext<RavenDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db"));
 builder.Services.AddHealthChecks().AddDbContextCheck<RavenDbContext>();
+builder.Services.AddRavenIdentity(builder.Environment);
+var dataProtectionPath = builder.Configuration["RAVEN_DATA_PROTECTION_PATH"];
+if (!string.IsNullOrWhiteSpace(dataProtectionPath))
+{
+    Directory.CreateDirectory(dataProtectionPath);
+    builder.Services.AddDataProtection()
+        .SetApplicationName("RAVEN")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath));
+}
+builder.Services.AddSingleton<IProviderCredentialVault, ProviderCredentialVault>();
+builder.Services.AddScoped<IProviderCredentialResolver, ProviderCredentialResolver>();
+builder.Services.AddScoped<ProviderCredentialConnectionTester>();
+builder.Services.AddScoped<ProviderCredentialManagementService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<ChatExceptionHandler>();
@@ -117,13 +133,14 @@ builder.Services.PostConfigure<Crawl4AiLocalOptions>(options =>
 {
     options.BaseUrl = builder.Configuration["CRAWL4AI_LOCAL_BASE_URL"] ?? options.BaseUrl;
     options.ApiToken = builder.Configuration["CRAWL4AI_API_TOKEN"] ?? options.ApiToken;
+    options.CloudRunAudience = builder.Configuration["CRAWL4AI_CLOUD_RUN_AUDIENCE"] ?? options.CloudRunAudience;
 });
 builder.Services.AddHttpClient<ICrawlerStatusProbe, Crawl4AiLocalStatusProbe>((services, client) =>
 {
     var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Crawl4AiLocalOptions>>().Value;
     client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-    client.Timeout = TimeSpan.FromSeconds(3);
-});
+    client.Timeout = TimeSpan.FromSeconds(string.IsNullOrWhiteSpace(options.CloudRunAudience) ? 3 : 45);
+}).AddHttpMessageHandler<CloudRunCrawlerIdentityHandler>();
 builder.Services.AddResearchDiscovery(builder.Configuration);
 builder.Services.AddGeminiAi(builder.Configuration);
 builder.Services.AddCompanyProfiles(builder.Configuration);
@@ -133,15 +150,21 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseCors("DevelopmentFrontend");
-app.MapHealthChecks("/health");
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseApiAntiforgery(builder.Configuration.GetValue("Security:ValidateApiAntiforgery", true));
+app.MapHealthChecks("/health").AllowAnonymous();
 // Keep the API health probe on the same /api surface used by the frontend
 // dev proxy. The root route remains available for infrastructure probes.
-app.MapHealthChecks("/api/health");
+app.MapHealthChecks("/api/health").AllowAnonymous();
 app.MapGet("/api", () => Results.Ok(new { name = "RAVEN API", status = "initialized" }));
+app.MapAuthEndpoints();
+app.MapWorkspaceAccessEndpoints();
 app.MapCompanyEndpoints();
 app.MapCompanyLifecycleEndpoints();
 app.MapCompanyWorkspaceEndpoints();
 app.MapSystemEndpoints();
+app.MapProviderCredentialEndpoints();
 app.MapResearchSettingsEndpoints();
 app.MapMonitoringEndpoints();
 app.MapResearchEndpoints();
@@ -162,10 +185,18 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+if (builder.Configuration.GetValue<bool>("RAVEN_SEED_DATABASE"))
+{
+    SqliteSeedDatabase.CopyIfMissing(
+        builder.Configuration.GetConnectionString("Raven") ?? "Data Source=raven.db",
+        Path.Combine(app.Environment.ContentRootPath, "seed", "raven.seed.db"));
+}
+
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RavenDbContext>();
     await db.Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>().InitializeAsync();
 }
 
 app.Run();

@@ -1,0 +1,41 @@
+{
+  "companies": [
+    {
+      "id": "af9cd2e3-3719-426e-ad67-4b5b50fae64f",
+      "role": "showcase",
+      "excludeChatConversationIds": [
+        "68bd13a0-30f4-4e26-adc7-8868be975a1a"
+      ]
+    },
+    {
+      "id": "e49f62b7-c2d2-477f-897c-9d8d0f5c3300",
+      "role": "profile history",
+      "excludeChatConversationIds": [
+        "a5538260-c0ce-4e54-bd1e-a9ece98c4946"
+      ]
+    },
+    {
+      "id": "ca6bb5c9-839a-40d6-8eb3-59c9b7464f8d",
+      "role": "investigations"
+    },
+    {
+      "id": "60ea3f10-af9c-4b86-995f-5ec880feee87",
+      "role": "corporate structure"
+    },
+    {
+      "id": "8f67eb17-4478-48d1-beb3-e84958da1202",
+      "role": "corporate family",
+      "excludeChatConversationIds": [
+        "eace3701-a086-4e98-bdd2-49e966db4a9c"
+      ]
+    },
+    {
+      "id": "e92bc1af-d6a3-416d-b0a5-8d3145f384f2",
+      "role": "second dossier"
+    },
+    {
+      "id": "9713056c-825d-4cf2-84c6-41b2a1bf5ae9",
+      "role": "needs research"
+    }
+  ]
+}

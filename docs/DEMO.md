@@ -8,9 +8,19 @@ Tell one coherent story: a researcher turns an ambiguous company name into a tru
 **Audience:** customer, mentor, or evaluator.
 **Presenter posture:** show what RAVEN knows, what it does not know, and why the researcher remains in control.
 
+## Demo environments
+
+Hosting is deferred for this release. The local presentation remains the active environment. Containers, curated seed, and portable setup instructions are prepared for a later host selection; Cloud Run is one supported option. See [deployment preparation](../backend/deploy/README.md). Future evaluator deployments must explicitly enable `RAVEN_SEED_DATABASE=true` to load the curated starter dataset.
+
+Use the local presentation environment as the primary live demonstration: local frontend/API connected to the team's existing `backend/src/Raven.Api/raven.db`, local Crawl4AI, and live provider configuration. The hosted Cloud Run environment is for the mentor to explore afterward; it starts from a curated seed and can reset when an API instance is replaced. Do not claim its SQLite workspace is durable. A small `Demo workspace · changes may reset` notice is expected there. Long-running in-process workflows should be demonstrated locally, where the API remains warm. The local database contains records excluded from the hosted seed, so review or avoid those entries during the presentation; the optional curated `backend/raven.demo.db` remains available if a presentation-safe Companies list is essential.
+
+The curated set comes from the reviewed IDs in `backend/DemoSeed/demo-selection.json`: 70mai, Sun Property, Alphabet, FPT Information System, FPT, Zepp Health, and CMC Telecom. Do not create fictional dossiers to fill a feature checklist. Use one researcher login for the mentor; keep bootstrap Admin and provider deployment secrets private. The seed has no saved Briefing because the source workspace's only Briefing belongs to an excluded company. A Briefing demo needs a genuine new Briefing generated from an approved Investigation, not copied from that excluded record.
+
+For a local Google Maps check, restart the Development API after configuring `RAVEN_CREDENTIAL_MASTER_KEY` in its user-secrets store. Sign in as Admin, open **Settings → Provider credentials → Google Maps**, enter a browser key, and choose **Replace**. Then open a Company Overview with a verified address and confirm the embedded map loads. The Maps **Test connection** action cannot verify a browser-referrer-restricted key from the server; a Company map in the browser is the meaningful check. Restrict the key to Maps Embed API and the frontend's allowed website origin.
+
 ## Before the meeting
 
-- Start the API and frontend. Use fixture-backed data for lifecycle, merge, and enrichment unless a controlled live-provider run has been prepared.
+- Start the local API and frontend against the frozen, curated presentation database. Use a prepared duplicate pair for merge and a controlled live-provider run only when those workflows have been rehearsed.
 - Keep one well-supported company dossier and one intentionally sparse/disposable company available. Keep a known duplicate pair available for workspace review.
 - If live Gemini is enabled, confirm it is a controlled smoke: label it as live and do not expose provider credentials or raw responses. The rest of the demo works with fixtures.
 - Do not demo permanent deletion against a record the audience may want later. It is deliberate and irreversible.

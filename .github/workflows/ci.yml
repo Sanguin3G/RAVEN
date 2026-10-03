@@ -34,3 +34,11 @@ jobs:
       - run: npm ci
       - run: npm test -- --run
       - run: npm run build
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t raven-api-ci backend
+      - run: docker build -t raven-frontend-ci frontend
+      - run: python3 backend/deploy/container_smoke.py

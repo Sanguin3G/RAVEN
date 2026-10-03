@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 
 namespace Raven.Api.Features.Ai;
 
@@ -19,7 +20,10 @@ public interface IGeminiModelCatalog
 /// Intersects Google's project model listing with the application's narrow
 /// structured-generation compatibility catalog. This is metadata discovery only.
 /// </summary>
-public sealed class GeminiModelCatalog(HttpClient httpClient, IOptions<GeminiOptions> options) : IGeminiModelCatalog
+public sealed class GeminiModelCatalog(
+    HttpClient httpClient,
+    IOptions<GeminiOptions> options,
+    IProviderCredentialResolver? credentials = null) : IGeminiModelCatalog
 {
     private static readonly GeminiModelOptionResponse[] CompatibilityCatalog =
     [
@@ -31,7 +35,11 @@ public sealed class GeminiModelCatalog(HttpClient httpClient, IOptions<GeminiOpt
     public async Task<GeminiModelCatalogResponse> GetAsync(CancellationToken cancellationToken = default)
     {
         var configured = options.Value;
-        if (string.IsNullOrWhiteSpace(configured.ApiKey))
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Gemini, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             return Unverified("No Gemini API key is configured; project model availability cannot be checked.");
         }
@@ -52,7 +60,7 @@ public sealed class GeminiModelCatalog(HttpClient httpClient, IOptions<GeminiOpt
                     : $"&pageToken={Uri.EscapeDataString(pageToken)}");
                 var modelsUri = new Uri(baseUri, $"{configured.ApiVersion.Trim('/')}/models?{query}");
                 using var request = new HttpRequestMessage(HttpMethod.Get, modelsUri);
-                request.Headers.Add("x-goog-api-key", configured.ApiKey);
+                request.Headers.Add("x-goog-api-key", apiKey);
                 using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {

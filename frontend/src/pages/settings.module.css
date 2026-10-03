@@ -429,6 +429,8 @@
 .pageHeader { align-items: end; display: flex; justify-content: space-between; }
 .pageHeader h1 { margin-bottom: .25rem; }
 .settingsLayout { align-items: start; display: grid; gap: 1rem; grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr); }
+.pendingDraft { align-items: center; background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised)); border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border)); border-radius: 5px; display: flex; flex-wrap: wrap; gap: 0.75rem; grid-column: 2; justify-content: space-between; padding: 0.75rem; }
+.pendingDraft > div { display: flex; gap: 0.5rem; }
 .navigation { align-content: start; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; display: grid; gap: .2rem; padding: .4rem; }
 .navigation button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; display: flex; font: inherit; font-size: .82rem; gap: .62rem; min-height: 2.75rem; padding: .55rem .7rem; text-align: left; }
 .navigation button svg { color: color-mix(in srgb, var(--text-muted) 82%, var(--primary)); flex: 0 0 auto; }
@@ -484,6 +486,7 @@
   .settingsLayout { grid-template-columns: minmax(0, 1fr); }
   .navigation { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
   .navigation button { flex: 0 0 auto; scroll-snap-align: start; }
+  .pendingDraft { grid-column: 1; }
   .choiceGrid,
   .modelGrid {
     grid-template-columns: 1fr;

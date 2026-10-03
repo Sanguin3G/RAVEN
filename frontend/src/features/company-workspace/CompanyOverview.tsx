@@ -10,6 +10,7 @@ import type { DossierCompany, DossierCoverage, DossierLocation, DossierProfile }
 import { getInvestigations, type Investigation } from "../../api/investigations";
 import { getBriefings, type BriefingListItem } from "../../api/briefings";
 import { getProfileReadiness, hasUsableAcceptedProfile } from "../../utils/profileReadiness";
+import { getRuntimeConfig } from "../../api/system";
 
 export interface CompanyOverviewProps {
   company: DossierCompany;
@@ -34,10 +35,22 @@ function FieldValue({ value }: { value?: number | string | null }) {
 
 function CompanyMapEmbed({ address }: { address?: string | null }) {
   const normalizedAddress = address?.trim();
+  const [embedKey, setEmbedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!normalizedAddress) return;
+    let active = true;
+    void getRuntimeConfig().then(config => {
+      if (active) setEmbedKey(config.googleMapsEmbedApiKey?.trim() || null);
+    }).catch(() => {
+      if (active) setEmbedKey(null);
+    });
+    return () => { active = false; };
+  }, [normalizedAddress]);
+
   if (!normalizedAddress) return null;
 
   const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(normalizedAddress)}`;
-  const embedKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY?.trim();
 
   return (
     <div className={styles.companyMap}>

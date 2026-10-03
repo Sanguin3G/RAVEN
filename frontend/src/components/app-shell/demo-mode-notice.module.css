@@ -1,0 +1,16 @@
+.notice {
+  background: color-mix(in srgb, var(--warning) 11%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  margin: 0.5rem 1.5rem 0;
+  padding: 0.35rem 0.65rem;
+  width: fit-content;
+}
+
+@media (max-width: 640px) {
+  .notice {
+    margin-inline: 0.8rem;
+  }
+}

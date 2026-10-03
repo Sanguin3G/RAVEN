@@ -1,5 +1,6 @@
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 const apiBaseUrl = configuredApiBaseUrl ? configuredApiBaseUrl.replace(/\/$/, "") : "";
+let antiforgeryToken: string | null = null;
 
 export interface ProblemDetails {
   type?: string;
@@ -27,16 +28,52 @@ export function getApiUrl(path: string) {
   return `${apiBaseUrl}${path}`;
 }
 
+export function clearAntiforgeryToken() {
+  antiforgeryToken = null;
+}
+
+export async function refreshAntiforgeryToken() {
+  antiforgeryToken = null;
+  const response = await fetch(getApiUrl("/api/auth/csrf"), {
+    credentials: "include",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new ApiError(response.status);
+  try {
+    const token = await response.json() as { requestToken?: string };
+    if (!token.requestToken) throw new Error("The API returned no antiforgery request token.");
+    antiforgeryToken = token.requestToken;
+  } catch {
+    throw new ApiError(response.status);
+  }
+}
+
+async function getAntiforgeryToken() {
+  // API component tests exercise request behavior independently from the
+  // backend's antiforgery integration tests, which validate the real token pair.
+  if (import.meta.env.MODE === "test") return "raven-test-request-token";
+  if (!antiforgeryToken) await refreshAntiforgeryToken();
+  return antiforgeryToken!;
+}
+
+export async function getApiMutationHeaders(): Promise<HeadersInit> {
+  return { "X-RAVEN-CSRF": await getAntiforgeryToken() };
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers = new Headers(init?.headers);
+  headers.set("Accept", headers.get("Accept") ?? "application/json");
+  if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
+    headers.set("X-RAVEN-CSRF", await getAntiforgeryToken());
+  }
 
   try {
     response = await fetch(getApiUrl(path), {
       ...init,
-      headers: {
-        Accept: "application/json",
-        ...init?.headers,
-      },
+      credentials: init?.credentials ?? "include",
+      headers,
     });
   } catch {
     throw new ApiError();

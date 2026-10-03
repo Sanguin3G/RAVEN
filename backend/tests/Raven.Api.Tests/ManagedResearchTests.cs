@@ -31,7 +31,7 @@ public sealed class ManagedResearchTests
         })) { BaseAddress = new Uri("https://api.exa.ai") };
         var clientAdapter = new ExaAgentClient(
             client,
-            Options.Create(new ExaAgentOptions { ApiKey = "exa-test-key" }));
+            Options.Create(new ExaAgentOptions { ApiKey = "exa-test-key" }), null);
 
         var created = await clientAdapter.CreateAsync(new ManagedResearchAgentCreateRequest("Research FPT", ManagedResearchEffort.High));
         var polled = await clientAdapter.GetAsync(created.Id);

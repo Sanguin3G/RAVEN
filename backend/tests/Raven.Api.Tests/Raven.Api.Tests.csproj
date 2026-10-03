@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Raven.Api\Raven.Api.csproj" />
+    <ProjectReference Include="..\..\DemoSeed\DemoSeed.csproj" />
   </ItemGroup>
 </Project>

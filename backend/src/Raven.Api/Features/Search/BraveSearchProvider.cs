@@ -2,10 +2,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 
 namespace Raven.Api.Features.Search;
 
-public sealed class BraveSearchProvider(HttpClient httpClient, IOptions<BraveSearchOptions> options) : ISearchProvider
+public sealed class BraveSearchProvider(
+    HttpClient httpClient,
+    IOptions<BraveSearchOptions> options,
+    IProviderCredentialResolver? credentials = null) : ISearchProvider
 {
     public const string ProviderId = "brave";
     public string Id => ProviderId;
@@ -18,7 +22,11 @@ public sealed class BraveSearchProvider(HttpClient httpClient, IOptions<BraveSea
         }
 
         var configured = options.Value;
-        if (string.IsNullOrWhiteSpace(configured.ApiKey))
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveAsync(ProviderCredentialDefinitions.Brave, cancellationToken);
+        var apiKey = resolved?.Value ?? configured.ApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new ProviderException(Id, "Brave Search is not configured. Set BRAVE_SEARCH_API_KEY.", ProviderFailureKind.Configuration);
         }
@@ -42,7 +50,7 @@ public sealed class BraveSearchProvider(HttpClient httpClient, IOptions<BraveSea
         {
             using var message = new HttpRequestMessage(HttpMethod.Get, query);
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            message.Headers.Add("X-Subscription-Token", configured.ApiKey);
+            message.Headers.Add("X-Subscription-Token", apiKey);
             using var response = await httpClient.SendAsync(message, cancellationToken);
 
             if (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden)

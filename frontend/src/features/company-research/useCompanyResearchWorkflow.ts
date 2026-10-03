@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, getApiErrorMessage } from "../../api/client";
 import { getCompanyProfileCandidate, generateCompanyProfile, confirmCompanyProfile } from "../../api/profiles";
-import { createCompany, deleteCompanyPermanently, findCompanyMatches, getCompany } from "../../api/companies";
+import { createCompany, findCompanyMatches, getCompany } from "../../api/companies";
+import { archiveCompany } from "../../api/workspace";
 import {
   acquireResearchCandidates,
   cancelResearchRun,
@@ -15,67 +16,38 @@ import {
 } from "../../api/research";
 import { startManagedResearch } from "../../api/managedResearch";
 import { getResearchRunCoverage, type EvidenceCoverageResponse } from "../../api/coverage";
-import { getResearchSettings } from "../../api/settings";
 import { resolveCompanyIdentity } from "../../api/identity";
-import type { Company, CompanyMatchResponse, CreateCompanyRequest } from "../../types/company";
+import type { Company, CompanyMatchResponse } from "../../types/company";
 import type { GroundingMode, ResearchCandidate, ResearchIdentityCandidate, ResearchRun, ResearchTarget, SourceDocument } from "../../types/research";
 import type { CompanyProfileCandidate } from "../../types/profile";
 import type { IdentityOption, IdentityResolutionResponse, ResolvedIdentitySnapshot } from "../../types/identity";
-import { canPauseResearchStage, isRestorableResearch, researchProgressLabel } from "../../utils/researchProgress";
-import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch, setCurrentResearchPaused } from "../../utils/researchSession";
+import { canPauseResearchStage, isRestorableResearch } from "../../utils/researchProgress";
+import { clearCurrentResearch, readCurrentResearch, rememberCurrentResearch } from "../../utils/researchSession";
 import { upsertResearchActivity } from "../../utils/researchActivity";
 import type { CompanyResearchWorkflow, GroundingOverride, IdentityForm, WorkspaceView } from "./types";
 import { createResearchEvidenceActions } from "./researchWorkflowActions";
+import { companyRequest, initialForm, optional } from "./workflow/researchWorkflowUtils";
+import { useProfileStrengtheningWorkflow } from "./workflow/useProfileStrengtheningWorkflow";
+import { useResearchRunLifecycle } from "./workflow/useResearchRunLifecycle";
+import { useIdentityResolutionWorkflow } from "./workflow/useIdentityResolutionWorkflow";
 
-export const initialForm: IdentityForm = {
-  name: "",
-  legalName: "",
-  website: "",
-  country: "",
-  registrationNumber: "",
-  headquarters: "",
-  researchHint: "",
-};
-
-function optional(value: string) {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function companyRequest(form: IdentityForm): CreateCompanyRequest {
-  return {
-    name: form.name.trim(),
-    legalName: optional(form.legalName),
-    website: optional(form.website),
-    country: optional(form.country),
-    registrationNumber: optional(form.registrationNumber),
-    headquarters: optional(form.headquarters),
-  };
-}
+export { initialForm } from "./workflow/researchWorkflowUtils";
 
 export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   const [searchParams] = useSearchParams();
-  const [form, setForm] = useState<IdentityForm>(initialForm);
-  const [groundingOverride, setGroundingOverride] = useState<GroundingOverride>("default");
-  const [defaultGroundingMode, setDefaultGroundingMode] = useState<GroundingMode>("Auto");
+  const { form, setForm, groundingOverride, setGroundingOverride, defaultGroundingMode, matches, setMatches,
+    preflightResponse, setPreflightResponse, identityGuidance, setIdentityGuidance, identityGuidanceOpen, setIdentityGuidanceOpen,
+    selectedPreflightEntityId, setSelectedPreflightEntityId, pendingResolvedIdentity, setPendingResolvedIdentity,
+    identityCandidates, setIdentityCandidates, selectedIdentityCandidateId, setSelectedIdentityCandidateId,
+    alternateIdentityHint, setAlternateIdentityHint, identityHeadingRef, openIdentityGuidance, closeIdentityGuidance } = useIdentityResolutionWorkflow();
   const [view, setView] = useState<WorkspaceView>("identify");
   const [company, setCompany] = useState<Company | null>(null);
   const [createdCompanyForResearch, setCreatedCompanyForResearch] = useState(false);
-  const [run, setRun] = useState<ResearchRun | null>(null);
-  const [matches, setMatches] = useState<CompanyMatchResponse[]>([]);
-  const [preflightResponse, setPreflightResponse] = useState<IdentityResolutionResponse | null>(null);
-  const [identityGuidance, setIdentityGuidance] = useState<IdentityResolutionResponse | null>(null);
-  const [identityGuidanceOpen, setIdentityGuidanceOpen] = useState(false);
-  const [selectedPreflightEntityId, setSelectedPreflightEntityId] = useState<string | null>(null);
-  const [pendingResolvedIdentity, setPendingResolvedIdentity] = useState<ResolvedIdentitySnapshot | null>(null);
-  const [identityCandidates, setIdentityCandidates] = useState<ResearchIdentityCandidate[]>([]);
-  const [selectedIdentityCandidateId, setSelectedIdentityCandidateId] = useState<string | null>(null);
-  const [alternateIdentityHint, setAlternateIdentityHint] = useState("");
+  const { run, setRun, isPaused, setIsPaused, waitForDiscovery, waitForAcquisition, activityCounters, canPause, researchStatusDetail, togglePause } = useResearchRunLifecycle();
   const [candidates, setCandidates] = useState<ResearchCandidate[]>([]);
   const [sources, setSources] = useState<SourceDocument[]>([]);
   const [coverage, setCoverage] = useState<EvidenceCoverageResponse | null>(null);
-  const [strengtheningTargets, setStrengtheningTargets] = useState<ResearchTarget[]>([]);
-  const [strengthenMethod, setStrengthenMethod] = useState<"raven" | "deep" | "external">("raven");
+  const { strengtheningTargets, setStrengtheningTargets, strengthenMethod, setStrengthenMethod, toggleStrengtheningTarget } = useProfileStrengtheningWorkflow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
@@ -83,63 +55,14 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [profileCandidate, setProfileCandidate] = useState<CompanyProfileCandidate | null>(null);
   const [profileWarnings, setProfileWarnings] = useState<string[]>([]);
-  const [isPaused, setIsPaused] = useState(false);
-  const identityHeadingRef = useRef<HTMLHeadingElement>(null);
   const refreshStartedRef = useRef(false);
   const restoredRunRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    getResearchSettings()
-      .then((settings) => {
-        if (["Auto", "Always", "Off"].includes(settings.groundingMode)) setDefaultGroundingMode(settings.groundingMode);
-      })
-      .catch(() => undefined);
-  }, []);
-
-  async function waitForDiscovery(runId: string) {
-    let current = await getResearchRun(runId);
-    setRun(current);
-    while (["Identifying", "Discovering", "Grounding"].includes(current.stage) && current.status !== "Failed" && current.status !== "Cancelled") {
-      await new Promise((resolve) => window.setTimeout(resolve, 900));
-      current = await getResearchRun(runId);
-      setRun(current);
-    }
-    return current;
-  }
-
-  async function waitForAcquisition(runId: string) {
-    let current = await getResearchRun(runId);
-    setRun(current);
-    while (current.stage === "Acquiring" && current.status !== "Failed" && current.status !== "Cancelled") {
-      await new Promise((resolve) => window.setTimeout(resolve, 900));
-      current = await getResearchRun(runId);
-      setRun(current);
-    }
-    return current;
-  }
 
   const selectedCount = useMemo(() => candidates.filter((candidate) => candidate.selected).length, [candidates]);
   const coverageGaps = useMemo(() => (coverage?.items ?? [])
     .filter((item) => item.level === "Missing" || item.level === "Weak")
     .map((item) => item.target), [coverage]);
-  const activityCounters = run
-    ? {
-        queriesTotal: run.queriesTotal,
-        queriesCompleted: run.queriesCompleted,
-        searchResultsFound: run.sourcesFound,
-        uniqueCandidates: run.uniqueCandidates,
-        recommendedCandidates: run.recommendedCandidates,
-        sourcesSelected: run.sourcesSelected,
-        crawlTotal: run.crawlTotal,
-        crawlCompleted: run.crawlCompleted,
-        crawlSucceeded: run.crawlSucceeded,
-        crawlFailed: run.crawlFailed,
-        documentsAdded: run.documentsAdded,
-        duplicatesSkipped: run.duplicatesSkipped,
-      }
-    : undefined;
-  const canPause = run ? canPauseResearchStage(run.stage) : false;
-  const researchStatusDetail = run ? researchProgressLabel(run, isPaused) : null;
 
   async function loadCandidatesForRun(researchRunId: string) {
     const nextCandidates = await getResearchCandidates(researchRunId);
@@ -431,14 +354,6 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     setView("identify");
   }
 
-  function openIdentityGuidance() {
-    if (identityGuidance) setIdentityGuidanceOpen(true);
-  }
-
-  function closeIdentityGuidance() {
-    setIdentityGuidanceOpen(false);
-  }
-
   function resetResearchState() {
     setForm(initialForm);
     setGroundingOverride("default");
@@ -622,11 +537,6 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     }
   }
 
-  function togglePause() {
-    if (!run || !canPauseResearchStage(run.stage)) return;
-    const next = setCurrentResearchPaused(run.id, !isPaused);
-    setIsPaused(next?.paused === true);
-  }
 
   async function cancelCurrentResearch() {
     if (!run) return;
@@ -634,7 +544,10 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
     try {
       await cancelResearchRun(run.id);
       if (createdCompanyForResearch && company) {
-        await deleteCompanyPermanently(company.id);
+        // A Researcher may cancel the initial workflow, but permanent deletion
+        // is an Admin operation. Archive this newly-created, unaccepted row so
+        // cancellation still clears the active workspace without hard delete.
+        await archiveCompany(company.id);
       }
       clearCurrentResearch(run.id);
       resetResearchState();
@@ -668,12 +581,6 @@ export function useCompanyResearchWorkflow(): CompanyResearchWorkflow {
   function updateCandidateSelection(id: string, selected: boolean) {
     setSelectionError(null);
     setCandidates((current) => current.map((candidate) => candidate.id === id ? { ...candidate, selected } : candidate));
-  }
-
-  function toggleStrengtheningTarget(target: ResearchTarget) {
-    setStrengtheningTargets((current) => current.includes(target)
-      ? current.filter((item) => item !== target)
-      : [...current, target]);
   }
 
   function resetAfterFailure() {

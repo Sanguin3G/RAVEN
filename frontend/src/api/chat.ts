@@ -1,4 +1,4 @@
-import { ApiError, getApiUrl, request, type ProblemDetails } from "./client";
+import { ApiError, getApiMutationHeaders, getApiUrl, request, type ProblemDetails } from "./client";
 import type { ChatConversationResponse, ChatConversationSummary, SendChatMessageRequest, SendChatMessageResponse, UpdateChatCapabilitiesRequest } from "../types/chat";
 
 function companyPath(companyId: string) {
@@ -43,7 +43,8 @@ export async function sendChatMessageStream(
 ) {
   const response = await fetch(getApiUrl(`${companyPath(companyId)}/${encodeURIComponent(conversationId)}/messages/stream`), {
     method: "POST",
-    headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+    credentials: "include",
+    headers: { ...await getApiMutationHeaders(), Accept: "text/event-stream", "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     signal,
   });

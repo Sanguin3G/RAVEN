@@ -9,21 +9,26 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { StatusPage } from "./pages/StatusPage";
 import { AboutPage } from "./pages/AboutPage";
 import { HelpPage } from "./pages/HelpPage";
+import { LoginPage } from "./features/auth/LoginPage";
+import { RequireAuth } from "./features/auth/RequireAuth";
 
 export function App() {
   return (
-    <AppShell>
-      <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/companies" element={<CompanyListPage />} />
-        <Route path="/companies/new" element={<AddCompanyProfilePage />} />
-        <Route path="/companies/:id" element={<CompanyDetailPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/status" element={<StatusPage />} />
-        <Route path="/help" element={<HelpPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </AppShell>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/companies" element={<CompanyListPage />} />
+          <Route path="/companies/new" element={<AddCompanyProfilePage />} />
+          <Route path="/companies/:id" element={<CompanyDetailPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Route>
+    </Routes>
   );
 }

@@ -419,7 +419,7 @@ it("returns to the blank research form after cancelling a run", async () => {
     if (url.endsWith("/api/companies") && init?.method === "POST") return jsonResponse(company, 201);
     if (url.endsWith("/research/start")) return jsonResponse(activeRun);
     if (url.endsWith("/cancel")) return jsonResponse(cancelledRun);
-    if (url.endsWith(`/api/companies/${company.id}`) && init?.method === "DELETE") return new Response(null, { status: 204 });
+    if (url.endsWith(`/api/companies/${company.id}/archive`) && init?.method === "POST") return jsonResponse({ ...company, archivedAt: "2026-09-29T00:00:00Z" });
     if (url.endsWith(`/api/research-runs/${activeRun.id}`)) return jsonResponse(activeRun);
     if (url.endsWith("/candidates")) return jsonResponse([candidate]);
     if (url.endsWith("/api/settings/research")) return jsonResponse({ groundingMode: "Auto" });
@@ -437,5 +437,5 @@ it("returns to the blank research form after cancelling a run", async () => {
   expect(screen.getByRole("radio", { name: /Use default/ })).toBeChecked();
   expect(screen.queryByRole("button", { name: "Cancel research" })).not.toBeInTheDocument();
   expect(sessionStorage.getItem("raven-current-research")).toBeNull();
-  expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}`, expect.objectContaining({ method: "DELETE", body: JSON.stringify({ confirm: true }) }));
+  expect(fetchMock).toHaveBeenCalledWith(`/api/companies/${company.id}/archive`, expect.objectContaining({ method: "POST" }));
 });

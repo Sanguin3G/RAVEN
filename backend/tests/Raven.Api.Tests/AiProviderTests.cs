@@ -49,7 +49,7 @@ public sealed class AiProviderTests
 
         var provider = new GeminiProvider(
             client,
-            Options.Create(new GeminiOptions { ApiKey = "gemini-secret" }));
+            Options.Create(new GeminiOptions { ApiKey = "gemini-secret" }), null);
 
         var result = await provider.GenerateStructuredAsync(CreateRequest());
 
@@ -79,7 +79,7 @@ public sealed class AiProviderTests
 
         var provider = new GeminiProvider(
             client,
-            Options.Create(new GeminiOptions { ApiKey = "key", MaxEvidenceCharacters = 80 }));
+            Options.Create(new GeminiOptions { ApiKey = "key", MaxEvidenceCharacters = 80 }), null);
 
         var request = CreateRequest() with
         {
@@ -106,7 +106,7 @@ public sealed class AiProviderTests
         }))
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
 
-        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions()));
+        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions()), null);
 
         var result = await provider.GenerateStructuredAsync(CreateRequest());
 
@@ -127,7 +127,7 @@ public sealed class AiProviderTests
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
         var provider = new GeminiProvider(
             client,
-            Options.Create(new GeminiOptions { ApiKey = "gemini-secret" }));
+            Options.Create(new GeminiOptions { ApiKey = "gemini-secret" }), null);
 
         var result = await provider.GenerateStructuredAsync(CreateRequest());
 
@@ -144,7 +144,7 @@ public sealed class AiProviderTests
         {
             Content = new StringContent("""{"error":{"message":"Unknown name 'additionalProperties' at 'generationConfig.responseSchema'"}}""", Encoding.UTF8, "application/json")
         }))) { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
-        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions { ApiKey = "key" }));
+        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions { ApiKey = "key" }), null);
 
         var result = await provider.GenerateStructuredAsync(CreateRequest());
 
@@ -160,7 +160,7 @@ public sealed class AiProviderTests
         {
             Content = new StringContent("""{"error":{"message":"The service is temporarily running out of capacity."}}""", Encoding.UTF8, "application/json")
         }))) { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
-        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions { ApiKey = "key" }));
+        var provider = new GeminiProvider(client, Options.Create(new GeminiOptions { ApiKey = "key" }), null);
 
         var result = await provider.GenerateStructuredAsync(CreateRequest());
 
@@ -178,7 +178,7 @@ public sealed class AiProviderTests
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
         var rateProvider = new GeminiProvider(
             rateClient,
-            Options.Create(new GeminiOptions { ApiKey = "key" }));
+            Options.Create(new GeminiOptions { ApiKey = "key" }), null);
 
         var rateResult = await rateProvider.GenerateStructuredAsync(CreateRequest());
 
@@ -190,7 +190,7 @@ public sealed class AiProviderTests
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
         var malformedProvider = new GeminiProvider(
             malformedClient,
-            Options.Create(new GeminiOptions { ApiKey = "key" }));
+            Options.Create(new GeminiOptions { ApiKey = "key" }), null);
 
         var malformedResult = await malformedProvider.GenerateStructuredAsync(CreateRequest());
 
@@ -206,7 +206,7 @@ public sealed class AiProviderTests
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
         var socketProvider = new GeminiProvider(
             socketClient,
-            Options.Create(new GeminiOptions { ApiKey = "key" }));
+            Options.Create(new GeminiOptions { ApiKey = "key" }), null);
 
         var socketResult = await socketProvider.GenerateStructuredAsync(CreateRequest());
 
@@ -219,7 +219,7 @@ public sealed class AiProviderTests
         { BaseAddress = new Uri("https://generativelanguage.googleapis.com") };
         var ioProvider = new GeminiProvider(
             ioClient,
-            Options.Create(new GeminiOptions { ApiKey = "key" }));
+            Options.Create(new GeminiOptions { ApiKey = "key" }), null);
 
         var ioResult = await ioProvider.GenerateStructuredAsync(CreateRequest());
 

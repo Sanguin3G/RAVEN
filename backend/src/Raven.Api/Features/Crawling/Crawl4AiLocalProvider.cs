@@ -3,11 +3,15 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Raven.Api.Features.ProviderCredentials;
 using Raven.Api.Features.Search;
 
 namespace Raven.Api.Features.Crawling;
 
-public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4AiLocalOptions> options) : ICrawlerProvider
+public sealed class Crawl4AiLocalProvider(
+    HttpClient httpClient,
+    IOptions<Crawl4AiLocalOptions> options,
+    IProviderCredentialResolver? credentials = null) : ICrawlerProvider
 {
     public const string ProviderId = "crawl4ai-local";
     public string Id => ProviderId;
@@ -20,15 +24,22 @@ public sealed class Crawl4AiLocalProvider(HttpClient httpClient, IOptions<Crawl4
         }
 
         var configured = options.Value;
-        if (string.IsNullOrWhiteSpace(configured.ApiToken))
+        var resolved = credentials is null
+            ? null
+            : await credentials.ResolveCrawl4AiAsync(cancellationToken);
+        var connection = resolved ?? (string.IsNullOrWhiteSpace(configured.ApiToken)
+            ? null
+            : new Crawl4AiConnectionSettings(configured.BaseUrl, configured.ApiToken));
+        if (connection is null)
         {
             throw new ProviderException(Id, "Crawl4AI Local is not configured. Set CRAWL4AI_API_TOKEN.", ProviderFailureKind.Configuration);
         }
 
         try
         {
-            using var message = new HttpRequestMessage(HttpMethod.Post, configured.CrawlPath);
-            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configured.ApiToken);
+            var endpoint = new Uri(connection.Endpoint.TrimEnd('/') + "/", UriKind.Absolute);
+            using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(endpoint, configured.CrawlPath));
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.Token);
             message.Content = new StringContent(
                 JsonSerializer.Serialize(new { urls = new[] { request.Url }, browser_config = new { }, crawler_config = new { } }),
                 Encoding.UTF8,

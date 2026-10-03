@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Options;
 using Raven.Api.Features.Ai;
+using Raven.Api.Features.ProviderCredentials;
 using Raven.Api.Features.Research.Events;
-using Raven.Api.Features.Search;
-using Raven.Api.Features.Search.Exa;
 
 namespace Raven.Api.Features.Crawling;
 
@@ -49,19 +47,19 @@ public static class SystemEndpoints
         TypedResults.Ok(await providerHealth.GetAsync(cancellationToken));
 
     private static async Task<Ok<ProviderStatusResponse>> GetProviderStatusAsync(
-        IOptions<BraveSearchOptions> brave,
-        IOptions<GeminiOptions> gemini,
-        IOptions<ExaSearchOptions> exa,
+        IProviderCredentialResolver credentials,
         IRuntimeModelPreferences modelPreferences,
         ICrawlerStatusProbe crawlerStatusProbe,
         CancellationToken cancellationToken)
     {
+        var credentialStatuses = (await credentials.GetStatusesAsync(cancellationToken))
+            .ToDictionary(status => status.Provider, status => status.Configured, StringComparer.OrdinalIgnoreCase);
         var crawler = await crawlerStatusProbe.CheckAsync(cancellationToken);
         return TypedResults.Ok(new ProviderStatusResponse(
-            new ProviderConfigurationStatus("brave", !string.IsNullOrWhiteSpace(brave.Value.ApiKey), null, null),
-            new ProviderConfigurationStatus("crawl4ai-local", !string.IsNullOrWhiteSpace(crawler.Provider), crawler.Available, null),
-            new ProviderConfigurationStatus("gemini", !string.IsNullOrWhiteSpace(gemini.Value.ApiKey), null, modelPreferences.Current.FastModel),
-            new ProviderConfigurationStatus("exa", !string.IsNullOrWhiteSpace(exa.Value.ApiKey), null, null),
+            new ProviderConfigurationStatus("brave", credentialStatuses[ProviderCredentialDefinitions.Brave], null, null),
+            new ProviderConfigurationStatus("crawl4ai-local", credentialStatuses[ProviderCredentialDefinitions.Crawl4Ai], crawler.Available, null),
+            new ProviderConfigurationStatus("gemini", credentialStatuses[ProviderCredentialDefinitions.Gemini], null, modelPreferences.Current.FastModel),
+            new ProviderConfigurationStatus("exa", credentialStatuses[ProviderCredentialDefinitions.Exa], null, null),
             modelPreferences.Current.DeepModel));
     }
 

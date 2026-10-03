@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowDown, CaretDown } from "@phosphor-icons/react";
 import { createChatConversation, deleteChatConversation, getChatConversation, listChatConversations, sendChatMessageStream, updateChatCapabilities } from "../../api/chat";
 import {
   attachBriefingContext,
@@ -12,20 +11,21 @@ import {
   removeResearchContext,
   startManagedResearch,
   type ManagedResearchBriefPreview,
-  type ManagedResearchJob,
   type ResearchContextAttachment,
 } from "../../api/managedResearch";
 import { getBriefings, type BriefingListItem } from "../../api/briefings";
 import { getInvestigations, type Investigation } from "../../api/investigations";
 import type { ChatConversationResponse, ChatConversationSummary, ChatMessage } from "../../types/chat";
-import { hasResearchActivity, upsertResearchActivity } from "../../utils/researchActivity";
 import { chatDraftKey, getActiveChat, setActiveChat } from "./chatBrowserState";
 import { AskRavenHeader } from "./AskRavenHeader";
 import { AskRavenCapabilityMenu } from "./AskRavenCapabilityMenu";
 import { AskRavenNextActionReview, type AskRavenNextActionKind } from "./AskRavenNextActionReview";
 import { AskRavenComposer, type ComposerCapability } from "./AskRavenComposer";
 import { useSpeechInput } from "./useSpeechInput";
-import { AskRavenMessageActions, AskRavenUserMessageActions } from "./AskRavenMessageActions";
+import { AskRavenConversation } from "./AskRavenConversation";
+import { syncManagedResearchActivity, useAskRavenManagedResearch } from "./useAskRavenManagedResearch";
+import { useAskRavenResearchContext } from "./useAskRavenResearchContext";
+import { useAskRavenConversation } from "./useAskRavenConversation";
 import styles from "./ask-raven.module.css";
 
 export interface AskRavenHandoffProps {
@@ -39,68 +39,26 @@ export interface AskRavenHandoffProps {
   initialQuestion?: string | null;
 }
 
-function sourceDomain(url: string) {
-  try { return new URL(url).hostname; } catch { return url; }
-}
-
 function isIntentionalAbort(error: unknown, signal: AbortSignal) {
   return signal.aborted || (error instanceof DOMException && error.name === "AbortError");
-}
-const starterPrompts = [
-  "What does this company do?",
-  "Who are its key leaders?",
-  "Where does it operate?",
-  "What changed recently?",
-  "Show me the supporting sources.",
-];
-
-function researchInvestigationHref(companyId: string, job: ManagedResearchJob) {
-  const id = job.investigationId ?? job.id;
-  const params = new URLSearchParams({ tab: "investigations", research: id });
-  if (job.answerInChat && job.conversationId) params.set("conversation", job.conversationId);
-  return `/companies/${encodeURIComponent(companyId)}?${params.toString()}`;
-}
-
-function syncManagedResearchActivity(companyName: string, job: ManagedResearchJob) {
-  const activityId = `deep-${job.id}`;
-  if ((job.status === "Completed" || job.status === "Failed" || job.status === "Cancelled") && !hasResearchActivity(activityId)) return;
-  const terminalStatus = job.status === "Completed" ? "ready" : job.status === "Failed" || job.status === "Cancelled" ? "failed" : "running";
-  const detail = job.status === "Queued"
-    ? "Starting investigation"
-    : job.status === "Researching"
-      ? "Researching across sources"
-      : job.status === "Completed"
-        ? "Ready for review"
-        : job.status === "Cancelled"
-          ? "Research cancelled"
-          : "Deep Research could not complete";
-  upsertResearchActivity({
-    id: activityId,
-    jobId: job.id,
-    origin: "Deep",
-    companyId: job.companyId,
-    companyName,
-    objective: job.objective,
-    detail,
-    status: terminalStatus,
-    href: researchInvestigationHref(job.companyId, job),
-    updatedAt: job.completedAt || job.createdAt,
-  });
 }
 
 export function AskRavenHandoff({ companyId, companyName, profileVersion, profileVersionId, sourceCount, lastResearchedAt, initialCapability, initialQuestion }: AskRavenHandoffProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedConversationId = searchParams.get("conversation");
-  const [conversationId, setConversationId] = useState<string | null>(requestedConversationId);
-  const [conversationProfileVersionId, setConversationProfileVersionId] = useState<string | null>(null);
-  const [recentChats, setRecentChats] = useState<ChatConversationSummary[]>([]);
-  const [recentChatsOpen, setRecentChatsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { conversationId, setConversationId, conversationProfileVersionId, setConversationProfileVersionId,
+    recentChats, setRecentChats, recentChatsOpen, setRecentChatsOpen, messages, setMessages,
+    webSearchEnabled, setWebSearchEnabled, conversationLoading, setConversationLoading,
+    activeCompanyIdRef, hydratedConversationRef, skipFallbackRef, setConversationInUrl } = useAskRavenConversation({
+    companyId, requestedConversationId, searchParams, setSearchParams,
+    onCompanyChanged: () => { activeChatAbortRef.current?.abort(); localAttachmentConversationRef.current = null; setResearchContextAttachments([]); },
+    onConversationSwitch: () => { localAttachmentConversationRef.current = null; },
+    onRestoreStart: () => setError(null),
+  });
   const [question, setQuestion] = useState(() => {
     try { return localStorage.getItem(chatDraftKey(companyId, requestedConversationId)) ?? ""; } catch { return ""; }
   });
   const speech = useSpeechInput(question, setQuestion);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const [activeCapability, setActiveCapability] = useState<ComposerCapability | null>(null);
   const [deepResearchBrief, setDeepResearchBrief] = useState<ManagedResearchBriefPreview | null>(null);
@@ -108,19 +66,15 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const [deepResearchBriefEditing, setDeepResearchBriefEditing] = useState(false);
   const [deepResearchBriefLoading, setDeepResearchBriefLoading] = useState(false);
   const [deepResearchStarting, setDeepResearchStarting] = useState(false);
-  const [conversationLoading, setConversationLoading] = useState(false);
   const [capabilitySaving, setCapabilitySaving] = useState(false);
   const [pending, setPending] = useState(false);
   const [expandedSourceMessageId, setExpandedSourceMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [managedResearchJobs, setManagedResearchJobs] = useState<ManagedResearchJob[]>([]);
-  const [investigations, setInvestigations] = useState<Investigation[]>([]);
-  const [briefings, setBriefings] = useState<BriefingListItem[]>([]);
-  const [researchContextAttachments, setResearchContextAttachments] = useState<ResearchContextAttachment[]>([]);
-  const [attachingResearchId, setAttachingResearchId] = useState<string | null>(null);
-  const [investigationPickerOpen, setInvestigationPickerOpen] = useState(false);
-  const [contextDetailsOpen, setContextDetailsOpen] = useState(false);
-  const [investigationSearch, setInvestigationSearch] = useState("");
+  const { managedResearchJobs, setManagedResearchJobs, addManagedResearchJob } = useAskRavenManagedResearch(companyId, companyName);
+  const { investigations, setInvestigations, briefings, setBriefings, researchContextAttachments, setResearchContextAttachments,
+    attachingResearchId, setAttachingResearchId, investigationPickerOpen, setInvestigationPickerOpen,
+    contextDetailsOpen, setContextDetailsOpen, investigationSearch, setInvestigationSearch,
+    researchContextLoadVersionRef, localAttachmentConversationRef } = useAskRavenResearchContext(companyId, conversationId);
   const [nextActionReview, setNextActionReview] = useState<{ kind: AskRavenNextActionKind; messageId: string; value: string } | null>(null);
   const [nextActionBusy, setNextActionBusy] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -132,13 +86,8 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
   const addResearchContextActionRef = useRef<HTMLButtonElement>(null);
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
   const chatViewportRef = useRef<HTMLDivElement>(null);
-  const activeCompanyIdRef = useRef(companyId);
-  const hydratedConversationRef = useRef<string | null>(null);
-  const skipFallbackRef = useRef(false);
   const draftScopeRef = useRef(chatDraftKey(companyId, requestedConversationId));
   const skipDraftWriteRef = useRef(false);
-  const researchContextLoadVersionRef = useRef(0);
-  const localAttachmentConversationRef = useRef<string | null>(null);
   const researchBriefVersionRef = useRef(0);
   const activeChatAbortRef = useRef<AbortController | null>(null);
 
@@ -171,12 +120,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     jobs.forEach((job) => syncManagedResearchActivity(companyName, job));
   }, [companyId, companyName]);
 
-  const setConversationInUrl = (nextConversationId: string | null) => {
-    const next = new URLSearchParams(searchParams);
-    if (nextConversationId) next.set("conversation", nextConversationId);
-    else next.delete("conversation");
-    setSearchParams(next, { replace: true });
-  };
 
   const startNewConversation = () => {
     if (pending || conversationLoading) return;
@@ -251,62 +194,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     }
   };
 
-  useEffect(() => {
-    let active = true;
-    const companyChanged = activeCompanyIdRef.current !== companyId;
-    activeCompanyIdRef.current = companyId;
-    if (!companyChanged && requestedConversationId && hydratedConversationRef.current === requestedConversationId) return () => { active = false; };
-    if (!companyChanged && !requestedConversationId && (conversationId || skipFallbackRef.current)) return () => { active = false; };
-    if (companyChanged) {
-      activeChatAbortRef.current?.abort();
-      hydratedConversationRef.current = null;
-      localAttachmentConversationRef.current = null;
-      skipFallbackRef.current = false;
-      setConversationId(null);
-      setMessages([]);
-      setWebSearchEnabled(false);
-      setResearchContextAttachments([]);
-    }
-    setConversationLoading(true);
-    setError(null);
-    const restore = async () => {
-      let summaries: ChatConversationSummary[] = [];
-      try {
-        const response = await listChatConversations(companyId);
-        summaries = Array.isArray(response) ? response : [];
-        if (active) setRecentChats(summaries);
-      } catch { /* An explicit or remembered conversation can still be restored. */ }
-      const rememberedId = getActiveChat(companyId);
-      const candidates = [requestedConversationId, rememberedId, ...summaries.map((item) => item.id)]
-        .filter((id, index, ids): id is string => !!id && ids.indexOf(id) === index);
-      for (const id of candidates) {
-        try {
-          const conversation: ChatConversationResponse = await getChatConversation(companyId, id);
-          if (!active) return;
-          setConversationId(conversation.id);
-          hydratedConversationRef.current = conversation.id;
-          localAttachmentConversationRef.current = null;
-          setConversationProfileVersionId(conversation.profileVersionId);
-          setMessages(conversation.messages);
-          setWebSearchEnabled(conversation.webSearchEnabled);
-          setActiveChat(companyId, conversation.id);
-          if (requestedConversationId && requestedConversationId !== conversation.id) setConversationInUrl(conversation.id);
-          return;
-        } catch {
-          if (id === rememberedId) setActiveChat(companyId, null);
-        }
-      }
-      if (!active) return;
-      setConversationId(null);
-      hydratedConversationRef.current = null;
-      setConversationProfileVersionId(null);
-      setMessages([]);
-      setWebSearchEnabled(false);
-      if (requestedConversationId) setConversationInUrl(null);
-    };
-    void restore().finally(() => { if (active) setConversationLoading(false); });
-    return () => { active = false; };
-  }, [companyId, requestedConversationId]);
 
   useEffect(() => {
     const scope = chatDraftKey(companyId, conversationId);
@@ -393,28 +280,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     };
   }, [capabilitiesOpen]);
 
-  useEffect(() => {
-    let active = true;
-    const refreshManagedResearch = async () => {
-      try {
-        const result = await getManagedResearchJobs(companyId);
-        const jobs = Array.isArray(result) ? result : [];
-        if (!active) return;
-
-        setManagedResearchJobs(jobs);
-        jobs.forEach((job) => syncManagedResearchActivity(companyName, job));
-      } catch {
-        // Chat remains usable when the optional managed-research status endpoint
-        // is unavailable. The durable job can be discovered on a later poll.
-      }
-    };
-
-    const intervalId = window.setInterval(() => { void refreshManagedResearch(); }, 10_000);
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [companyId]);
 
   useEffect(() => {
     void refreshResearchCatalog();
@@ -424,28 +289,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
     if (investigationPickerOpen) void refreshResearchCatalog();
   }, [investigationPickerOpen, refreshResearchCatalog]);
 
-  useEffect(() => {
-    if (!conversationId) {
-      researchContextLoadVersionRef.current += 1;
-      setResearchContextAttachments([]);
-      return;
-    }
-
-    let active = true;
-    const loadVersion = ++researchContextLoadVersionRef.current;
-    void getResearchContextAttachments(companyId, conversationId)
-      .then((attachments) => {
-        if (active && loadVersion === researchContextLoadVersionRef.current && localAttachmentConversationRef.current !== conversationId) {
-          setResearchContextAttachments(attachments);
-        }
-      })
-      .catch(() => {
-        // The Chat conversation remains usable when the optional context
-        // endpoint is unavailable. Existing attachments remain local until a
-        // later conversation reload.
-      });
-    return () => { active = false; };
-  }, [companyId, conversationId]);
 
   useEffect(() => {
     const input = questionInputRef.current;
@@ -455,10 +298,6 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
       : profileVersionId ? `Ask about ${companyName}…` : "Accept a profile to ask questions…";
   }, [activeCapability, companyName, profileVersionId]);
 
-  const addManagedResearchJob = (job: ManagedResearchJob) => {
-    setManagedResearchJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
-    syncManagedResearchActivity(companyName, job);
-  };
 
   const cancelDeepResearchBrief = () => {
     if (!deepResearchBrief || deepResearchStarting) return;
@@ -751,95 +590,7 @@ export function AskRavenHandoff({ companyId, companyName, profileVersion, profil
         Newer Company Profile available. <button type="button" onClick={startNewConversation}>Start new chat with current profile</button>
       </div> : null}
 
-      <div className={styles.chatViewportShell}>
-      <div ref={chatViewportRef} className={styles.chatViewport} aria-live="polite" aria-label="Ask RAVEN conversation" onScroll={updateLatestVisibility}>
-        {messages.length === 0 && !deepResearchBrief && !deepResearchBriefLoading ? <div className={styles.chatEmptyState}>
-          <span className={styles.chatEmptyMark} aria-hidden="true">✦</span>
-          <strong>{profileVersionId ? "Ask about this company" : "Accept a profile first"}</strong>
-          <p>{profileVersionId ? "Answers are grounded in the accepted profile and its evidence." : "Ask RAVEN and Deep Research in chat require an accepted company profile."}</p>
-          {profileVersionId ? <div className={styles.starterList} aria-label="Suggested questions">
-            {starterPrompts.map((prompt) => <button className={styles.starterPrompt} key={prompt} type="button" onClick={() => { setQuestion(prompt); questionInputRef.current?.focus(); }}>{prompt}</button>)}
-          </div> : null}
-        </div> : messages.map((message, messageIndex) => (
-          <article key={message.id} className={`${styles.chatMessage} ${message.role === "User" ? `${styles.chatMessageUser} chat-message-user${editingMessageId === message.id ? ` ${styles.chatMessageEditing}` : ""}` : styles.chatMessageAssistant}`}>
-            <span className={styles.chatMessageRole}>{message.role === "User" ? "You" : "RAVEN"}</span>
-            {message.role === "User" && editingMessageId === message.id ? <div className={styles.inlineMessageEdit}>
-              <label className="sr-only" htmlFor={`edit-${message.id}`}>Edit message and send again</label>
-              <textarea id={`edit-${message.id}`} autoFocus value={editingMessageText} onChange={(event) => setEditingMessageText(event.target.value)} rows={3} />
-              <small>Sends as a new message; the original remains in history.</small>
-              <div><button type="button" onClick={() => { setEditingMessageId(null); setEditingMessageText(""); }}>Cancel</button><button type="button" disabled={!editingMessageText.trim()} onClick={submitEditedMessage}>Send</button></div>
-            </div> : message.content ? <p>{message.content}</p> : null}
-            {message.followUpQuestion ? <p className={styles.chatFollowUp}>{message.followUpQuestion}</p> : null}
-            {message.citations.length > 0 ? <>
-              <button className={styles.sourceToggle} type="button" aria-expanded={expandedSourceMessageId === message.id} onClick={() => setExpandedSourceMessageId((current) => current === message.id ? null : message.id)}>
-                <span>Sources</span><CaretDown className={styles.sourceChevron} size={13} aria-hidden="true" />
-              </button>
-              {expandedSourceMessageId === message.id ? <section className={styles.sourceList} aria-label="Sources used for this answer">
-                {message.citations.map((citation) => <a key={citation.briefingVersionId ?? citation.investigationId ?? citation.webEvidenceSnapshotId ?? citation.sourceDocumentId ?? citation.url} className={styles.sourceItem} href={citation.url} target={citation.origin === "Investigation" || citation.origin === "Briefing" ? undefined : "_blank"} rel={citation.origin === "Investigation" || citation.origin === "Briefing" ? undefined : "noreferrer"}>
-                  <span>{citation.origin === "Investigation" ? "Investigation" : citation.origin === "Briefing" ? "Briefing" : citation.origin === "Web" ? "Web source" : "Profile source"}</span>
-                  <strong>{citation.title ?? citation.fieldPath ?? sourceDomain(citation.url)}</strong>
-                  {citation.origin === "Web" || citation.origin === "Profile" ? <small>{sourceDomain(citation.url)}</small> : null}
-                </a>)}
-              </section> : null}
-            </> : null}
-            {message.role === "Assistant" && message.status === "Completed" ? <div className={styles.messageNextActions} aria-label="Continue this answer">
-              {message.citations.some((citation) => citation.origin === "Briefing") ? <a href={message.citations.find((citation) => citation.origin === "Briefing")?.url}>Open briefing</a> : null}
-              {message.answerStatus === "InsufficientEvidence" || message.answerStatus === "ClarificationRequired" ? <button type="button" onClick={() => { setCapabilitiesOpen(true); setInvestigationPickerOpen(true); }}>Add research context</button> : null}
-              {!webSearchEnabled && message.answerStatus === "InsufficientEvidence" ? <button type="button" onClick={() => {
-                const priorQuestion = messages.slice(0, messageIndex).reverse().find((item) => item.role === "User")?.content;
-                const related = (priorQuestion || `company updates for ${companyName}`).trim().slice(0, 3_500);
-                setNextActionReview({ kind: "latest", messageId: message.id, value: `Search current public information about: ${related}` });
-              }}>Search the web</button> : null}
-              {message.citations.some((citation) => citation.origin === "Briefing" || citation.origin === "Web") ? <button type="button" onClick={() => {
-                const priorQuestion = messages.slice(0, messageIndex).reverse().find((item) => item.role === "User")?.content;
-                const related = (priorQuestion || `the current research about ${companyName}`).trim().slice(0, 3_500);
-                setNextActionReview({ kind: "research", messageId: message.id, value: `Investigate in depth: ${related}` });
-              }}>Research further</button> : null}
-              {message.answerStatus === "Answered" && !message.citations.some((citation) => citation.origin === "Briefing" || citation.origin === "Web") ? <button type="button" onClick={() => {
-                const priorQuestion = messages.slice(0, messageIndex).reverse().find((item) => item.role === "User")?.content;
-                const related = (priorQuestion || `company updates for ${companyName}`).trim().slice(0, 3_500);
-                setNextActionReview({ kind: "latest", messageId: message.id, value: `Search current public information about: ${related}` });
-              }}>Search latest</button> : null}
-            </div> : null}
-            {nextActionReview?.messageId === message.id ? <AskRavenNextActionReview kind={nextActionReview.kind} value={nextActionReview.value} busy={nextActionBusy}
-              onChange={(value) => setNextActionReview((current) => current?.messageId === message.id ? { ...current, value } : current)}
-              onCancel={() => setNextActionReview(null)} onConfirm={() => void confirmNextAction()} /> : null}
-            {message.role === "Assistant" && message.status === "Completed" ? <AskRavenMessageActions messageId={message.id} content={message.content} createdAt={message.createdAt} disabled={pending}
-              onRetry={() => retryMessage(messages.slice(0, messageIndex).reverse().find((item) => item.role === "User")?.content ?? "")} /> : null}
-            {message.role === "User" && editingMessageId !== message.id ? <AskRavenUserMessageActions content={message.content} createdAt={message.createdAt} disabled={pending}
-              onRetry={() => retryMessage(message.content)} onEdit={() => beginEditingMessage(message)} /> : null}
-          </article>
-        ))}
-        {deepResearchBriefLoading ? <div className={styles.researchBriefPreparing} role="status">Preparing research question…</div> : null}
-        {deepResearchBrief ? <section className={styles.researchBriefCard} data-testid="deep-research-brief" aria-labelledby="deep-research-brief-heading">
-          <header className={styles.researchBriefHeader}>
-            <h3 id="deep-research-brief-heading">Review question</h3>
-            <button type="button" className="button button--quiet" aria-label={deepResearchBriefEditing ? "Done editing" : "Edit question"} onClick={() => setDeepResearchBriefEditing((editing) => !editing)} disabled={deepResearchStarting}>
-              {deepResearchBriefEditing ? "Done" : "Edit"}
-            </button>
-          </header>
-          <div className={styles.researchBriefContext} aria-label="Research context">
-            <span className={styles.researchBriefCompany} title={companyName}><strong>Company:</strong> {companyName}</span>
-            <span className={styles.researchBriefProfile}>{profileVersionId && profileVersion ? `v${profileVersion} · ${sourceCount} sources` : "Identity only"}</span>
-          </div>
-          <div className={styles.researchBriefRecord}>
-            {deepResearchBriefEditing ? <label className={styles.researchBriefEditor}>Question
-              <textarea aria-label="Research question" value={deepResearchBrief.question} onChange={(event) => setDeepResearchBrief((current) => current ? { ...current, question: event.target.value } : current)} rows={3} maxLength={4_000} />
-            </label> : <p className={styles.researchBriefQuestion}>{deepResearchBrief.question}</p>}
-          </div>
-          <footer className={styles.researchBriefActions}>
-            <button type="button" className="button button--quiet" onClick={cancelDeepResearchBrief} disabled={deepResearchStarting}>Cancel</button>
-            <button type="button" className="button button--ai" onClick={() => void startDeepResearchBrief()} disabled={deepResearchStarting || deepResearchBriefEditing}>{deepResearchStarting ? "Starting…" : "Start Deep Research"}</button>
-          </footer>
-        </section> : null}
-        {pending ? <div className={styles.chatSystemMessage} role="status">{[...messages].reverse().find((message) => message.role === "Assistant" && message.status === "Pending")?.activity ?? "RAVEN is preparing an answer…"}</div> : null}
-        {deepResearchStarting ? <div className={styles.chatSystemMessage} role="status">Starting Deep Research in the background...</div> : null}
-        {managedResearchJobs.some((job) => job.answerInChat && job.conversationId === conversationId && (job.status === "Queued" || job.status === "Researching")) ? <div className={styles.chatSystemMessage} role="status">Deep Research is running. RAVEN will answer from the Investigation when it is ready.</div> : null}
-        {error ? <div className={styles.chatSystemMessage} role="alert">{error}</div> : null}
-        {speech.error ? <div className={styles.chatSystemMessage} role="alert">{speech.error}</div> : null}
-      </div>
-      {showLatest ? <button type="button" className={styles.latestButton} onClick={() => chatViewportRef.current?.scrollTo({ top: chatViewportRef.current.scrollHeight, behavior: "smooth" })}><ArrowDown size={14} aria-hidden="true" /> Latest</button> : null}
-      </div>
+      <AskRavenConversation chatViewportRef={chatViewportRef} updateLatestVisibility={updateLatestVisibility} messages={messages} deepResearchBrief={deepResearchBrief} deepResearchBriefLoading={deepResearchBriefLoading} profileVersionId={profileVersionId} profileVersion={profileVersion} sourceCount={sourceCount} companyName={companyName} setQuestion={setQuestion} questionInputRef={questionInputRef} expandedSourceMessageId={expandedSourceMessageId} setExpandedSourceMessageId={setExpandedSourceMessageId} editingMessageId={editingMessageId} editingMessageText={editingMessageText} setEditingMessageId={setEditingMessageId} setEditingMessageText={setEditingMessageText} submitEditedMessage={submitEditedMessage} pending={pending} retryMessage={retryMessage} beginEditingMessage={beginEditingMessage} nextActionReview={nextActionReview} setNextActionReview={setNextActionReview} nextActionBusy={nextActionBusy} confirmNextAction={confirmNextAction} setCapabilitiesOpen={setCapabilitiesOpen} setInvestigationPickerOpen={setInvestigationPickerOpen} webSearchEnabled={webSearchEnabled} deepResearchBriefEditing={deepResearchBriefEditing} setDeepResearchBriefEditing={setDeepResearchBriefEditing} setDeepResearchBrief={setDeepResearchBrief} deepResearchStarting={deepResearchStarting} cancelDeepResearchBrief={cancelDeepResearchBrief} startDeepResearchBrief={startDeepResearchBrief} managedResearchJobs={managedResearchJobs} conversationId={conversationId} error={error} speechError={speech.error} showLatest={showLatest} />
 
       <AskRavenComposer
         companyName={companyName}
