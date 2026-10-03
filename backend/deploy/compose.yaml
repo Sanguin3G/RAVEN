@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Only trust forwarded headers when the API is private behind this proxy.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__Raven: Data Source=/app/data/raven.db
+      RAVEN_DATA_PROTECTION_PATH: /app/data/keys
+      RAVEN_SEED_DATABASE: ${RAVEN_SEED_DATABASE:-false}
+      RAVEN_DEMO_MODE: ${RAVEN_DEMO_MODE:-false}
+      RAVEN_BOOTSTRAP_ADMIN_EMAIL: ${RAVEN_BOOTSTRAP_ADMIN_EMAIL:?Set the initial Admin email}
+      RAVEN_BOOTSTRAP_ADMIN_PASSWORD: ${RAVEN_BOOTSTRAP_ADMIN_PASSWORD:?Set the initial Admin password}
+      RAVEN_CREDENTIAL_MASTER_KEY: ${RAVEN_CREDENTIAL_MASTER_KEY:?Set a Base64 32-byte encryption key}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      EXA_API_KEY: ${EXA_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_MAPS_EMBED_API_KEY: ${GOOGLE_MAPS_EMBED_API_KEY:-}
+      CRAWL4AI_LOCAL_BASE_URL: ${CRAWL4AI_LOCAL_BASE_URL:-http://host.docker.internal:11235}
+      CRAWL4AI_API_TOKEN: ${CRAWL4AI_API_TOKEN:-}
+      CRAWL4AI_CLOUD_RUN_AUDIENCE: ${CRAWL4AI_CLOUD_RUN_AUDIENCE:-}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - raven-data:/app/data
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      RAVEN_API_ORIGIN: http://api:8080
+    ports:
+      - "127.0.0.1:${RAVEN_FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      - api
+
+volumes:
+  raven-data:

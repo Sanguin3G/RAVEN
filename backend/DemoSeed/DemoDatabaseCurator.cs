@@ -480,6 +480,9 @@ public static partial class DemoDatabaseCurator
         var journalMode = (string?)await command.ExecuteScalarAsync(cancellationToken);
         if (!string.Equals(journalMode, "delete", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Could not finalize the database as a standalone SQLite file.");
+        // Deleted rows can remain in free pages. Rebuild before distributing an artifact.
+        command.CommandText = "VACUUM";
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task ValidateSqliteIntegrityAsync(string path, CancellationToken cancellationToken)

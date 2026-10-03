@@ -12,5 +12,6 @@ RUN mkdir -p /app/data && chown -R "$APP_UID" /app/data
 USER $APP_UID
 ENV ASPNETCORE_HTTP_PORTS=8080
 ENV ConnectionStrings__Raven="Data Source=/app/data/raven.db"
+ENV RAVEN_DATA_PROTECTION_PATH=/app/data/keys
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Raven.Api.dll"]
